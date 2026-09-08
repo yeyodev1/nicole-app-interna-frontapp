@@ -15,6 +15,10 @@ export interface Requisition {
   requestedBy: string
   requestedByName: string
   area: string
+  /** MANUAL o POS_CLOSING (generado por el cierre de producción del punto de venta) */
+  source?: 'MANUAL' | 'POS_CLOSING'
+  branch?: string
+  closingDate?: string
   brand?: string
   neededForDate?: string
   items: RequisitionItem[]

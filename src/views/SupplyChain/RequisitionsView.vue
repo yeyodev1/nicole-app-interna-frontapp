@@ -156,6 +156,7 @@ onMounted(fetchRequisitions)
           <div>
             <strong>{{ req.area }}</strong>
             <span v-if="req.brand" class="brand-chip">{{ req.brand }}</span>
+            <span v-if="req.source === 'POS_CLOSING'" class="brand-chip source-chip" title="Generado automáticamente desde el cierre de producción del punto de venta">Cierre POS</span>
           </div>
           <span class="badge" :class="`badge--${req.status.toLowerCase()}`">{{ statusLabel[req.status] }}</span>
         </div>
@@ -501,4 +502,8 @@ onMounted(fetchRequisitions)
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+.source-chip {
+  background: #e8f1ff;
+  color: #1d4ed8;
+}
 </style>
