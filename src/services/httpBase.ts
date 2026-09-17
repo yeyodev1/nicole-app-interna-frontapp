@@ -156,6 +156,12 @@ class APIBase {
           status: error.response.status,
           message: error.response.data?.message || error.message,
           data: error.response.data,
+          // Se conserva `response` porque casi todas las vistas leen el motivo del
+          // fallo como `e.response?.data?.message`. Sin este campo ese acceso daba
+          // `undefined` y el usuario veía siempre el texto genérico ("Error
+          // processing order"), tapando mensajes reales como el del vendedor que no
+          // está en el catálogo de la empresa del pedido.
+          response: error.response,
         }
       }
 
@@ -193,6 +199,12 @@ class APIBase {
           status: error.response.status,
           message: error.response.data?.message || error.message,
           data: error.response.data,
+          // Se conserva `response` porque casi todas las vistas leen el motivo del
+          // fallo como `e.response?.data?.message`. Sin este campo ese acceso daba
+          // `undefined` y el usuario veía siempre el texto genérico ("Error
+          // processing order"), tapando mensajes reales como el del vendedor que no
+          // está en el catálogo de la empresa del pedido.
+          response: error.response,
         }
       }
       throw { status: 500, message: 'Unknown error' }
@@ -222,6 +234,12 @@ class APIBase {
           status: error.response.status,
           message: error.response.data?.message || error.message,
           data: error.response.data,
+          // Se conserva `response` porque casi todas las vistas leen el motivo del
+          // fallo como `e.response?.data?.message`. Sin este campo ese acceso daba
+          // `undefined` y el usuario veía siempre el texto genérico ("Error
+          // processing order"), tapando mensajes reales como el del vendedor que no
+          // está en el catálogo de la empresa del pedido.
+          response: error.response,
         }
       }
 
@@ -241,6 +259,12 @@ class APIBase {
           status: error.response.status,
           message: error.response.data?.message || error.message,
           data: error.response.data,
+          // Se conserva `response` porque casi todas las vistas leen el motivo del
+          // fallo como `e.response?.data?.message`. Sin este campo ese acceso daba
+          // `undefined` y el usuario veía siempre el texto genérico ("Error
+          // processing order"), tapando mensajes reales como el del vendedor que no
+          // está en el catálogo de la empresa del pedido.
+          response: error.response,
         }
       }
 
@@ -260,6 +284,12 @@ class APIBase {
           status: error.response.status,
           message: error.response.data?.message || error.message,
           data: error.response.data,
+          // Se conserva `response` porque casi todas las vistas leen el motivo del
+          // fallo como `e.response?.data?.message`. Sin este campo ese acceso daba
+          // `undefined` y el usuario veía siempre el texto genérico ("Error
+          // processing order"), tapando mensajes reales como el del vendedor que no
+          // está en el catálogo de la empresa del pedido.
+          response: error.response,
         }
       }
 
@@ -280,6 +310,12 @@ class APIBase {
           status: error.response.status,
           message: error.response.data?.message || error.message,
           data: error.response.data,
+          // Se conserva `response` porque casi todas las vistas leen el motivo del
+          // fallo como `e.response?.data?.message`. Sin este campo ese acceso daba
+          // `undefined` y el usuario veía siempre el texto genérico ("Error
+          // processing order"), tapando mensajes reales como el del vendedor que no
+          // está en el catálogo de la empresa del pedido.
+          response: error.response,
         }
       }
 

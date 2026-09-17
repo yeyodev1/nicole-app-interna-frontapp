@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { isPrecioIvaIncluido } from '@/constants/pricing'
 
 const props = defineProps<{
   products: any[],
@@ -16,8 +17,7 @@ const subtotalBruto = computed(() => {
 const ivaTotal = computed(() => {
   // Rough estimate based on products (excluding delivery which is usually 0%)
   return props.products.reduce((sum, p) => {
-    const isDelivery = p.name && p.name.toLowerCase().includes('delivery')
-    if (isDelivery) return sum
+    if (isPrecioIvaIncluido(p)) return sum
 
     let discount = p.isCourtesy ? 100 : 0
     if (props.isGlobalCourtesy) {

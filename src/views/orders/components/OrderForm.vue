@@ -15,7 +15,9 @@ import DeliveryPersonFormModal from '@/components/modals/DeliveryPersonFormModal
 
 const props = defineProps<{
   modelValue: OrderFormData,
-  isEditMode?: boolean
+  isEditMode?: boolean,
+  /** Cuenta de Contífico del carrito. `null` mientras no haya productos. */
+  contificoSource?: 'nicole' | 'sucree' | null
 }>()
 
 const dialog = useDialog()
@@ -23,6 +25,23 @@ const toast = useToast()
 const { branchNames, load: loadBranches } = useBranches()
 const BRANCHES = branchNames
 const { activeSellers, load: loadSellers } = useSellers()
+
+// El vendedor tiene que ser de la misma cuenta que el pedido: el backend valida la
+// cédula contra el catálogo filtrando por `contificoSource`, así que ofrecer los de
+// la otra empresa sólo produce un 400 al guardar.
+const sellersForSource = computed(() => {
+  if (!props.contificoSource) return activeSellers.value
+  return activeSellers.value.filter(s => s.contificoSource === props.contificoSource)
+})
+
+// Si el carrito cambia de empresa, el vendedor ya elegido deja de ser válido.
+watch(sellersForSource, (list) => {
+  const current = props.modelValue.sellerIdentification
+  if (current && !list.some(s => s.identification === current)) {
+    props.modelValue.sellerIdentification = undefined
+    props.modelValue.sellerName = undefined
+  }
+})
 
 const isDelivery = computed(() => props.modelValue.deliveryType === 'delivery')
 
@@ -48,7 +67,7 @@ onMounted(() => {
 // sin tener que volver a consultar el catálogo.
 const handleSellerChange = (e: Event) => {
   const identification = (e.target as HTMLSelectElement).value
-  const seller = activeSellers.value.find(s => s.identification === identification)
+  const seller = sellersForSource.value.find(s => s.identification === identification)
   props.modelValue.sellerIdentification = seller?.identification
   props.modelValue.sellerName = seller?.name
 }
@@ -257,7 +276,7 @@ const onRucInput = () => {
         <label>Vendedor a cargo</label>
         <select :value="props.modelValue.sellerIdentification || ''" @change="handleSellerChange">
           <option value="">Sin vendedor asignado</option>
-          <option v-for="seller in activeSellers" :key="seller._id" :value="seller.identification">
+          <option v-for="seller in sellersForSource" :key="seller._id" :value="seller.identification">
             {{ seller.name }}
           </option>
         </select>

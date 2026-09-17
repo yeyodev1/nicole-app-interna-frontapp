@@ -8,6 +8,7 @@ import { useToast } from '@/composables/useToast'
 // Components
 import OrderProductSelector from './components/OrderProductSelector.vue'
 import OrderForm from './components/OrderForm.vue'
+import { isPrecioIvaIncluido } from '@/constants/pricing'
 import OrderCart from './components/OrderCart.vue'
 import OrderWhatsAppModal from './components/OrderWhatsAppModal.vue'
 import OrderConfirmationModal from './components/OrderConfirmationModal.vue'
@@ -99,9 +100,8 @@ watch([cart, () => formData.globalDiscountPercentage, () => formData.isGlobalCou
   }, 0)
 
   const iva = newCart.reduce((sum, item) => {
-    // Delivery items have 0% IVA
-    const isDelivery = item.name && item.name.toLowerCase().includes('delivery')
-    if (isDelivery) return sum
+    // Delivery y Torta Personalizada ya traen el IVA en el precio tecleado
+    if (isPrecioIvaIncluido(item)) return sum
 
     let itemDiscount = item.isCourtesy ? 100 : 0
     if (discount && discount > 0 && itemDiscount < 100) {
@@ -253,7 +253,7 @@ const executeOrderAction = async () => {
       showWhatsAppModal.value = true
     }
   } catch (e: any) {
-    showError(e.response?.data?.message || 'Error processing order. Please try again.')
+    showError(e.response?.data?.message || e.message || 'Error processing order. Please try again.')
     console.error(e)
   } finally {
     isSubmitting.value = false
@@ -420,7 +420,7 @@ onMounted(async () => {
 
       <!-- Right Column: Order Details & Cart -->
       <section class="order-form-section">
-        <OrderForm v-model="formData" :is-edit-mode="isEditMode" />
+        <OrderForm v-model="formData" :is-edit-mode="isEditMode" :contifico-source="activeCartSource" />
         
         <OrderCart 
           :cart="cart" 
