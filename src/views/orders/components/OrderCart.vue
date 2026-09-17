@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { CartItem } from '@/types/order'
+import { isPrecioIvaIncluido } from '@/constants/pricing'
 
 const props = defineProps<{
   cart: CartItem[]
@@ -34,8 +35,7 @@ const cartIVA = computed(() => {
   if (props.isGlobalCourtesy) return 0
 
   return props.cart.reduce((totalIVA, item) => {
-    const isDelivery = item.name.toLowerCase().includes('delivery')
-    if (isDelivery) return totalIVA
+    if (isPrecioIvaIncluido(item)) return totalIVA
 
     let price = item.price
     if (props.globalDiscountPercentage && props.globalDiscountPercentage > 0 && !item.isCourtesy) {
@@ -49,8 +49,7 @@ const cartIVA = computed(() => {
 const savings = computed(() => {
   const originalSubtotal = props.cart.reduce((total, item) => total + (item.price * item.quantity), 0)
   const originalIVA = props.cart.reduce((totalIVA, item) => {
-    const isDelivery = item.name.toLowerCase().includes('delivery')
-    return isDelivery ? totalIVA : totalIVA + (item.price * item.quantity * 0.15)
+    return isPrecioIvaIncluido(item) ? totalIVA : totalIVA + (item.price * item.quantity * 0.15)
   }, 0)
 
   const originalTotal = originalSubtotal + originalIVA
