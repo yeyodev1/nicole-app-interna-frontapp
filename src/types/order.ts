@@ -122,6 +122,24 @@ export interface OrderFormData {
   exitPoint?: string
 }
 
+/** Estado de gestión de los pedidos que llegan de la tienda online. */
+export type WebOrderStatus = 'PENDIENTE_GESTION' | 'GESTIONADO'
+
+/** Datos propios de un pedido creado desde la tienda online. */
+export interface WebOrderInfo {
+  externalId: string
+  code?: string
+  customerEmail?: string
+  customerIdNumber?: string
+  paymentMethod?: 'Payphone' | 'Transferencia' | string
+  paymentStatus?: 'PAID' | 'PENDING_VERIFICATION'
+  paymentReference?: string
+  deliveryReference?: string
+  receivedAt?: string
+  managedAt?: string
+  managedBy?: string
+}
+
 export interface Order extends OrderFormData {
   _id: string
   orderDate: string
@@ -144,4 +162,8 @@ export interface Order extends OrderFormData {
   updatedAt: string
   // History of payments
   payments?: Payment[]
+  /** Estado general. Pedidos web: 'PENDIENTE_GESTION' → 'GESTIONADO'. */
+  status?: WebOrderStatus | string
+  /** Sólo en pedidos de la tienda online. */
+  webOrder?: WebOrderInfo
 }
