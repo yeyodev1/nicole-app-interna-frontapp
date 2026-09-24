@@ -3,7 +3,7 @@ import OrderService from '@/services/order.service'
 import { getECTTodayString, getECTNow } from '@/utils/dateUtils'
 import { useToast } from '@/composables/useToast'
 
-export type FilterMode = 'today' | 'yesterday' | 'tomorrow' | 'all' | 'custom' | 'invoiceError' | 'unbilled' | 'returns'
+export type FilterMode = 'today' | 'yesterday' | 'tomorrow' | 'all' | 'custom' | 'invoiceError' | 'unbilled' | 'returns' | 'webPending'
 export type DateType = 'deliveryDate' | 'createdAt'
 
 export function useOrderFilters() {
@@ -17,6 +17,18 @@ export function useOrderFilters() {
   const dateType = ref<DateType>('deliveryDate')
   const customDate = ref('')
   const searchQuery = ref('')
+
+  // Pedidos de la tienda online pendientes de gestionar (badge del filtro)
+  const webPendingCount = ref(0)
+
+  const fetchWebPendingCount = async () => {
+    try {
+      const data = await OrderService.getOrders({ webPending: 'true' })
+      webPendingCount.value = Array.isArray(data) ? data.length : 0
+    } catch {
+      // silencioso: es sólo el contador del filtro
+    }
+  }
 
   // Check if we are in a mode that supports specific date selection
   const showDatePicker = computed(() => {
@@ -39,7 +51,10 @@ export function useOrderFilters() {
       const today = getECTNow()
       const todayStr = getECTTodayString()
 
-      if (filterMode.value === 'invoiceError') {
+      if (filterMode.value === 'webPending') {
+        // Todos los pedidos web por gestionar, sin importar la fecha
+        filters.webPending = 'true'
+      } else if (filterMode.value === 'invoiceError') {
         filters.invoiceStatus = 'ERROR'
         if (!searchQuery.value && customDate.value) {
           filters.startDate = customDate.value
@@ -79,6 +94,7 @@ export function useOrderFilters() {
       }
       // When searchQuery is set in non-status modes, no date filter is applied (global search)
 
+      fetchWebPendingCount()
       const data = await OrderService.getOrders(filters)
       orders.value = data
     } catch (error) {
@@ -123,6 +139,8 @@ export function useOrderFilters() {
     customDate,
     searchQuery,
     showDatePicker,
-    fetchOrders
+    fetchOrders,
+    webPendingCount,
+    fetchWebPendingCount
   }
 }
