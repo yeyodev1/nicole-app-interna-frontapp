@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import CustomDatePicker from '@/components/ui/CustomDatePicker.vue'
 
-export type FilterMode = 'today' | 'yesterday' | 'tomorrow' | 'all' | 'custom' | 'invoiceError' | 'unbilled' | 'returns'
+export type FilterMode = 'today' | 'yesterday' | 'tomorrow' | 'all' | 'custom' | 'invoiceError' | 'unbilled' | 'returns' | 'webPending'
 export type DateType = 'deliveryDate' | 'createdAt'
 
 const props = defineProps<{
@@ -12,6 +12,8 @@ const props = defineProps<{
   showDatePicker: boolean
   showSelectAll: boolean
   isSelectAllActive: boolean
+  /** Pedidos de la tienda online por gestionar. */
+  webPendingCount?: number
 }>()
 
 const emit = defineEmits<{
@@ -44,6 +46,20 @@ const emit = defineEmits<{
             @keyup.enter="emit('search')"
           />
         </div>
+      </div>
+
+      <!-- Tienda online -->
+      <div class="nav-section">
+        <span class="section-label">Tienda online</span>
+        <button
+          class="nav-pill pill-web"
+          :class="{ active: filterMode === 'webPending', 'has-pending': (webPendingCount || 0) > 0 }"
+          @click="emit('update:filterMode', 'webPending')"
+        >
+          <i class="fas fa-shopping-bag"></i>
+          <span class="pill-text">Web por gestionar</span>
+          <span v-if="(webPendingCount || 0) > 0" class="pill-count">{{ webPendingCount }}</span>
+        </button>
       </div>
 
       <!-- Period -->
@@ -257,6 +273,31 @@ const emit = defineEmits<{
   &.pill-error {
     &:hover { background: #fef2f2; color: #dc2626; i { color: #dc2626; } }
     &.active { background: #fef2f2; color: #dc2626; font-weight: 700; i { color: #dc2626; } }
+  }
+
+  &.pill-web {
+    .pill-text { flex: 1; }
+
+    .pill-count {
+      min-width: 20px;
+      padding: 1px 7px;
+      border-radius: 10px;
+      background: #490F57;
+      color: white;
+      font-size: 0.72rem;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    &.has-pending {
+      background: #f5eef7;
+      color: #490F57;
+      font-weight: 700;
+      i { color: #490F57; }
+    }
+
+    &:hover { background: #efe3f2; color: #490F57; i { color: #490F57; } }
+    &.active { background: #490F57; color: white; font-weight: 700; i { color: white; } .pill-count { background: white; color: #490F57; } }
   }
 
   &.pill-warning {
