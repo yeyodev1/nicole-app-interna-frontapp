@@ -373,6 +373,10 @@ const formatDate = (dateString: string, timeString?: string) => {
 
 const getChannelParams = (channel: string) => {
   const norm = (channel || '').toLowerCase()
+  // Pedidos de la tienda online: badge propio (antes de la regla de 'web')
+  if (norm === 'tienda online') {
+    return { class: 'tienda-online', label: 'Tienda Online', icon: 'fas fa-shopping-bag' }
+  }
   if (norm.includes('whatsapp') || norm.includes('wsp') || norm.includes('ws') || norm.includes('web')) {
     return { class: 'whatsapp', label: 'WhatsApp', icon: 'fab fa-whatsapp' }
   }
@@ -1306,6 +1310,11 @@ $color-danger: #e74c3c;
   &.default {
     background: #f1f2f6;
     color: #7f8c8d;
+  }
+
+  &.tienda-online {
+    background: rgba(#490F57, 0.1);
+    color: #490F57;
   }
 }
 

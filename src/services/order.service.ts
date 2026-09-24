@@ -49,12 +49,23 @@ class OrderService extends APIBase {
     }
   }
 
-  async getOrders(filters?: { search?: string, startDate?: string, endDate?: string, dateType?: 'deliveryDate' | 'createdAt', dispatchStatus?: string }): Promise<any[]> {
+  async getOrders(filters?: { search?: string, startDate?: string, endDate?: string, dateType?: 'deliveryDate' | 'createdAt', dispatchStatus?: string, webPending?: 'true', salesChannel?: string }): Promise<any[]> {
     try {
       const response = await this.get<any[]>('orders', undefined, { params: filters })
       return response.data
     } catch (error) {
       console.error('Error fetching orders:', error)
+      throw error
+    }
+  }
+
+  /** Pedido de la tienda online → status GESTIONADO. */
+  async markWebOrderManaged(id: string): Promise<any> {
+    try {
+      const response = await this.patch<any>(`orders/${id}/web-managed`, {})
+      return response.data
+    } catch (error) {
+      console.error('Error marking web order as managed:', error)
       throw error
     }
   }

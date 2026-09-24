@@ -18,6 +18,7 @@ import OrderDeleteModal from './components/OrderDeleteModal.vue'
 import OrderDeliveryAssign from './components/OrderDeliveryAssign.vue'
 import OrderAuditTimeline from './components/OrderAuditTimeline.vue'
 import OrderLocationEditModal from './components/OrderLocationEditModal.vue'
+import OrderWebInfo from './components/OrderWebInfo.vue'
 import { useRouter } from 'vue-router'
 
 const route = useRoute()
@@ -293,6 +294,28 @@ const handleReturnOrder = async () => {
   }
 }
 
+// Pedido de la tienda online → gestionado
+const isMarkingManaged = ref(false)
+
+const handleMarkWebManaged = async () => {
+  if (!order.value) return
+  const confirmed = await dialog.confirm(
+    `¿Marcar el pedido web ${order.value.webOrder?.code || ''} de "${order.value.customerName}" como gestionado?\n\nDejará de aparecer en "Web por gestionar".`,
+    { title: 'Marcar como gestionado', confirmLabel: 'Sí, gestionado', cancelLabel: 'Cancelar', variant: 'info' }
+  )
+  if (!confirmed) return
+  isMarkingManaged.value = true
+  try {
+    await OrderService.markWebOrderManaged(order.value._id)
+    success('Pedido web marcado como gestionado.')
+    await fetchOrder()
+  } catch (err: any) {
+    showError(err.data?.message || err.message || 'Error al marcar el pedido como gestionado')
+  } finally {
+    isMarkingManaged.value = false
+  }
+}
+
 // Modal State
 const locationModal = ref({
   isOpen: false,
@@ -425,6 +448,14 @@ onUnmounted(() => {
 
         <!-- Details Sidebar -->
         <section class="side-info">
+          <OrderWebInfo
+            v-if="order.webOrder?.externalId"
+            :web-order="order.webOrder"
+            :status="order.status"
+            :is-saving="isMarkingManaged"
+            @mark-managed="handleMarkWebManaged"
+          />
+
           <OrderDeliveryAssign
             v-if="order.deliveryType === 'delivery'"
             :order="order"

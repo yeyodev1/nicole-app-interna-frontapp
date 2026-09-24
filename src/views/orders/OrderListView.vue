@@ -36,7 +36,8 @@ const {
   customDate,
   searchQuery,
   showDatePicker,
-  fetchOrders
+  fetchOrders,
+  webPendingCount
 } = useOrderFilters()
 
 const {
@@ -410,6 +411,7 @@ onUnmounted(() => {
         :show-date-picker="showDatePicker"
         :show-select-all="(filterMode === 'invoiceError' || filterMode === 'unbilled') && orders.length > 0"
         :is-select-all-active="selectedOrderIds.size === orders.length && orders.length > 0"
+        :web-pending-count="webPendingCount"
         @search="fetchOrders"
         @toggle-select-all="toggleSelectAll(orders)"
         @export-production="handleExportProductionClick"
@@ -433,6 +435,20 @@ onUnmounted(() => {
         </div>
         <button @click="fetchOrders" class="btn-refresh" :disabled="isLoading" title="Actualizar">
           <i class="fas fa-sync-alt" :class="{ 'fa-spin': isLoading }"></i>
+        </button>
+      </div>
+
+      <!-- Pedidos de la tienda online por gestionar -->
+      <div v-if="webPendingCount > 0 && filterMode !== 'webPending'" class="web-pending-banner">
+        <div class="web-pending-info">
+          <i class="fas fa-shopping-bag"></i>
+          <span>
+            <strong>{{ webPendingCount }}</strong>
+            {{ webPendingCount === 1 ? 'pedido de la tienda online pendiente' : 'pedidos de la tienda online pendientes' }} de gestionar
+          </span>
+        </div>
+        <button class="btn-web-pending" @click="filterMode = 'webPending'">
+          Ver pedidos
         </button>
       </div>
 
@@ -633,6 +649,45 @@ onUnmounted(() => {
 </template>
 
 <style lang="scss" scoped>
+/* Aviso de pedidos de la tienda online por gestionar */
+.web-pending-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  background: #f5eef7;
+  border: 1px solid #e4d3e9;
+  border-left: 4px solid #490F57;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  color: #490F57;
+  font-size: 0.9rem;
+
+  .web-pending-info {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+
+    i { font-size: 1rem; }
+  }
+
+  .btn-web-pending {
+    background: #490F57;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.45rem 0.9rem;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.2s;
+
+    &:hover { background: #350b40; }
+  }
+}
+
 /* ── Layout ────────────────────────────────────────────── */
 .orders-layout {
   display: flex;

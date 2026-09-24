@@ -78,6 +78,7 @@ const props = defineProps<{
   }
 
   .comments {
+    white-space: pre-line;
     background: #fffbeb;
     color: #92400e;
     padding: 0.75rem;

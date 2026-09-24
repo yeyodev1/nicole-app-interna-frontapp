@@ -63,6 +63,16 @@ const getPaymentStatus = (order: any) => {
   return 'pending'
 }
 
+// Pedidos de la tienda online
+const isWebOrder = (order: any) => !!order.webOrder?.externalId || order.salesChannel === 'Tienda Online'
+
+const getWebPayment = (order: any) => {
+  const status = order.webOrder?.paymentStatus
+  if (status === 'PAID') return { label: 'Pagado', class: 'paid', icon: 'fas fa-check-circle' }
+  if (status === 'PENDING_VERIFICATION') return { label: 'Transferencia por verificar', class: 'verify', icon: 'fas fa-hourglass-half' }
+  return null
+}
+
 // Handler wrappers to stop propagation where needed
 const handleRetry = () => emit('retry-invoice')
 </script>
@@ -73,7 +83,8 @@ const handleRetry = () => emit('retry-invoice')
     :class="{
       'selecting': isSelected,
       'invoice-processed': order.invoiceStatus === 'PROCESSED',
-      'invoice-error': order.invoiceStatus === 'ERROR'
+      'invoice-error': order.invoiceStatus === 'ERROR',
+      'web-pending': order.status === 'PENDIENTE_GESTION'
     }"
     @click="emit('click')"
   >
@@ -121,6 +132,24 @@ const handleRetry = () => emit('retry-invoice')
       </div>
       <span class="type-badge" :class="order.deliveryType">
         {{ order.deliveryType === 'delivery' ? 'Delivery' : 'Retiro' }}
+      </span>
+    </div>
+
+    <!-- Tienda online -->
+    <div v-if="isWebOrder(order)" class="web-row">
+      <span class="web-badge channel" :title="order.webOrder?.code ? `Pedido web ${order.webOrder.code}` : 'Pedido de la tienda online'">
+        <i class="fas fa-shopping-bag"></i>
+        Tienda Online
+        <span v-if="order.webOrder?.code" class="web-code">{{ order.webOrder.code }}</span>
+      </span>
+      <span v-if="order.status === 'PENDIENTE_GESTION'" class="web-badge pending">
+        <i class="fas fa-bell"></i> Pendiente de gestionar
+      </span>
+      <span v-else-if="order.status === 'GESTIONADO'" class="web-badge managed" :title="order.webOrder?.managedBy ? `Gestionado por ${order.webOrder.managedBy}` : ''">
+        <i class="fas fa-check"></i> Gestionado
+      </span>
+      <span v-if="getWebPayment(order)" class="web-badge payment" :class="getWebPayment(order)!.class">
+        <i :class="getWebPayment(order)!.icon"></i> {{ getWebPayment(order)!.label }}
       </span>
     </div>
 
@@ -315,6 +344,11 @@ const handleRetry = () => emit('retry-invoice')
   /* Styles for invoice error */
   &.invoice-error {
     border-left: 4px solid #ef4444;
+  }
+
+  /* Pedido de la tienda online sin gestionar */
+  &.web-pending:not(.invoice-error):not(.invoice-processed) {
+    border-left: 4px solid #f59e0b;
   }
 
   &.selecting {
@@ -734,6 +768,63 @@ const handleRetry = () => emit('retry-invoice')
   i {
     font-size: 0.85rem;
     flex-shrink: 0;
+  }
+}
+
+.web-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: -0.35rem 0;
+}
+
+.web-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 20px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+
+  i { font-size: 0.7rem; }
+
+  &.channel {
+    background: #490F57;
+    color: white;
+
+    .web-code {
+      font-weight: 600;
+      opacity: 0.8;
+      letter-spacing: 0.3px;
+    }
+  }
+
+  &.pending {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #fde68a;
+  }
+
+  &.managed {
+    background: #f1f5f9;
+    color: #64748b;
+    border-color: #e2e8f0;
+    font-weight: 600;
+  }
+
+  &.payment.paid {
+    background: #f0fdf4;
+    color: #15803d;
+    border-color: #bbf7d0;
+  }
+
+  &.payment.verify {
+    background: #fff7ed;
+    color: #c2410c;
+    border-color: #fed7aa;
   }
 }
 
