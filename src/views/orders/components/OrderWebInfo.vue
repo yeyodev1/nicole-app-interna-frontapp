@@ -15,6 +15,17 @@ const emit = defineEmits<{
 const isPending = computed(() => props.status === 'PENDIENTE_GESTION')
 const isManaged = computed(() => props.status === 'GESTIONADO')
 
+const originLine = computed(() => {
+  const { originBranch, deliveryKm } = props.webOrder
+  if (!originBranch) return ''
+  return `Sale desde ${originBranch}${typeof deliveryKm === 'number' ? ` · ${deliveryKm} km` : ''}`
+})
+
+// El cobro de Payphone todavía no se registra solo: hay que hacerlo al facturar.
+const isPayphonePaid = computed(
+  () => props.webOrder.paymentMethod === 'Payphone' && props.webOrder.paymentStatus === 'PAID'
+)
+
 const payment = computed(() => {
   const method = props.webOrder.paymentMethod || '—'
   if (props.webOrder.paymentStatus === 'PAID') return { label: `${method} · Pagado`, class: 'paid' }
@@ -60,6 +71,14 @@ const formatDateTime = (value?: string) => {
     <div class="field" v-if="webOrder.paymentReference">
       <label>Referencia de pago</label>
       <p class="mono">{{ webOrder.paymentReference }}</p>
+    </div>
+    <p v-if="isPayphonePaid" class="payphone-alert">
+      <i class="fas fa-exclamation-triangle"></i>
+      Pagado con Payphone (ref {{ webOrder.paymentReference || '—' }}). Registra el cobro al facturar.
+    </p>
+    <div class="field" v-if="originLine">
+      <label>Despacho</label>
+      <p>{{ originLine }}</p>
     </div>
     <div class="field" v-if="webOrder.deliveryReference">
       <label>Referencia de entrega</label>
@@ -200,6 +219,23 @@ const formatDateTime = (value?: string) => {
   &.verify {
     background: #fff7ed;
     color: #c2410c;
+  }
+}
+
+.payphone-alert {
+  margin: 0 0 0.85rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+
+  i {
+    color: #d97706;
+    margin-right: 0.25rem;
   }
 }
 
