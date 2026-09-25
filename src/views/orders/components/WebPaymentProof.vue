@@ -1,19 +1,42 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { WebOrderInfo } from '@/types/order'
+import WebTransferReview from './WebTransferReview.vue'
 
-/** Comprobante de transferencia que el cliente subió en la tienda online (por verificar). */
-const props = defineProps<{ webOrder: WebOrderInfo }>()
+/**
+ * Comprobante de transferencia que el cliente subió en la tienda online. Por verificar
+ * (y con el pedido cargado) muestra las acciones de ventas; pagado, el estado de la factura.
+ */
+const props = defineProps<{
+  webOrder: WebOrderInfo
+  order?: { _id: string; invoiceData?: { ruc?: string; businessName?: string }; invoiceStatus?: string; totalValue?: number }
+}>()
+const emit = defineEmits<{ (e: 'updated'): void }>()
 
 const isTransfer = computed(() => props.webOrder.paymentMethod === 'Transferencia')
 const isPaid = computed(() => props.webOrder.paymentStatus === 'PAID')
 const proofUrl = computed(() => props.webOrder.paymentProofUrl || '')
+const paidLabel = computed(() => {
+  const status = props.order?.invoiceStatus
+  if (status === 'PROCESSED') return 'Pagado · Facturado'
+  if (status === 'ERROR') return 'Pagado · la factura tuvo un error'
+  if (status === 'PENDING') return 'Pagado · factura en cola'
+  return 'Pago verificado'
+})
 </script>
 
 <template>
   <div v-if="isTransfer" class="field proof">
     <label>Comprobante de transferencia</label>
-    <div v-if="proofUrl" class="proof-row">
+    <WebTransferReview
+      v-if="!isPaid && order"
+      :order-id="order._id"
+      :web-order="webOrder"
+      :invoice-data="order.invoiceData"
+      :total-value="order.totalValue"
+      @updated="emit('updated')"
+    />
+    <div v-else-if="proofUrl" class="proof-row">
       <a :href="proofUrl" target="_blank" rel="noopener" class="proof-thumb" title="Ver comprobante">
         <img :src="proofUrl" alt="Comprobante de transferencia" loading="lazy" />
       </a>
@@ -21,14 +44,14 @@ const proofUrl = computed(() => props.webOrder.paymentProofUrl || '')
         <span v-if="!isPaid" class="proof-chip review">
           <i class="fas fa-receipt"></i> Comprobante recibido · por verificar
         </span>
-        <span v-else class="proof-chip ok"><i class="fas fa-check"></i> Pago verificado</span>
+        <span v-else class="proof-chip ok"><i class="fas fa-check"></i> {{ paidLabel }}</span>
         <a :href="proofUrl" target="_blank" rel="noopener" class="proof-link">
           <i class="fas fa-external-link-alt"></i> Ver comprobante
         </a>
       </div>
     </div>
     <p v-else-if="!isPaid" class="proof-chip none"><i class="fas fa-clock"></i> Sin comprobante todavía</p>
-    <p v-else class="proof-chip ok"><i class="fas fa-check"></i> Pago verificado</p>
+    <p v-else class="proof-chip ok"><i class="fas fa-check"></i> {{ paidLabel }}</p>
   </div>
 </template>
 

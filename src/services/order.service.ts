@@ -59,6 +59,24 @@ class OrderService extends APIBase {
     }
   }
 
+  /**
+   * Pedido web por transferencia: registra el cobro TRA con el comprobante y deja la
+   * factura en cola; con invoiceNow la emite en el momento (Contífico + SRI).
+   */
+  async confirmWebTransfer(
+    id: string,
+    body: { invoiceNow?: boolean; withoutProof?: boolean; reference?: string } = {}
+  ): Promise<{ message: string; invoiced?: boolean; order: any }> {
+    const response = await this.post<any>(`orders/${id}/web-transfer/confirm`, body)
+    return response.data
+  }
+
+  /** Rechaza el comprobante del pedido web: la tienda le pide otro al cliente. */
+  async rejectWebTransferProof(id: string, reason: string): Promise<{ message: string; order: any }> {
+    const response = await this.post<any>(`orders/${id}/web-transfer/reject-proof`, { reason })
+    return response.data
+  }
+
   /** Pedido de la tienda online → status GESTIONADO. */
   async markWebOrderManaged(id: string): Promise<any> {
     try {

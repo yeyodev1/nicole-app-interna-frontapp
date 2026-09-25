@@ -454,7 +454,9 @@ onUnmounted(() => {
             :web-order="order.webOrder"
             :status="order.status"
             :is-saving="isMarkingManaged"
+            :order="order"
             @mark-managed="handleMarkWebManaged"
+            @updated="fetchOrder"
           />
 
           <OrderDeliveryAssign
