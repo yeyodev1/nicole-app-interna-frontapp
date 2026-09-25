@@ -62,6 +62,8 @@ export interface InvoiceData {
   address: string
   // Tipo de persona para la factura electrónica SRI
   personType?: 'natural' | 'juridica'
+  /** Teléfono para la factura (pedidos web v7). */
+  phone?: string
 }
 
 export interface Payment {
@@ -131,6 +133,8 @@ export interface WebOrderInfo {
   code?: string
   customerEmail?: string
   customerIdNumber?: string
+  /** Quien compró (v7); customerName/customerPhone del pedido son de quien recibe/retira. */
+  buyer?: { name?: string; phone?: string }
   paymentMethod?: 'Payphone' | 'Transferencia' | string
   paymentStatus?: 'PAID' | 'PENDING_VERIFICATION'
   paymentReference?: string

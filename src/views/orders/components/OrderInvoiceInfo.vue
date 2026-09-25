@@ -294,6 +294,10 @@ const personTypeMismatch = computed(() => {
         <span class="inv-field-label"><i class="fas fa-map-marker-alt"></i> Dirección</span>
         <span class="inv-field-value">{{ invoiceData.address }}</span>
       </div>
+      <div v-if="invoiceData.phone" class="inv-field">
+        <span class="inv-field-label"><i class="fas fa-phone"></i> Teléfono</span>
+        <span class="inv-field-value">{{ invoiceData.phone }}</span>
+      </div>
     </div>
     <div v-else-if="!invoiceNeeded" class="inv-empty">
       <i class="fas fa-file-slash"></i>
