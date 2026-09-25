@@ -8,6 +8,8 @@ const props = defineProps<{
   globalDiscountPercentage?: number,
   isGlobalCourtesy?: boolean,
   deliveryValue?: number
+  /** Pedido de la tienda online: marca los ítems que no se pueden facturar aún. */
+  isWebOrder?: boolean
 }>()
 
 const subtotalBruto = computed(() => {
@@ -50,6 +52,11 @@ const ivaTotal = computed(() => {
              <td>
                {{ item.name }}
                <span v-if="item.isCourtesy" class="badge-courtesy">Cortesía</span>
+               <span
+                 v-if="isWebOrder && !item.contifico_id"
+                 class="badge-unlinked"
+                 title="Edítalo y elígelo del catálogo antes de facturar"
+               >Sin código Contífico</span>
              </td>
              <td class="text-right">${{ item.price.toFixed(2) }}</td>
              <td class="text-center">{{ item.quantity }}</td>
@@ -159,6 +166,18 @@ const ivaTotal = computed(() => {
   margin-left: 6px;
   vertical-align: middle;
   font-weight: 700;
+}
+
+.badge-unlinked {
+  background-color: #fee2e2;
+  color: #b91c1c;
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  margin-left: 6px;
+  vertical-align: middle;
+  font-weight: 700;
+  cursor: help;
 }
 
 .text-success {
