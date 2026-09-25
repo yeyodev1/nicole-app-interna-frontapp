@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { WebOrderInfo } from '@/types/order'
+import WebPaymentProof from './WebPaymentProof.vue'
 
 const props = defineProps<{
   webOrder: WebOrderInfo
@@ -68,6 +69,7 @@ const formatDateTime = (value?: string) => {
       <label>Pago</label>
       <p><span class="payment-chip" :class="payment.class">{{ payment.label }}</span></p>
     </div>
+    <WebPaymentProof :web-order="webOrder" />
     <div class="field" v-if="webOrder.paymentReference">
       <label>Referencia de pago</label>
       <p class="mono">{{ webOrder.paymentReference }}</p>
