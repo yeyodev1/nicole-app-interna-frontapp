@@ -424,6 +424,7 @@ onUnmounted(() => {
             :globalDiscountPercentage="order.globalDiscountPercentage"
             :isGlobalCourtesy="order.isGlobalCourtesy"
             :deliveryValue="order.deliveryValue"
+            :isWebOrder="!!order.webOrder?.externalId"
           />
 
           <!-- Payments History -->

@@ -27,6 +27,8 @@ const isCourtesyMode = ref(false)
 const isEditMode = ref(false)
 const editingOrderId = ref<string | null>(null)
 const originalOrder = ref<OrderFormData | null>(null)
+// Pedido de la tienda online en edición: llega sin motorizado ni link de Maps obligatorios.
+const isWebOrderEdit = ref(false)
 
 // Form Data - Strictly Typed
 const formData = reactive<OrderFormData>({
@@ -191,8 +193,10 @@ const onCartSubmit = () => {
   }
   if (formData.deliveryType === 'delivery') {
     if (!formData.deliveryAddress) { showError("Dirección de entrega es obligatoria para Delivery"); return; }
-    if (!formData.googleMapsLink) { showError("Link de Google Maps es obligatorio para Delivery"); return; }
-    if (!formData.deliveryPerson?.personId) { showError("Debe seleccionar un motorizado para pedidos con envío."); return; }
+    if (!isWebOrderEdit.value) {
+      if (!formData.googleMapsLink) { showError("Link de Google Maps es obligatorio para Delivery"); return; }
+      if (!formData.deliveryPerson?.personId) { showError("Debe seleccionar un motorizado para pedidos con envío."); return; }
+    }
   }
 
   if (formData.invoiceNeeded) {
@@ -321,6 +325,7 @@ onMounted(async () => {
     editingOrderId.value = editId
     try {
       const order = await OrderService.getOrder(editId)
+      isWebOrderEdit.value = !!order.webOrder?.externalId
 
       // Map back to formData
       Object.assign(formData, {

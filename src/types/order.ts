@@ -135,6 +135,9 @@ export interface WebOrderInfo {
   paymentStatus?: 'PAID' | 'PENDING_VERIFICATION'
   paymentReference?: string
   deliveryReference?: string
+  /** Km en ruta y sucursal de salida que calculó la tienda (solo delivery). */
+  deliveryKm?: number
+  originBranch?: string
   receivedAt?: string
   managedAt?: string
   managedBy?: string
