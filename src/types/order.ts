@@ -138,6 +138,9 @@ export interface WebOrderInfo {
   /** Km en ruta y sucursal de salida que calculó la tienda (solo delivery). */
   deliveryKm?: number
   originBranch?: string
+  /** Foto del comprobante de transferencia que subió el cliente en la tienda. */
+  paymentProofUrl?: string
+  paymentProofAt?: string
   receivedAt?: string
   managedAt?: string
   managedBy?: string
