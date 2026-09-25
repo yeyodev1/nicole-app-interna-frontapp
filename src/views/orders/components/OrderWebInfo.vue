@@ -7,10 +7,13 @@ const props = defineProps<{
   webOrder: WebOrderInfo
   status?: string
   isSaving?: boolean
+  /** Pedido completo: la transferencia se confirma y factura desde aquí. */
+  order?: { _id: string; invoiceData?: { ruc?: string; businessName?: string }; invoiceStatus?: string; totalValue?: number }
 }>()
 
 const emit = defineEmits<{
   (e: 'mark-managed'): void
+  (e: 'updated'): void
 }>()
 
 const isPending = computed(() => props.status === 'PENDIENTE_GESTION')
@@ -69,7 +72,7 @@ const formatDateTime = (value?: string) => {
       <label>Pago</label>
       <p><span class="payment-chip" :class="payment.class">{{ payment.label }}</span></p>
     </div>
-    <WebPaymentProof :web-order="webOrder" />
+    <WebPaymentProof :web-order="webOrder" :order="order" @updated="emit('updated')" />
     <div class="field" v-if="webOrder.paymentReference">
       <label>Referencia de pago</label>
       <p class="mono">{{ webOrder.paymentReference }}</p>

@@ -141,6 +141,8 @@ export interface WebOrderInfo {
   /** Foto del comprobante de transferencia que subió el cliente en la tienda. */
   paymentProofUrl?: string
   paymentProofAt?: string
+  /** Último comprobante rechazado desde la app interna (se limpia cuando el cliente sube otro). */
+  proofRejected?: { reason?: string; at: string; by?: string }
   receivedAt?: string
   managedAt?: string
   managedBy?: string
