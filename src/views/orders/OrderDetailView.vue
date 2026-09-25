@@ -19,6 +19,7 @@ import OrderDeliveryAssign from './components/OrderDeliveryAssign.vue'
 import OrderAuditTimeline from './components/OrderAuditTimeline.vue'
 import OrderLocationEditModal from './components/OrderLocationEditModal.vue'
 import OrderWebInfo from './components/OrderWebInfo.vue'
+import WebOrderContacts from './components/WebOrderContacts.vue'
 import { useRouter } from 'vue-router'
 
 const route = useRoute()
@@ -457,6 +458,13 @@ onUnmounted(() => {
             :order="order"
             @mark-managed="handleMarkWebManaged"
             @updated="fetchOrder"
+          />
+          <WebOrderContacts
+            v-if="order.webOrder?.buyer"
+            :web-order="order.webOrder"
+            :customer-name="order.customerName"
+            :customer-phone="order.customerPhone"
+            :delivery-type="order.deliveryType"
           />
 
           <OrderDeliveryAssign
