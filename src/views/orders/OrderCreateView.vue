@@ -36,7 +36,8 @@ const isWebOrderEdit = ref(false)
 // Venta con link cuyo cliente aún no elige fecha ni dirección: se editan productos/cobro, no la entrega.
 const isClientLinkPendingEdit = ref(false)
 const originalDeliveryDate = ref('')
-const schedule = useScheduleRules()
+// El asesor puede agendar para hoy (el link del cliente sigue desde mañana).
+const schedule = useScheduleRules({ allowToday: true })
 
 // Recomendación de la venta con link (se puede ocultar)
 const readBannerHidden = () => {
