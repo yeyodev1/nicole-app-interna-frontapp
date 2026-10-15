@@ -39,7 +39,18 @@ function addDays(ymd: string, days: number): string {
   return date.toISOString().slice(0, 10)
 }
 
-export function useScheduleRules() {
+/** Hora actual en Ecuador como "HH:MM" (UTC-5 fijo, igual que el resto de la app). */
+function nowECTime(): string {
+  const d = new Date(Date.now() - 5 * 3600 * 1000)
+  return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`
+}
+
+/**
+ * `allowToday`: el pedido manual del asesor puede ser para hoy (en horario y a una
+ * hora que todavía no pasó). El link del cliente y la web siguen desde mañana.
+ */
+export function useScheduleRules(options: { allowToday?: boolean } = {}) {
+  const allowToday = !!options.allowToday
   const load = () => {
     if (_settings.value || _loading) return _loading ?? Promise.resolve()
     const url = settingsUrl()
@@ -75,12 +86,22 @@ export function useScheduleRules() {
   const closedWeekdays = computed(() => _settings.value?.closedWeekdays ?? [])
 
   /** Primer día que se puede elegir, YYYY-MM-DD en hora de Ecuador. */
-  const minDate = computed(() => addDays(getECTTodayString(), minLeadDays.value))
+  const minDate = computed(() => (allowToday ? getECTTodayString() : addDays(getECTTodayString(), minLeadDays.value)))
+
+  const isToday = (date?: string) => !!date && date === getECTTodayString()
+
+  /** Horarios que todavía se pueden elegir ese día (hoy: solo los que no pasaron). */
+  const slotsFor = (date?: string) => {
+    if (!allowToday || !isToday(date)) return timeSlots.value
+    const now = nowECTime()
+    return timeSlots.value.filter(t => t > now)
+  }
 
   /** Texto para el asesor, igual de claro que el que ve el cliente. */
   const ruleText = computed(() => {
     const first = timeSlots.value[0]?.replace(':', 'h') ?? '11h00'
     const last = timeSlots.value[timeSlots.value.length - 1]?.replace(':', 'h') ?? '19h00'
+    if (allowToday) return `Entregas entre ${first} y ${last}. Puedes agendar para hoy si la hora aún no pasa.`
     if (minLeadDays.value === 0) return `Entregas entre ${first} y ${last}.`
     const desde = minLeadDays.value === 1 ? 'desde mañana' : `con ${minLeadDays.value} días de anticipación`
     return `No hacemos entregas el mismo día: ${desde}, entre ${first} y ${last}.`
@@ -93,8 +114,9 @@ export function useScheduleRules() {
     const weekday = new Date(`${date}T12:00:00Z`).getUTCDay()
     if (closedWeekdays.value.includes(weekday)) return 'Ese día no hacemos entregas. Elige otra fecha.'
     if (time && !timeSlots.value.includes(time)) return `Elige un horario entre ${timeSlots.value[0]} y ${timeSlots.value[timeSlots.value.length - 1]}.`
+    if (allowToday && isToday(date) && time && time <= nowECTime()) return 'Esa hora ya pasó. Elige una hora más tarde o mañana.'
     return null
   }
 
-  return { load, minLeadDays, timeSlots, minDate, ruleText, validate }
+  return { load, minLeadDays, timeSlots, minDate, ruleText, validate, isToday, slotsFor }
 }
