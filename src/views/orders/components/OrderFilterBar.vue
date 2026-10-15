@@ -194,8 +194,8 @@ const emit = defineEmits<{
 .nav-section {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  margin-bottom: 1rem;
+  gap: 0.3rem;
+  margin-bottom: 1.15rem;
 }
 
 .section-label {
@@ -234,8 +234,8 @@ const emit = defineEmits<{
 
     &:focus {
       background: white;
-      border-color: #8b5cf6;
-      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.12);
+      border-color: $NICOLE-PURPLE;
+      box-shadow: 0 0 0 3px rgba($NICOLE-PURPLE, 0.12);
     }
 
     &::placeholder { color: #94a3b8; }
@@ -251,10 +251,10 @@ const emit = defineEmits<{
 .nav-pill {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.55rem;
   width: 100%;
-  padding: 0.44rem 0.65rem;
-  border-radius: 7px;
+  padding: 0.5rem 0.7rem;
+  border-radius: 9px;
   border: none;
   background: transparent;
   color: #475569;
@@ -280,10 +280,11 @@ const emit = defineEmits<{
   }
 
   &.active {
-    background: #ede9fe;
-    color: #7c3aed;
+    background: rgba($NICOLE-PURPLE, 0.1);
+    color: $NICOLE-PURPLE;
     font-weight: 700;
-    i { color: #7c3aed; }
+    box-shadow: inset 3px 0 0 $NICOLE-PURPLE;
+    i { color: $NICOLE-PURPLE; }
   }
 
   &.pill-error {
@@ -343,7 +344,7 @@ const emit = defineEmits<{
 
     &.active {
       background: white;
-      color: #7c3aed;
+      color: $NICOLE-PURPLE;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     }
 
@@ -358,16 +359,16 @@ const emit = defineEmits<{
   width: 100%;
   padding: 0.5rem 0.65rem;
   border-radius: 7px;
-  border: 1px dashed #c4b5fd;
-  background: #faf5ff;
-  color: #7c3aed;
+  border: 1px dashed rgba($NICOLE-PURPLE, 0.4);
+  background: rgba($NICOLE-PURPLE, 0.04);
+  color: $NICOLE-PURPLE;
   font-size: 0.855rem;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s;
   box-sizing: border-box;
 
-  &:hover { background: #ede9fe; }
+  &:hover { background: rgba($NICOLE-PURPLE, 0.1); }
 }
 
 .btn-export {
