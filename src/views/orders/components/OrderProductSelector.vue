@@ -2,12 +2,15 @@
 import { ref, onMounted } from 'vue'
 import ProductService from '@/services/product.service'
 import OrderProductCard from './OrderProductCard.vue'
+import OrderProductRow from './OrderProductRow.vue'
 import type { Product } from '@/types/order'
 import { getOfficialName } from '@/services/productMapping.service'
 
 const props = defineProps<{
   // Fuente activa del carrito (null = carrito vacío, sin restricción)
   activeCartSource?: 'nicole' | 'sucree' | null
+  /** Lista compacta (sin fotos), para la venta con link. */
+  compact?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -107,7 +110,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="products-section">
+  <section class="products-section" :class="{ compact }">
     <div class="search-bar">
       <input
         v-model="searchTerm"
@@ -159,6 +162,16 @@ onMounted(() => {
         <p>Cargando productos...</p>
       </div>
 
+      <div v-else-if="products.length > 0 && compact" class="products-list">
+        <OrderProductRow
+          v-for="product in products"
+          :key="`${product.source}-${product.id}`"
+          :product="product"
+          :is-blocked="isProductBlocked(product)"
+          @add="handleAddAttempt"
+        />
+      </div>
+
       <div v-else-if="products.length > 0" class="products-grid">
         <OrderProductCard
           v-for="product in products"
@@ -186,6 +199,20 @@ onMounted(() => {
 </template>
 
 <style lang="scss" scoped>
+.products-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.compact {
+  padding: 0;
+
+  .search-bar {
+    margin-bottom: 0.75rem;
+  }
+}
+
 .products-section {
   padding: 1.5rem;
 }
