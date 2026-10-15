@@ -29,7 +29,7 @@ const toast = useToast()
 const { branchNames, load: loadBranches } = useBranches()
 const BRANCHES = branchNames
 const { activeSellers, load: loadSellers } = useSellers()
-const schedule = useScheduleRules()
+const schedule = useScheduleRules({ allowToday: true })
 
 // El vendedor tiene que ser de la misma cuenta que el pedido: el backend valida la
 // cédula contra el catálogo filtrando por `contificoSource`, así que ofrecer los de
@@ -160,10 +160,10 @@ const QUICK_TIMES = [
   { label: 'Tarde', time: '16:00' },
   { label: 'Cierre', time: '19:00' }
 ]
-const quickTimes = computed(() => QUICK_TIMES.filter(qt => schedule.timeSlots.value.includes(qt.time)))
+const quickTimes = computed(() => QUICK_TIMES.filter(qt => schedule.slotsFor(props.modelValue.deliveryDate).includes(qt.time)))
 
 const timeOptions = computed(() => {
-  const slots = isDirectPickup.value ? FREE_SLOTS : schedule.timeSlots.value
+  const slots = isDirectPickup.value ? FREE_SLOTS : schedule.slotsFor(props.modelValue.deliveryDate)
   // En edición, si el pedido tenía otra hora, se conserva en la lista.
   const current = props.modelValue.deliveryTime
   return current && props.isEditMode && !slots.includes(current) ? [...slots, current].sort() : slots
@@ -300,6 +300,9 @@ const onRucInput = () => {
         <small class="hint schedule-hint">
           <i class="fa-regular fa-clock"></i>
           {{ isDirectPickup ? 'Retiro directo de tienda: puede ser hoy, a cualquier hora.' : schedule.ruleText.value }}
+          <strong v-if="!isDirectPickup && schedule.isToday(props.modelValue.deliveryDate)" class="today-note">
+            Pedido para hoy: avisa a producción.
+          </strong>
         </small>
       </div>
 
@@ -561,6 +564,12 @@ const onRucInput = () => {
 </template>
 
 <style lang="scss" scoped>
+.today-note {
+  display: block;
+  margin-top: 0.25rem;
+  color: #b45309;
+}
+
 .form-group .hint.schedule-hint {
   color: #6d28d9;
   display: flex;
