@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import ProductService from '@/services/product.service'
 import OrderProductCard from './OrderProductCard.vue'
 import OrderProductRow from './OrderProductRow.vue'
@@ -11,7 +11,15 @@ const props = defineProps<{
   activeCartSource?: 'nicole' | 'sucree' | null
   /** Lista compacta (sin fotos), para la venta con link. */
   compact?: boolean
+  /** Oculta el producto "Delivery": en la venta con link el envío va en su propio paso. */
+  hideDelivery?: boolean
 }>()
+
+const visibleProducts = computed(() =>
+  props.hideDelivery
+    ? products.value.filter(p => !/delivery|env[ií]o/i.test(p.nombre || ''))
+    : products.value
+)
 
 const emit = defineEmits<{
   (e: 'add-to-cart', product: Product): void
@@ -164,7 +172,7 @@ onMounted(() => {
 
       <div v-else-if="products.length > 0 && compact" class="products-list">
         <OrderProductRow
-          v-for="product in products"
+          v-for="product in visibleProducts"
           :key="`${product.source}-${product.id}`"
           :product="product"
           :is-blocked="isProductBlocked(product)"
