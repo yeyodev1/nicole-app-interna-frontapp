@@ -10,7 +10,34 @@ import { isPrecioIvaIncluido } from '@/constants/pricing'
 const props = defineProps<{
   product: Product
   isBlocked?: boolean
+  /** Texto buscado: se resalta en el nombre. */
+  highlight?: string
 }>()
+
+/** Nombre partido en tramos, marcando los que coinciden con la búsqueda (sin tildes). */
+const nameParts = computed(() => {
+  const name = props.product.nombre || ''
+  const strip = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const words = strip(props.highlight || '').split(/\s+/).filter(w => w.length > 1)
+  if (!words.length) return [{ text: name, match: false }]
+  // normalize('NFD') + quitar tildes conserva la longitud de cada letra en español.
+  const plain = strip(name)
+  const marks = new Array(name.length).fill(false)
+  for (const w of words) {
+    let i = plain.indexOf(w)
+    while (i !== -1) {
+      for (let k = i; k < i + w.length; k++) marks[k] = true
+      i = plain.indexOf(w, i + w.length)
+    }
+  }
+  const parts: { text: string; match: boolean }[] = []
+  for (let i = 0; i < name.length; i++) {
+    const last = parts[parts.length - 1]
+    if (last && last.match === marks[i]) last.text += name[i]
+    else parts.push({ text: name[i]!, match: marks[i] })
+  }
+  return parts
+})
 
 const emit = defineEmits<{
   (e: 'add', product: Product): void
@@ -49,7 +76,12 @@ const handleAdd = () => {
 <template>
   <div class="row" :class="{ blocked: isBlocked }">
     <div class="info">
-      <span class="name">{{ product.nombre }}</span>
+      <span class="name" :title="product.nombre">
+        <template v-for="(part, i) in nameParts" :key="i"
+          ><mark v-if="part.match">{{ part.text }}</mark
+          ><template v-else>{{ part.text }}</template></template
+        >
+      </span>
       <span v-if="product.source === 'sucree'" class="brand">Sucree</span>
     </div>
 
@@ -113,6 +145,13 @@ const handleAdd = () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+mark {
+  background: rgba($NICOLE-PURPLE, 0.14);
+  color: inherit;
+  border-radius: 3px;
+  padding: 0 1px;
 }
 
 .brand {
