@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import ProductService from '@/services/product.service'
 import OrderProductCard from './OrderProductCard.vue'
 import OrderProductRow from './OrderProductRow.vue'
@@ -15,11 +15,24 @@ const props = defineProps<{
   hideDelivery?: boolean
 }>()
 
-const visibleProducts = computed(() =>
-  props.hideDelivery
+/** Sin tildes ni mayúsculas, para comparar "cafe" con "Café". */
+const normalize = (text: string) =>
+  text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+
+const visibleProducts = computed(() => {
+  let list = props.hideDelivery
     ? products.value.filter(p => !/delivery|env[ií]o/i.test(p.nombre || ''))
     : products.value
-)
+  // Mientras llega la respuesta de Contífico, se filtra al instante lo que ya está cargado.
+  const words = normalize(searchTerm.value).split(/\s+/).filter(Boolean)
+  if (words.length && pendingSearch.value) {
+    list = list.filter(p => {
+      const name = normalize(p.nombre || '')
+      return words.every(w => name.includes(w))
+    })
+  }
+  return list
+})
 
 const emit = defineEmits<{
   (e: 'add-to-cart', product: Product): void
@@ -35,17 +48,25 @@ const pageSize = 20
 const contificoDown = ref(false)
 // Mensaje de intento de mezcla de marcas
 const mixAttemptSource = ref<'nicole' | 'sucree' | null>(null)
+// Búsqueda en vivo: hay texto nuevo que todavía no respondió Contífico.
+const pendingSearch = ref(false)
+// Solo cuenta la última búsqueda: una respuesta vieja que llega tarde se descarta.
+let requestId = 0
+let debounceTimer: ReturnType<typeof setTimeout> | null = null
+const SEARCH_DEBOUNCE_MS = 250
 
 const fetchProducts = async (isNewSearch = true) => {
   if (isNewSearch) {
     currentPage.value = 1
-    products.value = []
+    // La lista anterior se queda (filtrada al instante) hasta que llegue la nueva.
     hasMore.value = true
     contificoDown.value = false
   }
 
-  if (!hasMore.value || isLoading.value) return
+  // Una búsqueda nueva siempre sale; "cargar más" espera a que termine la anterior.
+  if (!hasMore.value || (!isNewSearch && isLoading.value)) return
 
+  const myRequest = ++requestId
   isLoading.value = true
   try {
     // Apply mapping to search term (e.g. "Tarta Vasca" -> "Tarta de Queso")
@@ -56,6 +77,8 @@ const fetchProducts = async (isNewSearch = true) => {
       page: currentPage.value,
       limit: pageSize
     })
+
+    if (myRequest !== requestId) return
 
     if (data.length < pageSize) {
       hasMore.value = false
@@ -69,6 +92,7 @@ const fetchProducts = async (isNewSearch = true) => {
 
     currentPage.value++
   } catch (e: any) {
+    if (myRequest !== requestId) return
     console.error(e)
     // httpBase transforma el error a { status, message, data } — NO usa e.response
     const status: number = e?.status ?? e?.response?.status
@@ -77,13 +101,32 @@ const fetchProducts = async (isNewSearch = true) => {
       contificoDown.value = true
     }
   } finally {
-    isLoading.value = false
+    if (myRequest === requestId) {
+      isLoading.value = false
+      pendingSearch.value = false
+    }
   }
 }
 
 const handleSearch = () => {
+  if (debounceTimer) clearTimeout(debounceTimer)
   fetchProducts(true)
 }
+
+// Busca mientras escribes: filtra al instante y consulta Contífico al dejar de teclear.
+watch(searchTerm, () => {
+  pendingSearch.value = true
+  if (debounceTimer) clearTimeout(debounceTimer)
+  debounceTimer = setTimeout(() => fetchProducts(true), SEARCH_DEBOUNCE_MS)
+})
+
+const clearSearch = () => {
+  searchTerm.value = ''
+}
+
+onBeforeUnmount(() => {
+  if (debounceTimer) clearTimeout(debounceTimer)
+})
 
 const loadMore = () => {
   fetchProducts(false)
@@ -119,15 +162,27 @@ onMounted(() => {
 
 <template>
   <section class="products-section" :class="{ compact }">
-    <div class="search-bar">
+    <div class="search-bar" role="search">
+      <i class="fa-solid fa-magnifying-glass search-icon" aria-hidden="true"></i>
       <input
         v-model="searchTerm"
+        type="search"
+        placeholder="Escribe para buscar: torta, café, combo…"
+        aria-label="Buscar productos"
+        autocomplete="off"
         @keyup.enter="handleSearch"
-        placeholder="Buscar productos..."
-        type="text"
+        @keydown.esc="clearSearch"
       />
-      <button @click="handleSearch" class="btn-search">Buscar</button>
+      <span v-if="isLoading" class="search-spinner" aria-hidden="true"></span>
+      <button v-else-if="searchTerm" type="button" class="search-clear" aria-label="Borrar búsqueda" @click="clearSearch">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
     </div>
+    <p class="search-status" aria-live="polite">
+      <template v-if="searchTerm && !isLoading && !pendingSearch">
+        {{ visibleProducts.length }}{{ hasMore ? '+' : '' }} resultado{{ visibleProducts.length === 1 ? '' : 's' }} para «{{ searchTerm.trim() }}»
+      </template>
+    </p>
 
     <!-- Banner: Contífico caído -->
     <div v-if="contificoDown" class="contifico-error-banner">
@@ -165,13 +220,24 @@ onMounted(() => {
     </div>
 
     <div v-if="!contificoDown" class="products-container">
-      <div v-if="isLoading && products.length === 0" class="loading-state">
+      <div v-if="isLoading && visibleProducts.length === 0" class="loading-state">
         <div class="spinner"></div>
         <p>Cargando productos...</p>
       </div>
 
-      <div v-else-if="products.length > 0 && compact" class="products-list">
+      <div v-else-if="visibleProducts.length > 0 && compact" class="products-list">
         <OrderProductRow
+          v-for="product in visibleProducts"
+          :key="`${product.source}-${product.id}`"
+          :product="product"
+          :highlight="searchTerm"
+          :is-blocked="isProductBlocked(product)"
+          @add="handleAddAttempt"
+        />
+      </div>
+
+      <div v-else-if="visibleProducts.length > 0" class="products-grid">
+        <OrderProductCard
           v-for="product in visibleProducts"
           :key="`${product.source}-${product.id}`"
           :product="product"
@@ -180,27 +246,17 @@ onMounted(() => {
         />
       </div>
 
-      <div v-else-if="products.length > 0" class="products-grid">
-        <OrderProductCard
-          v-for="product in products"
-          :key="`${product.source}-${product.id}`"
-          :product="product"
-          :is-blocked="isProductBlocked(product)"
-          @add="handleAddAttempt"
-        />
-      </div>
-
-      <div v-if="isLoading && products.length > 0" class="loading-state">
+      <div v-if="isLoading && !pendingSearch && visibleProducts.length > 0" class="loading-state">
         <div class="spinner"></div>
         <span>Cargando más...</span>
       </div>
 
-      <div v-if="hasMore && products.length > 0 && !isLoading" class="load-more-container">
+      <div v-if="hasMore && visibleProducts.length > 0 && !isLoading && !pendingSearch" class="load-more-container">
         <button @click="loadMore" class="btn-secondary">Cargar más productos</button>
       </div>
 
-      <div v-if="!isLoading && products.length === 0 && !contificoDown" class="empty-state">
-        No se encontraron productos.
+      <div v-if="!isLoading && !pendingSearch && visibleProducts.length === 0 && !contificoDown" class="empty-state">
+        {{ searchTerm.trim() ? `No encontramos «${searchTerm.trim()}». Prueba con otra palabra.` : 'No se encontraron productos.' }}
       </div>
     </div>
   </section>
@@ -226,37 +282,85 @@ onMounted(() => {
 }
 
 .search-bar {
+  position: relative;
   display: flex;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
+  align-items: center;
+  margin-bottom: 0.35rem;
+
+  .search-icon {
+    position: absolute;
+    left: 1rem;
+    color: #94a3b8;
+    pointer-events: none;
+  }
 
   input {
     flex: 1;
-    padding: 0.75rem;
-    border: 1px solid $border-light;
-    border-radius: 8px;
-    font-size: 0.95rem;
+    width: 100%;
+    padding: 0.85rem 2.75rem 0.85rem 2.6rem;
+    border: 1.5px solid $border-light;
+    border-radius: 12px;
+    font-size: 1rem;
     font-family: $font-secondary;
+    background: white;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+    &::-webkit-search-cancel-button {
+      display: none;
+    }
 
     &:focus {
       outline: none;
       border-color: $NICOLE-PURPLE;
+      box-shadow: 0 0 0 3px rgba($NICOLE-PURPLE, 0.15);
     }
   }
 
-  .btn-search {
-    background: $NICOLE-PURPLE;
-    color: white;
-    border: none;
-    padding: 0 1.5rem;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: 600;
-
-    &:hover {
-      background: $purple-hover;
-    }
+  &:focus-within .search-icon {
+    color: $NICOLE-PURPLE;
   }
+}
+
+.search-clear {
+  position: absolute;
+  right: 0.6rem;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+
+  &:hover {
+    background: #e2e8f0;
+  }
+}
+
+.search-spinner {
+  position: absolute;
+  right: 0.9rem;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba($NICOLE-PURPLE, 0.2);
+  border-top-color: $NICOLE-PURPLE;
+  border-radius: 50%;
+  animation: search-spin 0.7s linear infinite;
+}
+
+@keyframes search-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.search-status {
+  min-height: 1.1rem;
+  margin: 0 0 0.6rem 0.25rem;
+  font-size: 0.8rem;
+  color: #64748b;
 }
 
 .products-grid {
