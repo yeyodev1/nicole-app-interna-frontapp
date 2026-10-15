@@ -1,10 +1,58 @@
 import { onMounted, onUnmounted, ref } from 'vue'
 import NotificationService, { type AppNotification } from '@/services/notification.service'
+import { playOrderAlert, unlockAlertSound } from '@/utils/alertSound'
 
 /**
  * Avisos de la app compartidos por todas las campanas (sidebar y barra móvil):
- * una sola consulta cada minuto y al volver a la pestaña.
+ * una sola consulta cada 20 s y al volver a la pestaña. Cuando llega un aviso
+ * nuevo de pedido suena una alarma fuerte (se puede silenciar desde la campana)
+ * y, si el navegador lo permite, sale una notificación del sistema.
  */
+
+const POLL_MS = 20_000
+const SOUND_KEY = 'nicole_alert_sound'
+// Tipos que significan "llegó un pedido" (los recordatorios no suenan).
+const ALERT_TYPES = new Set(['WEB_ORDER_NEW', 'CLIENT_LINK_COMPLETED'])
+
+const readSound = () => {
+  try {
+    return localStorage.getItem(SOUND_KEY) !== 'off'
+  } catch {
+    return true
+  }
+}
+const soundOn = ref(readSound())
+const seenIds = new Set<string>()
+let firstLoad = true
+
+const setSound = (on: boolean) => {
+  soundOn.value = on
+  try {
+    localStorage.setItem(SOUND_KEY, on ? 'on' : 'off')
+  } catch {
+    // Sin almacenamiento: queda solo en esta sesión.
+  }
+  if (on) {
+    unlockAlertSound()
+    playOrderAlert()
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {})
+    }
+  }
+}
+
+const announce = (fresh: AppNotification[]) => {
+  if (!fresh.length) return
+  if (soundOn.value) playOrderAlert()
+  if ('Notification' in window && Notification.permission === 'granted') {
+    const first = fresh[0]!
+    try {
+      new Notification(first.title, { body: first.message, tag: first._id })
+    } catch {
+      // Algunos navegadores solo permiten notificaciones desde un service worker.
+    }
+  }
+}
 
 const notifications = ref<AppNotification[]>([])
 const unread = ref(0)
@@ -24,6 +72,11 @@ const refresh = (): Promise<void> => {
       notifications.value = data.notifications || []
       unread.value = data.unread ?? notifications.value.filter(n => !n.readAt).length
       failed.value = false
+      // Solo suena lo que llegó después de abrir la app, no lo que ya estaba.
+      const fresh = notifications.value.filter(n => !seenIds.has(n._id) && !n.readAt && ALERT_TYPES.has(n.type))
+      notifications.value.forEach(n => seenIds.add(n._id))
+      if (!firstLoad) announce(fresh)
+      firstLoad = false
     })
     .catch(() => {
       // Silencioso: la campana no debe romper la app si el endpoint falla.
@@ -67,7 +120,9 @@ export function useNotifications() {
     subscribers++
     if (subscribers === 1) {
       refresh()
-      timer = setInterval(refresh, 60_000)
+      timer = setInterval(refresh, POLL_MS)
+      window.addEventListener('pointerdown', unlockAlertSound, { once: true })
+      window.addEventListener('keydown', unlockAlertSound, { once: true })
       window.addEventListener('focus', onFocus)
       document.addEventListener('visibilitychange', onVisibility)
     }
@@ -83,5 +138,5 @@ export function useNotifications() {
     }
   })
 
-  return { notifications, unread, isLoading, failed, refresh, markRead, markAllRead }
+  return { notifications, unread, isLoading, failed, refresh, markRead, markAllRead, soundOn, setSound }
 }

@@ -136,7 +136,7 @@ const handleRiderSave = async (personData: Partial<DeliveryPerson>) => {
 
 // --- Date & Time Logic ---
 // Misma regla que la tienda web y el link del cliente (admin de la web):
-// nada para el mismo día y solo los horarios configurados (11h00–18h00).
+// nada para el mismo día y solo los horarios configurados (11h00–19h00).
 // El retiro directo de tienda no pasa por producción: queda fuera de la regla.
 const isDirectPickup = computed(() => !!props.modelValue.skipProduction)
 const minDate = computed(() => (isDirectPickup.value ? undefined : schedule.minDate.value))
@@ -158,7 +158,7 @@ const QUICK_TIMES = [
   { label: 'Mañana', time: '11:00' },
   { label: 'Mediodía', time: '13:00' },
   { label: 'Tarde', time: '16:00' },
-  { label: 'Cierre', time: '18:00' }
+  { label: 'Cierre', time: '19:00' }
 ]
 const quickTimes = computed(() => QUICK_TIMES.filter(qt => schedule.timeSlots.value.includes(qt.time)))
 
