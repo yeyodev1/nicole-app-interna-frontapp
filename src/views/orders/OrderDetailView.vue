@@ -20,6 +20,7 @@ import OrderAuditTimeline from './components/OrderAuditTimeline.vue'
 import OrderLocationEditModal from './components/OrderLocationEditModal.vue'
 import OrderWebInfo from './components/OrderWebInfo.vue'
 import WebOrderContacts from './components/WebOrderContacts.vue'
+import OrderClientLinkCard from './components/OrderClientLinkCard.vue'
 import { useRouter } from 'vue-router'
 
 const route = useRoute()
@@ -448,6 +449,13 @@ onUnmounted(() => {
 
         <!-- Details Sidebar -->
         <section class="side-info">
+          <OrderClientLinkCard
+            v-if="order.clientLink?.token"
+            :order="order"
+            @updated="fetchOrder"
+            @edit-address="openLocationModal('deliveryAddress')"
+            @edit-maps-link="openLocationModal('googleMapsLink')"
+          />
           <OrderWebInfo
             v-if="order.webOrder?.externalId"
             :web-order="order.webOrder"

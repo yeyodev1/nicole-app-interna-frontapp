@@ -57,6 +57,9 @@ const ivaTotal = computed(() => {
                  class="badge-unlinked"
                  title="Edítalo y elígelo del catálogo antes de facturar"
                >Sin código Contífico</span>
+               <span v-if="item.customerNote" class="customer-note">
+                 <i class="fa-regular fa-comment"></i> {{ item.customerNote }}
+               </span>
              </td>
              <td class="text-right">${{ item.price.toFixed(2) }}</td>
              <td class="text-center">{{ item.quantity }}</td>
@@ -200,5 +203,17 @@ const ivaTotal = computed(() => {
 
 .font-bold {
   font-weight: 700;
+}
+.customer-note {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.8rem;
+  color: #6d28d9;
+  background: #f5f3ff;
+  border-radius: 6px;
+  padding: 0.25rem 0.5rem;
+  width: fit-content;
+  max-width: 100%;
+  white-space: pre-wrap;
 }
 </style>

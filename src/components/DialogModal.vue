@@ -164,6 +164,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 }
 
 .dialog-message {
+  white-space: pre-line;
   margin: 0;
   color: $text-light;
   font-size: 0.95rem;

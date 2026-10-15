@@ -53,6 +53,9 @@ export interface CartItem {
   category?: string // Grouping name (e.g., 'Tortas enteras')
   categoryId?: string // Contifico ID
   isCourtesy?: boolean
+  /** Nota del cliente para este producto (link de gestión). */
+  customerNote?: string
+  _id?: string
 }
 
 export interface InvoiceData {
@@ -152,6 +155,41 @@ export interface WebOrderInfo {
   managedBy?: string
 }
 
+/** Link de gestión de entrega (contrato v8): el asesor cobra y el cliente gestiona su entrega. */
+export type ClientLinkStatus = 'PENDING' | 'COMPLETED'
+
+export interface ClientLinkInfo {
+  token: string
+  status: ClientLinkStatus
+  plannedType: 'delivery' | 'retiro'
+  estimatedDeliveryValue: number
+  customerEmail?: string
+  buyer?: { name?: string; phone?: string }
+  advisorUserId?: string
+  advisorName?: string
+  advisorEmail?: string
+  createdAt: string
+  expiresAt: string
+  completedAt?: string
+  invoiceDeadlineAt?: string
+  invoiceDeadlineHandled?: 'CONSUMIDOR_FINAL' | 'ADVISOR_NOTIFIED' | 'CLIENT_DATA'
+  clientRemindedAt?: string
+  advisorRemindedAt?: string
+  invoiceEmailedAt?: string
+  lat?: number
+  lng?: number
+  deliveryKm?: number
+  deliveryReference?: string
+  acceptedTermsAt?: string
+}
+
+/** Datos que se mandan al crear un pedido en modo link. */
+export interface ClientLinkRequest {
+  plannedType: 'delivery' | 'retiro'
+  estimatedDeliveryValue: number
+  customerEmail?: string
+}
+
 export interface Order extends OrderFormData {
   _id: string
   orderDate: string
@@ -168,7 +206,7 @@ export interface Order extends OrderFormData {
   }>
   invoiceStatus?: 'PENDING' | 'PROCESSED' | 'ERROR'
   invoiceSentToSriAt?: string
-  productionStage: 'PENDING' | 'IN_PROCESS' | 'FINISHED' | 'VOID'
+  productionStage: 'PENDING' | 'IN_PROCESS' | 'FINISHED' | 'VOID' | 'DELAYED' | 'AWAITING_CLIENT'
   productionNotes: string
   createdAt: string
   updatedAt: string
@@ -178,4 +216,6 @@ export interface Order extends OrderFormData {
   status?: WebOrderStatus | string
   /** Sólo en pedidos de la tienda online. */
   webOrder?: WebOrderInfo
+  /** Sólo en ventas con link de gestión de entrega. */
+  clientLink?: ClientLinkInfo
 }

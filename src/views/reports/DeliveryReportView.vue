@@ -156,6 +156,7 @@ const generateReport = async (isPageChange = false) => {
 }
 
 const formatDate = (dateStr: string) => {
+  if (!dateStr) return 'Por definir'
   return new Date(dateStr).toLocaleDateString('es-EC', {
     day: '2-digit',
     month: '2-digit',

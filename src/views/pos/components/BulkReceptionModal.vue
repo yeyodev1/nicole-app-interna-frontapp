@@ -139,6 +139,7 @@ const calculateConsolidated = () => {
   const tomorrowStr  = getDStr(tomorrow);
 
   internalDispatches.value.forEach(d => {
+    if (!d.deliveryDate) return;
     const dDateStr = getDStr(parseECTDate(d.deliveryDate));
     const isRestock = d.salesChannel === 'Restock' || d.salesChannel === 'Restock-Bodega';
     let dateMatch = false;

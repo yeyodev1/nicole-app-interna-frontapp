@@ -10,6 +10,8 @@ const props = defineProps<{
   isEditMode?: boolean
   globalDiscountPercentage?: number
   isGlobalCourtesy?: boolean
+  /** Texto del botón final (por defecto "Generar Pedido"). */
+  submitLabel?: string
 }>()
 
 const emit = defineEmits<{
@@ -137,7 +139,7 @@ const onDecrease = (item: CartItem, index: number) => {
       @click="emit('submit')" 
       :disabled="cart.length === 0 || isSubmitting"
     >
-      {{ isSubmitting ? 'Procesando...' : (isEditMode ? 'Actualizar Orden' : 'Generar Pedido') }}
+      {{ isSubmitting ? 'Procesando...' : (isEditMode ? 'Actualizar Orden' : (submitLabel || 'Generar Pedido')) }}
     </button>
   </div>
 </template>
