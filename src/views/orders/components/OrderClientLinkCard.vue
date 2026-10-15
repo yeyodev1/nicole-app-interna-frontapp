@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import ClientLinkService from '@/services/client-link.service'
 import { useToast } from '@/composables/useToast'
-import { clientLinkState, clientLinkUrl, CLIENT_LINK_LABELS } from '@/utils/clientLink'
+import { clientLinkMessage, clientLinkState, clientLinkUrl, copyText, CLIENT_LINK_LABELS } from '@/utils/clientLink'
 import { whatsappUrl } from '@/utils/payphone'
 import { formatECT } from '@/utils/dateUtils'
 
@@ -27,7 +27,6 @@ const url = computed(() => clientLinkUrl(props.order))
 const isCompleted = computed(() => state.value === 'COMPLETED')
 const isDelivery = computed(() => props.order.deliveryType === 'delivery')
 
-const buyerName = computed(() => link.value.buyer?.name || props.order.customerName || '')
 const buyerPhone = computed(() => link.value.buyer?.phone || props.order.customerPhone || '')
 
 const fmt = (iso?: string) => (iso ? new Date(iso).toLocaleString('es-EC', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '')
@@ -48,18 +47,17 @@ const invoiceNote = computed(() => {
 })
 
 const copy = async () => {
-  try {
-    await navigator.clipboard.writeText(url.value)
-    success('Link copiado')
-  } catch {
-    showError('No se pudo copiar. Selecciónalo y cópialo a mano.')
-  }
+  if (await copyText(url.value)) success('Link copiado')
+  else showError('No se pudo copiar. Selecciónalo y cópialo a mano.')
+}
+
+const copyMessage = async () => {
+  if (await copyText(clientLinkMessage(props.order))) success('Mensaje copiado: pégalo en el WhatsApp del cliente')
+  else showError('No se pudo copiar. Inténtalo con "Copiar link".')
 }
 
 const resend = () => {
-  const name = buyerName.value.split(' ')[0]
-  const text = `Hola${name ? ` ${name}` : ''} 👋 Tu pedido de Nicole Pastry Arts ya está pagado. Gestiona aquí la fecha, hora y dirección de entrega (o la isla donde lo retiras) y tus datos de factura:\n${url.value}\n\nImportante: si la dirección o la ubicación del mapa no son correctas, no podemos garantizar la entrega.`
-  window.open(whatsappUrl(buyerPhone.value, text), '_blank')
+  window.open(whatsappUrl(buyerPhone.value, clientLinkMessage(props.order)), '_blank')
 }
 
 const renew = async () => {
@@ -106,8 +104,11 @@ const renew = async () => {
     </div>
 
     <div class="actions">
+      <button v-if="!isCompleted" type="button" class="btn-copy-msg" @click="copyMessage">
+        <i class="fa-regular fa-copy"></i> Copiar mensaje
+      </button>
       <button v-if="!isCompleted" type="button" class="btn-wa" @click="resend">
-        <i class="fa-brands fa-whatsapp"></i> Reenviar por WhatsApp
+        <i class="fa-brands fa-whatsapp"></i> Abrir WhatsApp
       </button>
       <button v-if="!isCompleted" type="button" class="btn-outline" :disabled="isRenewing" @click="renew">
         <i class="fa-solid" :class="isRenewing ? 'fa-circle-notch fa-spin' : 'fa-rotate'"></i> Renovar 7 días
@@ -274,6 +275,7 @@ const renew = async () => {
   gap: 0.5rem;
 }
 
+.btn-copy-msg,
 .btn-wa,
 .btn-outline {
   border-radius: 8px;
@@ -284,6 +286,12 @@ const renew = async () => {
   display: flex;
   gap: 0.4rem;
   align-items: center;
+}
+
+.btn-copy-msg {
+  background: $NICOLE-PURPLE;
+  color: white;
+  border: none;
 }
 
 .btn-wa {

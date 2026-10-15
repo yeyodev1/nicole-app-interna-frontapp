@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useToast } from '@/composables/useToast'
 import { whatsappUrl } from '@/utils/payphone'
+import { copyText } from '@/utils/clientLink'
 
 const props = defineProps<{
   isOpen: boolean
@@ -17,18 +19,21 @@ const emit = defineEmits<{
 
 const { success, error: showError } = useToast()
 
+const message = computed(() => props.whatsappMessage || `Gestiona tu entrega aquí: ${props.url}`)
+
 const copy = async () => {
-  try {
-    await navigator.clipboard.writeText(props.url)
-    success('Link copiado')
-  } catch {
-    showError('No se pudo copiar. Selecciónalo y cópialo a mano.')
-  }
+  if (await copyText(props.url)) success('Link copiado')
+  else showError('No se pudo copiar. Selecciónalo y cópialo a mano.')
+}
+
+// Lo principal: copiar el mensaje completo y pegarlo en el chat del cliente.
+const copyMessage = async () => {
+  if (await copyText(message.value)) success('Mensaje copiado: pégalo en el WhatsApp del cliente')
+  else showError('No se pudo copiar. Selecciona el texto y cópialo a mano.')
 }
 
 const sendWhatsApp = () => {
-  const text = props.whatsappMessage || `Gestiona tu entrega aquí: ${props.url}`
-  window.open(whatsappUrl(props.customerPhone, text), '_blank')
+  window.open(whatsappUrl(props.customerPhone, message.value), '_blank')
 }
 </script>
 
@@ -40,8 +45,21 @@ const sendWhatsApp = () => {
           <div class="success-icon"><i class="fa-solid fa-check"></i></div>
           <h2 id="cl-success-title">Venta registrada</h2>
           <p class="lead">
-            Envíale este link al cliente. Ahí elige fecha, hora, dirección (o la isla de retiro) y sus datos de factura.
+            Copia el mensaje y pégalo en el WhatsApp del cliente. En el link elige fecha, hora, dirección (o la isla de retiro) y sus datos de factura.
           </p>
+
+          <textarea
+            class="message-preview"
+            :value="message"
+            readonly
+            rows="7"
+            aria-label="Mensaje para el cliente"
+            @focus="($event.target as HTMLTextAreaElement).select()"
+          ></textarea>
+
+          <button type="button" class="btn-primary" @click="copyMessage">
+            <i class="fa-regular fa-copy"></i> Copiar mensaje
+          </button>
 
           <div class="link-box">
             <input :value="url" readonly @focus="($event.target as HTMLInputElement).select()" />
@@ -58,7 +76,7 @@ const sendWhatsApp = () => {
 
           <div class="actions">
             <button type="button" class="btn-wa" @click="sendWhatsApp">
-              <i class="fa-brands fa-whatsapp"></i> Enviar por WhatsApp
+              <i class="fa-brands fa-whatsapp"></i> Abrir WhatsApp con el mensaje
             </button>
             <button v-if="orderId" type="button" class="btn-secondary" @click="emit('go-to-order')">
               Ir al pedido
@@ -115,6 +133,39 @@ h2 {
   color: #475569;
   margin: 0 0 1.25rem;
   line-height: 1.5;
+}
+
+.message-preview {
+  width: 100%;
+  box-sizing: border-box;
+  resize: none;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  font-family: inherit;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: #334155;
+  text-align: left;
+  margin-bottom: 0.75rem;
+}
+
+.btn-primary {
+  width: 100%;
+  background: $NICOLE-PURPLE;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 0.85rem;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 1rem;
 }
 
 .link-box {
