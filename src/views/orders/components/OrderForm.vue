@@ -137,10 +137,18 @@ const handleRiderSave = async (personData: Partial<DeliveryPerson>) => {
 // --- Date & Time Logic ---
 // Misma regla que la tienda web y el link del cliente (admin de la web):
 // nada para el mismo día y solo los horarios configurados (11h00–18h00).
-const minDate = computed(() => schedule.minDate.value)
+// El retiro directo de tienda no pasa por producción: queda fuera de la regla.
+const isDirectPickup = computed(() => !!props.modelValue.skipProduction)
+const minDate = computed(() => (isDirectPickup.value ? undefined : schedule.minDate.value))
+
+// Retiro directo: horario libre de 07h00 a 20h00 cada 15 minutos (como antes).
+const FREE_SLOTS = Array.from({ length: 53 }, (_, i) => {
+  const minutes = 7 * 60 + i * 15
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
+})
 
 const timeError = computed(() => {
-  if (!props.modelValue.deliveryDate) return null
+  if (!props.modelValue.deliveryDate || isDirectPickup.value) return null
   // En edición se respeta la fecha que ya tenía el pedido.
   if (props.isEditMode && props.modelValue.deliveryDate === props.originalDeliveryDate) return null
   return schedule.validate(props.modelValue.deliveryDate, props.modelValue.deliveryTime)
@@ -155,7 +163,7 @@ const QUICK_TIMES = [
 const quickTimes = computed(() => QUICK_TIMES.filter(qt => schedule.timeSlots.value.includes(qt.time)))
 
 const timeOptions = computed(() => {
-  const slots = schedule.timeSlots.value
+  const slots = isDirectPickup.value ? FREE_SLOTS : schedule.timeSlots.value
   // En edición, si el pedido tenía otra hora, se conserva en la lista.
   const current = props.modelValue.deliveryTime
   return current && props.isEditMode && !slots.includes(current) ? [...slots, current].sort() : slots
@@ -290,7 +298,8 @@ const onRucInput = () => {
           required
         />
         <small class="hint schedule-hint">
-          <i class="fa-regular fa-clock"></i> {{ schedule.ruleText.value }}
+          <i class="fa-regular fa-clock"></i>
+          {{ isDirectPickup ? 'Retiro directo de tienda: puede ser hoy, a cualquier hora.' : schedule.ruleText.value }}
         </small>
       </div>
 

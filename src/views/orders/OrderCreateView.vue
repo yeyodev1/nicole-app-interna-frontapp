@@ -212,7 +212,8 @@ const onCartSubmit = () => {
     if (!formData.deliveryTime) { showError("Hora de entrega es obligatoria"); return; }
     if (!formData.branch) { showError("Sucursal de origen es obligatoria"); return; }
     // Regla de anticipación (admin de la web). En edición solo si cambió la fecha.
-    if (!isEditMode.value || formData.deliveryDate !== originalDeliveryDate.value) {
+    // El retiro directo de tienda no pasa por producción: se puede el mismo día.
+    if (!formData.skipProduction && (!isEditMode.value || formData.deliveryDate !== originalDeliveryDate.value)) {
       const scheduleError = schedule.validate(formData.deliveryDate, formData.deliveryTime)
       if (scheduleError) { showError(scheduleError); return; }
     }
