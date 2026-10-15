@@ -252,7 +252,7 @@ const submit = async () => {
     ? `Entrega a domicilio · envío estimado $${envio.toFixed(2)}`
     : 'Retiro en isla (el cliente elige cuál)'
   const ok = await dialog.confirm(
-    `Cliente: ${formData.customerName}\nTotal cobrado: $${(formData.totalValue || 0).toFixed(2)} · ${paymentMethodLabel.value}\n${typeLine}\n\nSe generará el link para que el cliente gestione su entrega.`,
+    `Cliente: ${String(formData.customerName).replace(/[<>&]/g, '')}\nTotal cobrado: $${(formData.totalValue || 0).toFixed(2)} · ${paymentMethodLabel.value}\n${typeLine}\n\nSe generará el link para que el cliente gestione su entrega.`,
     { title: 'Confirmar venta con link', confirmLabel: 'Generar link', cancelLabel: 'Revisar' }
   )
   if (!ok) return
