@@ -26,8 +26,8 @@ const _settings = ref<TiendaSettings | null>(null)
 let _loading: Promise<void> | null = null
 
 function settingsUrl(): string | null {
-  const raw = (import.meta.env.VITE_TIENDA_API as string | undefined) || ''
-  if (!raw) return null
+  // URL pública del backend de la tienda (no es secreto).
+  const raw = (import.meta.env.VITE_TIENDA_API as string | undefined) || 'https://nicole-tienda-backapp.vercel.app/api'
   const trimmed = raw.replace(/\/+$/, '')
   const base = trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`
   return `${base}/settings/public`
