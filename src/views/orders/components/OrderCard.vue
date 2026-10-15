@@ -2,6 +2,7 @@
 
 
 import { parseECTDate, formatECT } from '@/utils/dateUtils'
+import { clientLinkState, CLIENT_LINK_LABELS, DATE_PENDING_LABEL } from '@/utils/clientLink'
 
 const props = defineProps<{
   order: any
@@ -26,7 +27,10 @@ const emit = defineEmits<{
 const MONTHS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
 
 const formatDelivery = (order: any) => {
-  if (!order.deliveryDate) return { date: '—', time: '--:--' }
+  if (!order.deliveryDate) {
+    if (clientLinkState(order)) return { date: DATE_PENDING_LABEL, time: '--:--' }
+    return { date: '—', time: '--:--' }
+  }
 
   const d = parseECTDate(order.deliveryDate)
   const day = d.getDate().toString().padStart(2, '0')
@@ -132,6 +136,14 @@ const handleRetry = () => emit('retry-invoice')
       </div>
       <span class="type-badge" :class="order.deliveryType">
         {{ order.deliveryType === 'delivery' ? 'Delivery' : 'Retiro' }}
+      </span>
+    </div>
+
+    <!-- Venta con link -->
+    <div v-if="clientLinkState(order)" class="web-row">
+      <span class="web-badge link" :class="clientLinkState(order)!.toLowerCase()">
+        <i class="fas" :class="clientLinkState(order) === 'COMPLETED' ? 'fa-check' : 'fa-link'"></i>
+        {{ clientLinkState(order) === 'PENDING' ? 'Esperando al cliente' : CLIENT_LINK_LABELS[clientLinkState(order)!] }}
       </span>
     </div>
 
@@ -816,6 +828,24 @@ const handleRetry = () => emit('retry-invoice')
   }
 
   &.payment.paid {
+    background: #f0fdf4;
+    color: #15803d;
+    border-color: #bbf7d0;
+  }
+
+  &.link.pending {
+    background: #ede9fe;
+    color: #6d28d9;
+    border-color: #ddd6fe;
+  }
+
+  &.link.expired {
+    background: #fee2e2;
+    color: #b91c1c;
+    border-color: #fecaca;
+  }
+
+  &.link.completed {
     background: #f0fdf4;
     color: #15803d;
     border-color: #bbf7d0;

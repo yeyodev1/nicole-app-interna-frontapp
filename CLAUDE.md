@@ -129,3 +129,13 @@ Scripts para operaciones masivas sobre facturas históricas. Ejecutar desde `nic
 - **Lazy loading:** Most route components use dynamic `import()` except `LoginView` and `OrderCreateView`
 - **NavBar selection:** `App.vue` conditionally renders `ProductionNavBar`, `SupplyChainNavBar`, or the default `NavBar` based on `route.meta.role`
 - **Build chunking:** Vite config splits vendor bundles into `vendor-xlsx`, `vendor-vue-core`, `vendor-axios`, and a generic `vendor` chunk
+
+### Venta con link (contrato v8)
+
+- `/orders/link/new` (`OrderLinkCreateView.vue`) es la acción principal de ventas: el asesor arma el carrito, elige "Entrega a domicilio" (con **envío estimado**) o "Retiro en isla", registra el cobro (TRA, Payphone o tarjeta; crédito, isla y cortesía siguen disponibles) y guarda. `POST /orders` con `clientLink` devuelve `clientLinkUrl` + `clientWhatsappMessage`; el cliente llena fecha, hora, dirección/isla y factura en la tienda (`/pedido/<token>`).
+- Link de pago: `PayphoneLinkPanel` → `POST /payphone/links` con el desglose de `utils/payphone.ts` (base con IVA + 15%; los productos de precio final van en `amountWithoutTax`). Después el asesor solo escribe el número de transacción (cobro TC · Datafast).
+- Envío en un solo campo: `useDeliveryLine` sincroniza el valor de envío con la línea "Delivery" del carrito (en la venta con link y en el pedido manual).
+- Mientras el cliente no completa el link, el pedido no tiene `deliveryDate` y `productionStage = AWAITING_CLIENT`. Usa `utils/clientLink.ts` (`clientLinkState`, `DATE_PENDING_LABEL`) para mostrarlo; cualquier vista que formatee `deliveryDate` debe tolerar `null`.
+- Regla de fechas (`useScheduleRules`): sale de la tienda (`VITE_TIENDA_API` → `GET /api/settings/public`, `minLeadDays` + `timeSlots`). Por defecto, desde mañana y de 11h00 a 18h00. Se aplica al crear pedidos manuales y al cambiar la fecha en edición.
+- Avisos: `NotificationBell` en `AppSidebar` (`GET /notifications` cada 60 s y al volver a la pestaña, estado compartido en `useNotifications`).
+- Vendedor por defecto = usuario logueado (`useDefaultSeller`, comparación por nombre porque el usuario no guarda cédula).

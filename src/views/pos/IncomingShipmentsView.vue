@@ -88,7 +88,7 @@ const fetchData = async () => {
     pickups.forEach(o => mergedMap.set(o._id, o))
     incoming.forEach(o => mergedMap.set(o._id, o))
     const allOrders = Array.from(mergedMap.values())
-    allOrders.sort((a, b) => new Date(a.deliveryDate).getTime() - new Date(b.deliveryDate).getTime())
+    allOrders.sort((a, b) => (a.deliveryDate ? new Date(a.deliveryDate).getTime() : Number.MAX_SAFE_INTEGER) - (b.deliveryDate ? new Date(b.deliveryDate).getTime() : Number.MAX_SAFE_INTEGER))
     orders.value = allOrders
   } catch (error) {
     console.error('Error fetching data:', error)

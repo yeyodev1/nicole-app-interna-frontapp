@@ -93,6 +93,7 @@ const updateStage = async (task: ProductionTask, newStage: 'PENDING' | 'IN_PROCE
 }
 
 const formatDate = (dateString: string) => {
+  if (!dateString) return 'Por definir'
   const date = new Date(dateString)
   return new Intl.DateTimeFormat('es-EC', {
     weekday: 'short',
@@ -104,6 +105,7 @@ const formatDate = (dateString: string) => {
 }
 
 const isUrgent = (dateString: string) => {
+  if (!dateString) return false
   const delivery = new Date(dateString)
   const now = new Date()
   const diffHours = (delivery.getTime() - now.getTime()) / (1000 * 60 * 60)

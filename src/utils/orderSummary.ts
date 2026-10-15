@@ -3,9 +3,10 @@ export function generateOrderSummary(order: any): string {
     .map((p: any) => `- ${p.quantity}x ${p.name}${(p.features && p.features.length > 0) ? ` (${p.features.join(', ')})` : ''}`)
     .join("\n");
 
-  const dateObj = new Date(order.deliveryDate);
-  const dateFormatted = dateObj.toLocaleDateString('es-EC');
-  const timeFormatted = dateObj.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' });
+  // Venta con link: la fecha la elige el cliente, puede no existir todavía.
+  const dateObj = order.deliveryDate ? new Date(order.deliveryDate) : null;
+  const dateFormatted = dateObj ? dateObj.toLocaleDateString('es-EC') : 'Por definir (cliente)';
+  const timeFormatted = order.deliveryTime || (dateObj ? dateObj.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' }) : '--:--');
 
   // Location logic
   let locationInfo = "";

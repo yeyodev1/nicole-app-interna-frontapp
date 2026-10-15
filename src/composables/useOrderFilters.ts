@@ -3,7 +3,7 @@ import OrderService from '@/services/order.service'
 import { getECTTodayString, getECTNow } from '@/utils/dateUtils'
 import { useToast } from '@/composables/useToast'
 
-export type FilterMode = 'today' | 'yesterday' | 'tomorrow' | 'all' | 'custom' | 'invoiceError' | 'unbilled' | 'returns' | 'webPending'
+export type FilterMode = 'today' | 'yesterday' | 'tomorrow' | 'all' | 'custom' | 'invoiceError' | 'unbilled' | 'returns' | 'webPending' | 'clientLinkPending'
 export type DateType = 'deliveryDate' | 'createdAt'
 
 export function useOrderFilters() {
@@ -20,6 +20,17 @@ export function useOrderFilters() {
 
   // Pedidos de la tienda online pendientes de gestionar (badge del filtro)
   const webPendingCount = ref(0)
+  // Ventas con link que esperan que el cliente llene sus datos de entrega
+  const clientLinkPendingCount = ref(0)
+
+  const fetchClientLinkPendingCount = async () => {
+    try {
+      const data = await OrderService.getOrders({ clientLinkPending: 'true' })
+      clientLinkPendingCount.value = Array.isArray(data) ? data.length : 0
+    } catch {
+      // silencioso: es sólo el contador del filtro
+    }
+  }
 
   const fetchWebPendingCount = async () => {
     try {
@@ -54,6 +65,9 @@ export function useOrderFilters() {
       if (filterMode.value === 'webPending') {
         // Todos los pedidos web por gestionar, sin importar la fecha
         filters.webPending = 'true'
+      } else if (filterMode.value === 'clientLinkPending') {
+        // Ventas con link sin fecha todavía: el cliente no ha llenado sus datos
+        filters.clientLinkPending = 'true'
       } else if (filterMode.value === 'invoiceError') {
         filters.invoiceStatus = 'ERROR'
         if (!searchQuery.value && customDate.value) {
@@ -95,6 +109,7 @@ export function useOrderFilters() {
       // When searchQuery is set in non-status modes, no date filter is applied (global search)
 
       fetchWebPendingCount()
+      fetchClientLinkPendingCount()
       const data = await OrderService.getOrders(filters)
       orders.value = data
     } catch (error) {
@@ -141,6 +156,7 @@ export function useOrderFilters() {
     showDatePicker,
     fetchOrders,
     webPendingCount,
-    fetchWebPendingCount
+    fetchWebPendingCount,
+    clientLinkPendingCount
   }
 }

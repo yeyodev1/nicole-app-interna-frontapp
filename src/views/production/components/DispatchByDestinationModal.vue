@@ -72,6 +72,7 @@ const calculatePendingItems = () => {
     if (!destMatch) return
 
     // 2. Filter by Date — use ECT-aware parsing to avoid off-by-one with UTC midnight dates
+    if (!o.deliveryDate) return
     const dDate = parseECTDate(o.deliveryDate)
     let dateMatch = false
     if (filterMode.value === 'all') dateMatch = true
