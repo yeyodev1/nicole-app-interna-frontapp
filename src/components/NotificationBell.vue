@@ -12,7 +12,7 @@ const props = withDefaults(defineProps<{ placement?: 'sidebar' | 'topbar' }>(), 
 
 const router = useRouter()
 const isOpen = ref(false)
-const { notifications, unread, isLoading, failed, refresh, markRead, markAllRead } = useNotifications()
+const { notifications, unread, isLoading, failed, refresh, markRead, markAllRead, soundOn, setSound } = useNotifications()
 
 const toggle = () => {
   isOpen.value = !isOpen.value
@@ -30,6 +30,7 @@ const markAll = () => markAllRead()
 const badge = computed(() => (unread.value > 99 ? '99+' : String(unread.value)))
 
 const iconFor = (type: string) => {
+  if (type === 'WEB_ORDER_NEW') return 'fa-bag-shopping'
   if (type.includes('COMPLETED')) return 'fa-circle-check'
   if (type.includes('INVOICE')) return 'fa-file-invoice-dollar'
   if (type.includes('REMINDER') || type.includes('PENDING')) return 'fa-clock'
@@ -68,6 +69,17 @@ const timeAgo = (iso: string) => {
           <strong>Avisos</strong>
           <button v-if="unread > 0" type="button" class="btn-all" @click="markAll">Marcar todo como leído</button>
         </div>
+        <button
+          type="button"
+          class="sound-row"
+          :class="{ on: soundOn }"
+          :aria-pressed="soundOn"
+          @click="setSound(!soundOn)"
+        >
+          <i class="fa-solid" :class="soundOn ? 'fa-volume-high' : 'fa-volume-xmark'"></i>
+          <span>{{ soundOn ? 'Sonido de pedidos activado' : 'Sonido de pedidos apagado' }}</span>
+          <span class="switch" aria-hidden="true"><span></span></span>
+        </button>
 
         <div v-if="isLoading && !notifications.length" class="empty">Cargando…</div>
         <div v-else-if="failed && !notifications.length" class="empty">No se pudieron cargar los avisos.</div>
@@ -162,6 +174,58 @@ const timeAgo = (iso: string) => {
   &--topbar {
     top: 58px;
     right: 8px;
+  }
+}
+
+.sound-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.65rem 1rem;
+  border: none;
+  border-bottom: 1px solid $border-light;
+  background: #faf7fb;
+  color: #64748b;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-align: left;
+
+  span:nth-child(2) {
+    flex: 1;
+  }
+
+  &.on {
+    color: $NICOLE-PURPLE;
+  }
+
+  .switch {
+    width: 34px;
+    height: 20px;
+    border-radius: 999px;
+    background: #cbd5e1;
+    position: relative;
+    transition: background 0.15s ease;
+
+    span {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: white;
+      transition: transform 0.15s ease;
+    }
+  }
+
+  &.on .switch {
+    background: $NICOLE-PURPLE;
+
+    span {
+      transform: translateX(14px);
+    }
   }
 }
 

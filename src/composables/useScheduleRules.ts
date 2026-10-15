@@ -7,13 +7,13 @@ import { getECTTodayString } from '@/utils/dateUtils'
  * se configura en el admin de la web (Ajustes → Días de anticipación y horarios).
  *
  * - Nada para el mismo día: la fecha más temprana es hoy + `minLeadDays`.
- * - Solo los horarios configurados (por defecto 11h00 a 18h00).
+ * - Solo los horarios configurados (11h00 a 19h00, fijo en la tienda).
  *
  * Si la tienda no responde se usan los valores por defecto, para no bloquear la venta.
  */
 
 const DEFAULT_MIN_LEAD_DAYS = 1
-const DEFAULT_SLOTS = ['11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00']
+const DEFAULT_SLOTS = ['11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00']
 
 interface TiendaSettings {
   minLeadDays?: number
@@ -80,7 +80,7 @@ export function useScheduleRules() {
   /** Texto para el asesor, igual de claro que el que ve el cliente. */
   const ruleText = computed(() => {
     const first = timeSlots.value[0]?.replace(':', 'h') ?? '11h00'
-    const last = timeSlots.value[timeSlots.value.length - 1]?.replace(':', 'h') ?? '18h00'
+    const last = timeSlots.value[timeSlots.value.length - 1]?.replace(':', 'h') ?? '19h00'
     if (minLeadDays.value === 0) return `Entregas entre ${first} y ${last}.`
     const desde = minLeadDays.value === 1 ? 'desde mañana' : `con ${minLeadDays.value} días de anticipación`
     return `No hacemos entregas el mismo día: ${desde}, entre ${first} y ${last}.`

@@ -59,7 +59,7 @@ export function clientLinkMessage(order: any): string {
     `Ahora completa en este link ${what}, la fecha y hora, y tus datos si necesitas factura:`,
     clientLinkUrl(order),
     '',
-    'Entregamos desde el día siguiente, de 11h00 a 18h00. El link vence en 7 días.'
+    'Entregamos desde el día siguiente, de 11h00 a 19h00. El link vence en 7 días.'
   ].join('\n')
 }
 
