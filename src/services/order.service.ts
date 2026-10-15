@@ -36,6 +36,9 @@ interface OrderResponse {
   message: string
   order: any
   whatsappMessage: string
+  /** Venta con link (contrato v8). */
+  clientLinkUrl?: string
+  clientWhatsappMessage?: string
 }
 
 class OrderService extends APIBase {
@@ -49,7 +52,7 @@ class OrderService extends APIBase {
     }
   }
 
-  async getOrders(filters?: { search?: string, startDate?: string, endDate?: string, dateType?: 'deliveryDate' | 'createdAt', dispatchStatus?: string, webPending?: 'true', salesChannel?: string }): Promise<any[]> {
+  async getOrders(filters?: { search?: string, startDate?: string, endDate?: string, dateType?: 'deliveryDate' | 'createdAt', dispatchStatus?: string, webPending?: 'true', clientLinkPending?: 'true', salesChannel?: string }): Promise<any[]> {
     try {
       const response = await this.get<any[]>('orders', undefined, { params: filters })
       return response.data

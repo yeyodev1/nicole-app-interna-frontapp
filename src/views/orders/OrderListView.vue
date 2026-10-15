@@ -37,7 +37,8 @@ const {
   searchQuery,
   showDatePicker,
   fetchOrders,
-  webPendingCount
+  webPendingCount,
+  clientLinkPendingCount
 } = useOrderFilters()
 
 const {
@@ -412,6 +413,7 @@ onUnmounted(() => {
         :show-select-all="(filterMode === 'invoiceError' || filterMode === 'unbilled') && orders.length > 0"
         :is-select-all-active="selectedOrderIds.size === orders.length && orders.length > 0"
         :web-pending-count="webPendingCount"
+        :client-link-pending-count="clientLinkPendingCount"
         @search="fetchOrders"
         @toggle-select-all="toggleSelectAll(orders)"
         @export-production="handleExportProductionClick"
@@ -433,6 +435,10 @@ onUnmounted(() => {
           <p v-else-if="isLoading">Cargando...</p>
           <p v-else>Sin resultados</p>
         </div>
+        <router-link :to="{ name: 'create-link-order' }" class="btn-link-sale" title="Cobra y envía el link al cliente">
+          <i class="fas fa-link"></i>
+          <span>Venta con link</span>
+        </router-link>
         <button @click="fetchOrders" class="btn-refresh" :disabled="isLoading" title="Actualizar">
           <i class="fas fa-sync-alt" :class="{ 'fa-spin': isLoading }"></i>
         </button>
@@ -840,6 +846,28 @@ onUnmounted(() => {
       font-size: 0.8rem;
       color: #94a3b8;
       font-weight: 500;
+    }
+  }
+
+  .btn-link-sale {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    height: 38px;
+    padding: 0 0.9rem;
+    border-radius: 9px;
+    background: #7c3aed;
+    color: white;
+    font-weight: 700;
+    font-size: 0.85rem;
+    text-decoration: none;
+    flex-shrink: 0;
+    transition: background 0.2s;
+
+    &:hover { background: #6d28d9; }
+
+    @media (max-width: 520px) {
+      span { display: none; }
     }
   }
 

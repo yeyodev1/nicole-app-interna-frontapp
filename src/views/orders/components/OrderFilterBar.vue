@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import CustomDatePicker from '@/components/ui/CustomDatePicker.vue'
 
-export type FilterMode = 'today' | 'yesterday' | 'tomorrow' | 'all' | 'custom' | 'invoiceError' | 'unbilled' | 'returns' | 'webPending'
+export type FilterMode = 'today' | 'yesterday' | 'tomorrow' | 'all' | 'custom' | 'invoiceError' | 'unbilled' | 'returns' | 'webPending' | 'clientLinkPending'
 export type DateType = 'deliveryDate' | 'createdAt'
 
 const props = defineProps<{
@@ -14,6 +14,8 @@ const props = defineProps<{
   isSelectAllActive: boolean
   /** Pedidos de la tienda online por gestionar. */
   webPendingCount?: number
+  /** Ventas con link que esperan los datos del cliente. */
+  clientLinkPendingCount?: number
 }>()
 
 const emit = defineEmits<{
@@ -59,6 +61,20 @@ const emit = defineEmits<{
           <i class="fas fa-shopping-bag"></i>
           <span class="pill-text">Web por gestionar</span>
           <span v-if="(webPendingCount || 0) > 0" class="pill-count">{{ webPendingCount }}</span>
+        </button>
+      </div>
+
+      <!-- Venta con link -->
+      <div class="nav-section">
+        <span class="section-label">Venta con link</span>
+        <button
+          class="nav-pill pill-web"
+          :class="{ active: filterMode === 'clientLinkPending', 'has-pending': (clientLinkPendingCount || 0) > 0 }"
+          @click="emit('update:filterMode', 'clientLinkPending')"
+        >
+          <i class="fas fa-link"></i>
+          <span class="pill-text">Esperando al cliente</span>
+          <span v-if="(clientLinkPendingCount || 0) > 0" class="pill-count">{{ clientLinkPendingCount }}</span>
         </button>
       </div>
 

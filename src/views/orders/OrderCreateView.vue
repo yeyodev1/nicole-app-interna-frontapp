@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, watch, onMounted, computed } from 'vue'
+import { ref, reactive, watch, onMounted, computed, toRef } from 'vue'
 import OrderService from '@/services/order.service'
 import { useRouter, useRoute } from 'vue-router'
 import type { Product, CartItem, OrderFormData } from '@/types/order'
@@ -12,6 +12,10 @@ import { isPrecioIvaIncluido } from '@/constants/pricing'
 import OrderCart from './components/OrderCart.vue'
 import OrderWhatsAppModal from './components/OrderWhatsAppModal.vue'
 import OrderConfirmationModal from './components/OrderConfirmationModal.vue'
+import { useDeliveryLine, isDeliveryLine } from '@/composables/useDeliveryLine'
+import { useScheduleRules } from '@/composables/useScheduleRules'
+
+const LINK_BANNER_KEY = 'hide_link_sale_banner'
 
 const router = useRouter()
 const route = useRoute()
@@ -29,6 +33,20 @@ const editingOrderId = ref<string | null>(null)
 const originalOrder = ref<OrderFormData | null>(null)
 // Pedido de la tienda online en edición: llega sin motorizado ni link de Maps obligatorios.
 const isWebOrderEdit = ref(false)
+// Venta con link cuyo cliente aún no elige fecha ni dirección: se editan productos/cobro, no la entrega.
+const isClientLinkPendingEdit = ref(false)
+const originalDeliveryDate = ref('')
+const schedule = useScheduleRules()
+
+// Recomendación de la venta con link (se puede ocultar)
+const readBannerHidden = () => {
+  try { return localStorage.getItem(LINK_BANNER_KEY) === '1' } catch { return false }
+}
+const showLinkBanner = ref(!readBannerHidden())
+const dismissLinkBanner = () => {
+  showLinkBanner.value = false
+  try { localStorage.setItem(LINK_BANNER_KEY, '1') } catch { /* sin storage */ }
+}
 
 // Form Data - Strictly Typed
 const formData = reactive<OrderFormData>({
@@ -83,6 +101,15 @@ const activeCartSource = computed<'nicole' | 'sucree' | null>(() => {
   const firstItem = cart.value[0]
   if (!firstItem) return null
   return firstItem.source || 'nicole'
+})
+
+// Envío: el "Valor de Envío" ES la línea Delivery del carrito (antes había que poner los dos).
+useDeliveryLine({
+  cart,
+  value: toRef(formData, 'deliveryValue'),
+  enabled: computed(() => formData.deliveryType === 'delivery'),
+  source: activeCartSource,
+  onError: (msg) => showError(msg)
 })
 
 // Sync totalValue with Cart & Discounts
@@ -180,18 +207,24 @@ const onCartSubmit = () => {
   // Frontend Validation
   if (!formData.customerName) { showError("Nombre del cliente es obligatorio"); return; }
   if (!formData.customerPhone) { showError("Teléfono del cliente es obligatorio"); return; }
-  if (!formData.deliveryDate) { showError("Fecha de entrega es obligatoria"); return; }
-  if (!formData.deliveryTime) { showError("Hora de entrega es obligatoria"); return; }
-  if (!formData.branch) { showError("Sucursal de origen es obligatoria"); return; }
+  if (!isClientLinkPendingEdit.value) {
+    if (!formData.deliveryDate) { showError("Fecha de entrega es obligatoria"); return; }
+    if (!formData.deliveryTime) { showError("Hora de entrega es obligatoria"); return; }
+    if (!formData.branch) { showError("Sucursal de origen es obligatoria"); return; }
+    // Regla de anticipación (admin de la web). En edición solo si cambió la fecha.
+    // El retiro directo de tienda no pasa por producción: se puede el mismo día.
+    if (!formData.skipProduction && (!isEditMode.value || formData.deliveryDate !== originalDeliveryDate.value)) {
+      const scheduleError = schedule.validate(formData.deliveryDate, formData.deliveryTime)
+      if (scheduleError) { showError(scheduleError); return; }
+    }
+  }
 
   // Double check if there's a delivery product but type is pickup
-  const hasDeliveryProduct = cart.value.find(item =>
-    item.name.toLowerCase().includes('delivery') || item.name.toLowerCase().includes('envío')
-  )
+  const hasDeliveryProduct = cart.value.find(isDeliveryLine)
   if (hasDeliveryProduct && formData.deliveryType !== 'delivery') {
     formData.deliveryType = 'delivery'
   }
-  if (formData.deliveryType === 'delivery') {
+  if (formData.deliveryType === 'delivery' && !isClientLinkPendingEdit.value) {
     if (!formData.deliveryAddress) { showError("Dirección de entrega es obligatoria para Delivery"); return; }
     if (!isWebOrderEdit.value) {
       if (!formData.googleMapsLink) { showError("Link de Google Maps es obligatorio para Delivery"); return; }
@@ -243,6 +276,16 @@ const executeOrderAction = async () => {
         isCourtesy: item.isCourtesy || false,
         source: item.source  // Needed by backend to pick the right Contifico account
       })),
+    }
+
+    if (isClientLinkPendingEdit.value) {
+      // La entrega la completa el cliente en su link: no se tocan esos campos.
+      const p: any = payload
+      delete p.deliveryDate
+      delete p.deliveryTime
+      delete p.deliveryAddress
+      delete p.googleMapsLink
+      delete p.branch
     }
 
     if (isEditMode.value && editingOrderId.value) {
@@ -326,6 +369,8 @@ onMounted(async () => {
     try {
       const order = await OrderService.getOrder(editId)
       isWebOrderEdit.value = !!order.webOrder?.externalId
+      isClientLinkPendingEdit.value = !!order.clientLink?.token && order.clientLink.status !== 'COMPLETED'
+      originalDeliveryDate.value = order.deliveryDate ? order.deliveryDate.split('T')[0] : ''
 
       // Map back to formData
       Object.assign(formData, {
@@ -352,6 +397,7 @@ onMounted(async () => {
         isGlobalCourtesy: order.isGlobalCourtesy || false,
         skipProduction: order.skipProduction || false,
         exitPoint: order.exitPoint || '',
+        deliveryValue: order.deliveryValue || 0,
         payments: order.payments || []
       })
 
@@ -367,6 +413,10 @@ onMounted(async () => {
         quantity: p.quantity,
         isCourtesy: p.isCourtesy || false
       }))
+      // Una línea de envío implica delivery: así el valor y la línea no se pisan al cargar.
+      if (cart.value.some(isDeliveryLine) && formData.deliveryType !== 'delivery') {
+        formData.deliveryType = 'delivery'
+      }
 
     } catch (err) {
       console.error('Error loading order for edit:', err)
@@ -394,6 +444,31 @@ onMounted(async () => {
         </div>
       </div>
     </header>
+
+    <!-- Recomendación: venta con link -->
+    <div v-if="!isEditMode && showLinkBanner" class="container">
+      <div class="link-banner">
+        <i class="fa-solid fa-link"></i>
+        <div class="link-banner-content">
+          <strong>¿Ya cobraste? Usa la Venta con link.</strong>
+          <p>Tú registras productos y pago; el cliente elige fecha, hora, dirección o isla y su factura. Menos datos para ti y sin errores de dirección.</p>
+        </div>
+        <router-link :to="{ name: 'create-link-order' }" class="link-banner-cta">Ir a Venta con link</router-link>
+        <button type="button" class="link-banner-close" aria-label="Ocultar" @click="dismissLinkBanner">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+    </div>
+
+    <div v-if="isClientLinkPendingEdit" class="container">
+      <div class="warning-banner">
+        <i class="fa-solid fa-link"></i>
+        <div class="warning-content">
+          <strong>Venta con link: el cliente aún no gestiona su entrega.</strong>
+          <p>Aquí puedes corregir productos y cobro. La fecha, la hora y la dirección las pone el cliente en su link.</p>
+        </div>
+      </div>
+    </div>
 
     <!-- Warning for Paid Orders -->
     <div v-if="isEditMode && formData.payments && formData.payments.length > 0" class="container">
@@ -425,7 +500,12 @@ onMounted(async () => {
 
       <!-- Right Column: Order Details & Cart -->
       <section class="order-form-section">
-        <OrderForm v-model="formData" :is-edit-mode="isEditMode" :contifico-source="activeCartSource" />
+        <OrderForm
+          v-model="formData"
+          :is-edit-mode="isEditMode"
+          :contifico-source="activeCartSource"
+          :original-delivery-date="originalDeliveryDate"
+        />
         
         <OrderCart 
           :cart="cart" 
@@ -639,6 +719,55 @@ onMounted(async () => {
 </style>
 
 <style lang="scss" scoped>
+.link-banner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: #f5f3ff;
+  border: 1px solid #ddd6fe;
+  border-left: 4px solid $NICOLE-PURPLE;
+  color: #4c1d95;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+
+  > i {
+    font-size: 1.25rem;
+    color: $NICOLE-PURPLE;
+  }
+
+  .link-banner-content {
+    flex: 1;
+    min-width: 220px;
+
+    p {
+      margin: 0.2rem 0 0;
+      font-size: 0.9rem;
+      color: #5b21b6;
+    }
+  }
+}
+
+.link-banner-cta {
+  background: $NICOLE-PURPLE;
+  color: white;
+  text-decoration: none;
+  font-weight: 700;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+.link-banner-close {
+  border: none;
+  background: none;
+  color: #7c3aed;
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0.25rem;
+}
+
 .warning-banner {
   background-color: #fff7ed;
   border: 1px solid #fed7aa;

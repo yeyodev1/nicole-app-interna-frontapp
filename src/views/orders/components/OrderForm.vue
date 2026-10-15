@@ -7,6 +7,8 @@ import { deliveryService, type DeliveryPerson } from '@/services/delivery.servic
 import orderService from '@/services/order.service'
 import { useBranches } from '@/composables/useBranches'
 import { useSellers } from '@/composables/useSellers'
+import { useScheduleRules } from '@/composables/useScheduleRules'
+import { findSellerForCurrentUser } from '@/composables/useDefaultSeller'
 import PaymentFields from './PaymentFields.vue'
 import CustomDatePicker from '@/components/ui/CustomDatePicker.vue'
 import CustomTimeSelect from '@/components/ui/CustomTimeSelect.vue'
@@ -18,6 +20,8 @@ const props = defineProps<{
   isEditMode?: boolean,
   /** Cuenta de Contífico del carrito. `null` mientras no haya productos. */
   contificoSource?: 'nicole' | 'sucree' | null
+  /** Fecha original del pedido en edición (YYYY-MM-DD): no se le aplica la regla de anticipación. */
+  originalDeliveryDate?: string
 }>()
 
 const dialog = useDialog()
@@ -25,6 +29,7 @@ const toast = useToast()
 const { branchNames, load: loadBranches } = useBranches()
 const BRANCHES = branchNames
 const { activeSellers, load: loadSellers } = useSellers()
+const schedule = useScheduleRules()
 
 // El vendedor tiene que ser de la misma cuenta que el pedido: el backend valida la
 // cédula contra el catálogo filtrando por `contificoSource`, así que ofrecer los de
@@ -34,6 +39,17 @@ const sellersForSource = computed(() => {
   return activeSellers.value.filter(s => s.contificoSource === props.contificoSource)
 })
 
+// Vendedor por defecto: el usuario logueado, si está en el catálogo (sigue editable).
+const sellerTouched = ref(false)
+const applyDefaultSeller = (list: typeof sellersForSource.value) => {
+  if (props.isEditMode || sellerTouched.value || props.modelValue.sellerIdentification) return
+  const seller = findSellerForCurrentUser(list)
+  if (seller) {
+    props.modelValue.sellerIdentification = seller.identification
+    props.modelValue.sellerName = seller.name
+  }
+}
+
 // Si el carrito cambia de empresa, el vendedor ya elegido deja de ser válido.
 watch(sellersForSource, (list) => {
   const current = props.modelValue.sellerIdentification
@@ -41,6 +57,12 @@ watch(sellersForSource, (list) => {
     props.modelValue.sellerIdentification = undefined
     props.modelValue.sellerName = undefined
   }
+  applyDefaultSeller(list)
+})
+
+// Al limpiar el formulario después de guardar, vuelve el vendedor por defecto.
+watch(() => props.modelValue.sellerIdentification, (value) => {
+  if (!value && !sellerTouched.value) applyDefaultSeller(sellersForSource.value)
 })
 
 const isDelivery = computed(() => props.modelValue.deliveryType === 'delivery')
@@ -57,15 +79,18 @@ const fetchRiders = async () => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   fetchRiders()
   loadBranches()
-  loadSellers()
+  schedule.load()
+  await loadSellers()
+  applyDefaultSeller(sellersForSource.value)
 })
 
 // El nombre del vendedor viaja junto a la cédula para que el pedido lo muestre
 // sin tener que volver a consultar el catálogo.
 const handleSellerChange = (e: Event) => {
+  sellerTouched.value = true
   const identification = (e.target as HTMLSelectElement).value
   const seller = sellersForSource.value.find(s => s.identification === identification)
   props.modelValue.sellerIdentification = seller?.identification
@@ -110,66 +135,39 @@ const handleRiderSave = async (personData: Partial<DeliveryPerson>) => {
 }
 
 // --- Date & Time Logic ---
+// Misma regla que la tienda web y el link del cliente (admin de la web):
+// nada para el mismo día y solo los horarios configurados (11h00–18h00).
+// El retiro directo de tienda no pasa por producción: queda fuera de la regla.
+const isDirectPickup = computed(() => !!props.modelValue.skipProduction)
+const minDate = computed(() => (isDirectPickup.value ? undefined : schedule.minDate.value))
 
-// 1. Min Date = Today
-const minDate = computed(() => {
-  const now = new Date()
-  // Format: YYYY-MM-DD
-  return now.toISOString().split('T')[0]
+// Retiro directo: horario libre de 07h00 a 20h00 cada 15 minutos (como antes).
+const FREE_SLOTS = Array.from({ length: 53 }, (_, i) => {
+  const minutes = 7 * 60 + i * 15
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
 })
 
-// 2. Time Validation & Suggestions
 const timeError = computed(() => {
-  if (!props.modelValue.deliveryDate || !props.modelValue.deliveryTime) return null
-
-  const selectedDate = props.modelValue.deliveryDate
-  const selectedTime = props.modelValue.deliveryTime
-
-  const now = new Date()
-  const todayStr = now.toISOString().split('T')[0]
-
-  // Only validate 2-hour window if the selected date is TODAY
-  if (selectedDate === todayStr) {
-    const parts = selectedTime.split(':')
-    const hours = Number(parts[0]) || 0
-    const minutes = Number(parts[1]) || 0
-
-    const selectedDateTime = new Date(now)
-    selectedDateTime.setHours(hours, minutes, 0, 0)
-
-    const diffInMs = selectedDateTime.getTime() - now.getTime()
-    const diffInHours = diffInMs / (1000 * 60 * 60)
-
-    if (diffInHours < 2) {
-      return 'El pedido debe hacerse con al menos 2 horas de anticipación.'
-    }
-  }
-  return null
+  if (!props.modelValue.deliveryDate || isDirectPickup.value) return null
+  // En edición se respeta la fecha que ya tenía el pedido.
+  if (props.isEditMode && props.modelValue.deliveryDate === props.originalDeliveryDate) return null
+  return schedule.validate(props.modelValue.deliveryDate, props.modelValue.deliveryTime)
 })
 
-const quickTimes = [
-  { label: 'Mañana', time: '10:00' },
+const QUICK_TIMES = [
+  { label: 'Mañana', time: '11:00' },
   { label: 'Mediodía', time: '13:00' },
   { label: 'Tarde', time: '16:00' },
-  { label: 'Noche', time: '19:00' }
+  { label: 'Cierre', time: '18:00' }
 ]
+const quickTimes = computed(() => QUICK_TIMES.filter(qt => schedule.timeSlots.value.includes(qt.time)))
 
-// 3. Time Slots Generator (15 min intervals)
-const getTimeOptions = () => {
-  const slots: string[] = []
-  const startHour = 7 // 7 AM
-  const endHour = 20 // 8 PM
-
-  for (let h = startHour; h <= endHour; h++) {
-    for (let m = 0; m < 60; m += 15) {
-      const hh = h.toString().padStart(2, '0')
-      const mm = m.toString().padStart(2, '0')
-      slots.push(`${hh}:${mm}`)
-    }
-  }
-  return slots
-}
-const timeOptions = getTimeOptions()
+const timeOptions = computed(() => {
+  const slots = isDirectPickup.value ? FREE_SLOTS : schedule.timeSlots.value
+  // En edición, si el pedido tenía otra hora, se conserva en la lista.
+  const current = props.modelValue.deliveryTime
+  return current && props.isEditMode && !slots.includes(current) ? [...slots, current].sort() : slots
+})
 
 const selectTime = (time: string) => {
   props.modelValue.deliveryTime = time
@@ -296,8 +294,13 @@ const onRucInput = () => {
         <CustomDatePicker
           label="Fecha de Entrega"
           v-model="props.modelValue.deliveryDate"
+          :min-date="props.isEditMode ? undefined : minDate"
           required
         />
+        <small class="hint schedule-hint">
+          <i class="fa-regular fa-clock"></i>
+          {{ isDirectPickup ? 'Retiro directo de tienda: puede ser hoy, a cualquier hora.' : schedule.ruleText.value }}
+        </small>
       </div>
 
       <div class="form-group">
@@ -306,7 +309,7 @@ const onRucInput = () => {
            v-model="props.modelValue.deliveryTime"
            :options="timeOptions"
            required
-           hint="Intervalos de 15 minutos."
+           hint="Horarios de entrega configurados en el admin de la web."
         />
         
         <div class="quick-times">
@@ -358,7 +361,8 @@ const onRucInput = () => {
 
         <div class="form-group">
           <label class="required-label">Valor de Envío ($)</label>
-          <input type="number" v-model.number="props.modelValue.deliveryValue" step="0.01" placeholder="0.00" />
+          <input type="number" v-model.number="props.modelValue.deliveryValue" min="0" step="0.25" placeholder="0.00" />
+          <small class="hint">Se agrega solo al carrito como "Delivery" (IVA incluido). No hace falta agregarlo aparte.</small>
         </div>
       </template>
 
@@ -557,6 +561,13 @@ const onRucInput = () => {
 </template>
 
 <style lang="scss" scoped>
+.form-group .hint.schedule-hint {
+  color: #6d28d9;
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
 .card {
   background: white;
   border-radius: 16px; // More rounded

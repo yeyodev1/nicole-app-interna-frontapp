@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import ConfirmationModal from '@/components/ConfirmationModal.vue'
+import NotificationBell from '@/components/NotificationBell.vue'
 
 const router = useRouter()
 const mobileOpen = ref(false)
@@ -40,6 +41,8 @@ const isSalesManager = computed(() => {
 })
 const isSuperAdmin = computed(() => userRole.value?.toLowerCase() === 'superadmin')
 const isSales = computed(() => !isRetail.value && !isProduction.value && !isSupplyChain.value && !isSuperAdmin.value)
+// Avisos de ventas (link del cliente, facturas): asesores, jefes de ventas y superadmin.
+const showNotifications = computed(() => !!userRole.value && (isSales.value || isSuperAdmin.value))
 
 const closePanel = () => { mobileOpen.value = false }
 </script>
@@ -54,6 +57,7 @@ const closePanel = () => { mobileOpen.value = false }
       <span class="brand-dot"></span>
       Nicole <span class="thin">Pastry Arts</span>
     </router-link>
+    <NotificationBell v-if="showNotifications" class="topbar-bell" placement="topbar" />
   </header>
 
   <!-- Overlay (mobile) -->
@@ -81,6 +85,7 @@ const closePanel = () => { mobileOpen.value = false }
         <span class="brand-dot"></span>
         Nicole <span class="thin">Pastry Arts</span>
       </router-link>
+      <NotificationBell v-if="showNotifications" class="sidebar-bell" placement="sidebar" />
     </div>
 
     <!-- Nav links -->
@@ -161,8 +166,11 @@ const closePanel = () => { mobileOpen.value = false }
         <router-link to="/orders" active-class="active" @click="closePanel">
           <i class="fa-solid fa-basket-shopping"></i> Lista de Pedidos
         </router-link>
-        <router-link to="/orders/new" active-class="active" @click="closePanel">
-          <i class="fa-solid fa-plus"></i> Nuevo Pedido
+        <router-link to="/orders/link/new" active-class="active" class="nav-primary" @click="closePanel">
+          <i class="fa-solid fa-link"></i> Venta con link
+        </router-link>
+        <router-link to="/orders/new" exact-active-class="active" @click="closePanel">
+          <i class="fa-solid fa-plus"></i> Pedido manual
         </router-link>
 
         <span class="nav-group-label">Reportes</span>
@@ -306,6 +314,10 @@ const closePanel = () => { mobileOpen.value = false }
 .sidebar-brand {
   padding: 1.2rem 1.1rem 1rem;
   border-bottom: 1px solid $border-light;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
 
   .brand-link {
     display: flex;
@@ -385,6 +397,31 @@ const closePanel = () => { mobileOpen.value = false }
       }
     }
   }
+}
+
+.sidebar-nav a.nav-primary {
+  background: $NICOLE-PURPLE;
+  color: white;
+  font-weight: 700;
+  margin: 0.15rem 0 0.25rem;
+
+  i {
+    color: white;
+  }
+
+  &:hover,
+  &.active {
+    background: darken($NICOLE-PURPLE, 6%);
+    color: white;
+
+    i {
+      color: white;
+    }
+  }
+}
+
+.topbar-bell {
+  margin-left: auto;
 }
 
 .nav-group-label {

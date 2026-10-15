@@ -44,6 +44,12 @@ const router = createRouter({
       meta: { requiresAuth: true, title: 'Nuevo Pedido' }
     },
     {
+      path: '/orders/link/new',
+      name: 'create-link-order',
+      component: () => import('../views/orders/OrderLinkCreateView.vue'),
+      meta: { requiresAuth: true, title: 'Venta con link' }
+    },
+    {
       path: '/orders/:id',
       name: 'order-detail',
       component: () => import('../views/orders/OrderDetailView.vue'),

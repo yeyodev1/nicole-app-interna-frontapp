@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { formatECT, parseECTDate } from '@/utils/dateUtils'
+import { DATE_PENDING_LABEL } from '@/utils/clientLink'
 
 const emit = defineEmits(['edit-branch', 'edit-exit-point', 'edit-address', 'edit-maps-link'])
 
@@ -12,7 +13,7 @@ const props = defineProps({
 })
 
 const displayDate = computed(() => {
-  if (!props.order.deliveryDate) return 'N/A'
+  if (!props.order.deliveryDate) return props.order.clientLink?.token ? DATE_PENDING_LABEL : 'N/A'
 
   const date = parseECTDate(props.order.deliveryDate)
   const isMidnight = date.getHours() === 0 && date.getMinutes() === 0

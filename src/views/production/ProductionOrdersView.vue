@@ -223,6 +223,8 @@ const ordersByDate = computed(() => {
   yesterday.setDate(yesterday.getDate() - 1)
 
   return orders.value.filter(o => {
+    // Venta con link sin fecha todavía: no es trabajo de producción
+    if (!o.deliveryDate) return false
     // Crucial: Use parseECTDate to treat UTC midnight as EC midnight
     const dDate = parseECTDate(o.deliveryDate)
 
