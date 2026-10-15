@@ -698,7 +698,7 @@ onUnmounted(() => {
 .orders-layout {
   display: flex;
   min-height: 100vh;
-  background: #f8fafc;
+  background: #f7f5f8;
   position: relative;
 }
 
@@ -743,9 +743,10 @@ onUnmounted(() => {
     display: flex;
     align-items: center;
     gap: 0.6rem;
-    color: #7c3aed;
-    font-weight: 800;
-    font-size: 1rem;
+    color: $NICOLE-PURPLE;
+    font-family: $font-principal;
+    font-weight: 700;
+    font-size: 1.15rem;
 
     i { font-size: 1rem; }
   }
@@ -816,7 +817,7 @@ onUnmounted(() => {
     border: 1px solid #e2e8f0;
     background: white;
     border-radius: 9px;
-    color: #7c3aed;
+    color: $NICOLE-PURPLE;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -825,7 +826,7 @@ onUnmounted(() => {
     transition: all 0.2s;
     flex-shrink: 0;
 
-    &:hover { background: #ede9fe; border-color: #c4b5fd; }
+    &:hover { background: rgba($NICOLE-PURPLE, 0.08); border-color: rgba($NICOLE-PURPLE, 0.3); }
 
     // Hide on desktop
     @media (min-width: 1024px) { display: none; }
@@ -836,9 +837,15 @@ onUnmounted(() => {
 
     h1 {
       margin: 0;
-      font-size: 1.25rem;
-      font-weight: 800;
-      color: #7c3aed;
+      font-family: $font-principal;
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: $NICOLE-PURPLE;
+      letter-spacing: -0.3px;
+
+      @media (max-width: 520px) {
+        font-size: 1.25rem;
+      }
     }
 
     p {
@@ -856,7 +863,7 @@ onUnmounted(() => {
     height: 38px;
     padding: 0 0.9rem;
     border-radius: 9px;
-    background: #7c3aed;
+    background: $NICOLE-PURPLE;
     color: white;
     font-weight: 700;
     font-size: 0.85rem;
@@ -864,7 +871,7 @@ onUnmounted(() => {
     flex-shrink: 0;
     transition: background 0.2s;
 
-    &:hover { background: #6d28d9; }
+    &:hover { background: #6a1f5e; }
 
     @media (max-width: 520px) {
       span { display: none; }
@@ -886,7 +893,7 @@ onUnmounted(() => {
     transition: all 0.2s;
     flex-shrink: 0;
 
-    &:hover { color: #7c3aed; border-color: #c4b5fd; background: #faf5ff; }
+    &:hover { color: $NICOLE-PURPLE; border-color: rgba($NICOLE-PURPLE, 0.3); background: rgba($NICOLE-PURPLE, 0.05); }
     &:disabled { opacity: 0.6; cursor: not-allowed; }
   }
 }
@@ -894,17 +901,10 @@ onUnmounted(() => {
 /* ── Orders grid ───────────────────────────────────────── */
 .orders-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  // 1 columna en celular, 2–3 en escritorio según el ancho disponible.
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
   gap: 1rem;
   align-content: start;
-
-  @media (min-width: 640px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  @media (min-width: 1280px) {
-    grid-template-columns: repeat(3, 1fr);
-  }
 }
 
 /* ── Loading & empty ───────────────────────────────────── */
@@ -926,8 +926,8 @@ onUnmounted(() => {
 .spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid rgba(124, 58, 237, 0.15);
-  border-top-color: #7c3aed;
+  border: 3px solid rgba($NICOLE-PURPLE, 0.15);
+  border-top-color: $NICOLE-PURPLE;
   border-radius: 50%;
   animation: spin 0.8s infinite linear;
 }
@@ -1022,8 +1022,18 @@ onUnmounted(() => {
   .monitor-actions {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 0.6rem;
     flex-shrink: 0;
+
+    @media (max-width: 600px) {
+      width: 100%;
+
+      button {
+        flex: 1 1 auto;
+        justify-content: center;
+      }
+    }
   }
 
   .btn-toggle-errors {
@@ -1067,7 +1077,7 @@ onUnmounted(() => {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    background: #7c3aed;
+    background: $NICOLE-PURPLE;
     color: white;
     border: none;
     padding: 0.5rem 1rem;
@@ -1078,7 +1088,7 @@ onUnmounted(() => {
     transition: all 0.2s;
     white-space: nowrap;
 
-    &:hover:not(:disabled) { background: #6d28d9; }
+    &:hover:not(:disabled) { background: #6a1f5e; }
     &:disabled { opacity: 0.65; cursor: not-allowed; }
   }
 

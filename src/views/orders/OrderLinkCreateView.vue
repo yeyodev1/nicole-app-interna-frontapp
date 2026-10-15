@@ -12,8 +12,7 @@ import { isPrecioIvaIncluido } from '@/constants/pricing'
 import type { Product, CartItem, OrderFormData, ClientLinkRequest } from '@/types/order'
 
 import OrderProductSelector from './components/OrderProductSelector.vue'
-import OrderPaymentSelector from './components/OrderPaymentSelector.vue'
-import PayphoneLinkPanel from './components/PayphoneLinkPanel.vue'
+import LinkPaymentPanel, { type LinkPaymentMethod } from './components/LinkPaymentPanel.vue'
 import ClientLinkSuccessModal from './components/ClientLinkSuccessModal.vue'
 
 /**
@@ -30,7 +29,7 @@ const { activeSellers, load: loadSellers } = useSellers()
 
 const isSubmitting = ref(false)
 const isCourtesyMode = ref(false)
-const payphoneUrl = ref('')
+const paymentMethod = ref<LinkPaymentMethod>('TRA')
 
 const plannedType = ref<'delivery' | 'retiro'>('delivery')
 const estimatedDeliveryValue = ref<number | null>(null)
@@ -133,13 +132,6 @@ const applyDefaultSeller = () => {
 }
 watch(sellersForSource, applyDefaultSeller)
 
-const onSellerChange = (e: Event) => {
-  sellerTouched.value = true
-  const identification = (e.target as HTMLSelectElement).value
-  const seller = sellersForSource.value.find(s => s.identification === identification)
-  formData.sellerIdentification = seller?.identification || ''
-  formData.sellerName = seller?.name || ''
-}
 
 // --- Carrito ---
 const addToCart = (product: Product) => {
@@ -172,34 +164,50 @@ const toggleItemCourtesy = (index: number) => {
   if (item) item.isCourtesy = !item.isCourtesy
 }
 
-// --- Payphone ---
-const onPayphoneGenerated = (url: string) => {
-  payphoneUrl.value = url
-  formData.registerPaymentNow = true
-  formData.isCredit = false
-  formData.settledInIsland = false
-  if (formData.paymentDetails) {
-    formData.paymentDetails.forma_cobro = 'TC'
-    formData.paymentDetails.tipo_ping = 'D'
-  }
-}
-
-const isPayphonePayment = computed(() => !!payphoneUrl.value && formData.paymentDetails?.forma_cobro === 'TC')
-
+// --- Cobro: la forma de pago la elige LinkPaymentPanel ---
 const paymentMethodLabel = computed(() => {
-  if (formData.isGlobalCourtesy) return 'Cortesía'
-  if (formData.isCredit) return 'Crédito'
-  if (formData.settledInIsland) return `Isla: ${formData.settledIslandName}`
-  if (!formData.registerPaymentNow) return 'Por confirmar'
-  const forma = formData.paymentDetails?.forma_cobro
-  if (forma === 'TRA') return 'Transferencia'
-  if (forma === 'TC') return isPayphonePayment.value ? 'Payphone' : 'Tarjeta'
-  if (forma === 'CR') return 'Crédito'
-  return 'Por confirmar'
+  switch (paymentMethod.value) {
+    case 'CORTESIA': return 'Cortesía'
+    case 'CR': return 'Crédito'
+    case 'ISLA': return `Isla: ${formData.settledIslandName}`
+    case 'PAYPHONE': return 'Payphone'
+    case 'TC': return 'Tarjeta'
+    default: return 'Transferencia'
+  }
 })
 
+// --- WhatsApp del cliente: con eso basta (el nombre lo pone el cliente en el link) ---
+/** Celular de Ecuador en 10 dígitos (09XXXXXXXX). Acepta +593 / 593 al pegar. */
+const normalizePhone = (raw: string) => {
+  let digits = raw.replace(/\D/g, '')
+  if (digits.startsWith('593')) digits = `0${digits.slice(3)}`
+  if (digits.length === 9 && digits.startsWith('9')) digits = `0${digits}`
+  return digits.slice(0, 10)
+}
+const phoneDisplay = computed({
+  get: () => {
+    const d = normalizePhone(formData.customerPhone)
+    if (d.length <= 3) return d
+    if (d.length <= 6) return `${d.slice(0, 3)} ${d.slice(3)}`
+    return `${d.slice(0, 3)} ${d.slice(3, 6)} ${d.slice(6)}`
+  },
+  set: (value: string) => { formData.customerPhone = normalizePhone(value) }
+})
+const phoneValid = computed(() => /^09\d{8}$/.test(normalizePhone(formData.customerPhone)))
+const phoneTouched = ref(false)
+
+// --- Vendedor: desplegable propio ---
+const sellerOpen = ref(false)
+const pickSeller = (identification: string) => {
+  sellerTouched.value = true
+  const seller = sellersForSource.value.find(s => s.identification === identification)
+  formData.sellerIdentification = seller?.identification || ''
+  formData.sellerName = seller?.name || ''
+  sellerOpen.value = false
+}
+const showNotes = ref(false)
+
 // --- Validación y envío ---
-const phoneDigits = computed(() => formData.customerPhone.replace(/\D/g, ''))
 
 // --- Resumen visible: precio final por línea (con IVA, como lo paga el cliente) ---
 const lineTotal = (item: CartItem) => {
@@ -240,8 +248,8 @@ const steps = computed(() => [
   {
     n: 3,
     label: 'Cliente',
-    done: !!formData.customerName.trim() && phoneDigits.value.length >= 9,
-    detail: formData.customerName.trim() || 'Nombre y WhatsApp'
+    done: phoneValid.value,
+    detail: phoneValid.value ? `WhatsApp ${phoneDisplay.value}` : 'Su WhatsApp'
   },
   { n: 4, label: 'Cobro', done: paymentReady.value, detail: paymentReady.value ? paymentMethodLabel.value : 'Falta el número de pago' }
 ])
@@ -252,8 +260,7 @@ const stepDone = (n: number) => steps.value.find(s => s.n === n)?.done
 const validate = (): string | null => {
   if (cart.value.length === 0) return 'Agrega al menos un producto.'
   if (!cart.value.some(i => !i.name.toLowerCase().includes('delivery'))) return 'El pedido solo tiene envío: agrega los productos.'
-  if (!formData.customerName.trim()) return 'Escribe el nombre del cliente.'
-  if (phoneDigits.value.length < 9) return 'Escribe el WhatsApp del cliente: ahí le llega el link.'
+  if (!phoneValid.value) return 'Escribe el WhatsApp del cliente (09XXXXXXXX): ahí le llega el link.'
   if (customerEmail.value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail.value.trim())) return 'El correo no es válido.'
 
   const hasPaymentChoice = formData.isGlobalCourtesy || formData.isCredit || formData.settledInIsland || formData.registerPaymentNow
@@ -299,7 +306,7 @@ const submit = async () => {
     ? `Entrega a domicilio · envío estimado $${envio.toFixed(2)}`
     : 'Retiro en isla (el cliente elige cuál)'
   const ok = await dialog.confirm(
-    `Cliente: ${String(formData.customerName).replace(/[<>&]/g, '')}\nTotal cobrado: $${(formData.totalValue || 0).toFixed(2)} · ${paymentMethodLabel.value}\n${typeLine}\n\nSe generará el link para que el cliente gestione su entrega.`,
+    `Cliente: ${String(formData.customerName.trim() || phoneDisplay.value).replace(/[<>&]/g, '')}\nTotal cobrado: $${(formData.totalValue || 0).toFixed(2)} · ${paymentMethodLabel.value}\n${typeLine}\n\nSe generará el link para que el cliente gestione su entrega.`,
     { title: 'Confirmar venta con link', confirmLabel: 'Generar link', cancelLabel: 'Revisar' }
   )
   if (!ok) return
@@ -316,7 +323,7 @@ const submit = async () => {
     const payload: any = {
       ...formData,
       customerName: formData.customerName.trim(),
-      customerPhone: formData.customerPhone.trim(),
+      customerPhone: normalizePhone(formData.customerPhone),
       deliveryType: plannedType.value,
       deliveryValue: isDelivery.value ? Number(envio.toFixed(2)) : 0,
       branch: isDelivery.value ? 'Centro de Producción' : '',
@@ -371,7 +378,9 @@ const reset = () => {
   Object.assign(formData, emptyForm())
   cart.value = []
   isCourtesyMode.value = false
-  payphoneUrl.value = ''
+  paymentMethod.value = 'TRA'
+  phoneTouched.value = false
+  showNotes.value = false
   estimatedDeliveryValue.value = null
   customerEmail.value = ''
   plannedType.value = 'delivery'
@@ -436,7 +445,7 @@ onMounted(async () => {
           </div>
 
           <div class="catalog">
-            <OrderProductSelector compact :active-cart-source="activeCartSource" @add-to-cart="addToCart" />
+            <OrderProductSelector compact hide-delivery :active-cart-source="activeCartSource" @add-to-cart="addToCart" />
           </div>
 
           <div class="picked">
@@ -501,21 +510,33 @@ onMounted(async () => {
           <div class="card-head">
             <span class="badge"><i v-if="stepDone(3)" class="fa-solid fa-check"></i><template v-else>3</template></span>
             <div class="card-title">
-              <h2 id="st-3">¿Quién compró?</h2>
-              <p>A este WhatsApp le mandas el link.</p>
+              <h2 id="st-3">WhatsApp del cliente</h2>
+              <p>Con su número basta. Su nombre y quién recibe los pone el cliente en el link.</p>
             </div>
+          </div>
+          <div class="field phone-field" :class="{ invalid: phoneTouched && formData.customerPhone && !phoneValid }">
+            <label for="cl-phone">WhatsApp <span class="req">*</span></label>
+            <div class="phone-input">
+              <span class="prefix"><i class="fa-brands fa-whatsapp"></i></span>
+              <input
+                id="cl-phone"
+                v-model="phoneDisplay"
+                inputmode="tel"
+                autocomplete="off"
+                placeholder="099 123 4567"
+                @blur="phoneTouched = true"
+              />
+              <i v-if="phoneValid" class="fa-solid fa-circle-check ok-icon" aria-hidden="true"></i>
+            </div>
+            <small v-if="phoneTouched && formData.customerPhone && !phoneValid" class="error">Debe ser un celular de 10 dígitos que empiece con 09.</small>
           </div>
           <div class="grid">
             <div class="field">
-              <label for="cl-name">Nombre <span class="req">*</span></label>
-              <input id="cl-name" v-model="formData.customerName" autocomplete="off" placeholder="Nombre y apellido" />
+              <label for="cl-name">Nombre <span class="opt">opcional · lo pone el cliente en el link</span></label>
+              <input id="cl-name" v-model="formData.customerName" autocomplete="off" placeholder="Si ya lo sabes" />
             </div>
             <div class="field">
-              <label for="cl-phone">WhatsApp <span class="req">*</span></label>
-              <input id="cl-phone" v-model="formData.customerPhone" inputmode="tel" placeholder="0991234567" />
-            </div>
-            <div class="field full">
-              <label for="cl-email">Correo <span class="opt">opcional · le llegan recordatorios y la factura</span></label>
+              <label for="cl-email">Correo <span class="opt">opcional · recordatorios y factura</span></label>
               <input id="cl-email" v-model="customerEmail" type="email" placeholder="cliente@correo.com" />
             </div>
           </div>
@@ -527,46 +548,49 @@ onMounted(async () => {
             <span class="badge"><i v-if="stepDone(4)" class="fa-solid fa-check"></i><template v-else>4</template></span>
             <div class="card-title">
               <h2 id="st-4">¿Cómo pagó?</h2>
-              <p>Registra el pago una sola vez. Con eso se factura.</p>
+              <p>Elige la forma de pago y escribe su número. Se registra una sola vez.</p>
             </div>
           </div>
 
-          <div class="payphone-box">
-            <PayphoneLinkPanel
-              :cart="cart"
-              :total-value="formData.totalValue || 0"
-              :global-discount-percentage="formData.globalDiscountPercentage"
-              :is-global-courtesy="formData.isGlobalCourtesy"
-              :customer-name="formData.customerName"
-              :customer-phone="formData.customerPhone"
-              @generated="onPayphoneGenerated"
-            />
-            <p v-if="isPayphonePayment" class="note">
-              <i class="fa-solid fa-circle-info"></i>
-              Cuando el cliente pague, escribe abajo el <strong>número de transacción</strong> de Payphone.
-            </p>
-          </div>
+          <LinkPaymentPanel
+            v-model:method="paymentMethod"
+            :form="formData"
+            :branches="branchNames"
+            :cart="cart"
+            :customer-name="formData.customerName"
+            :customer-phone="formData.customerPhone"
+          />
 
-          <OrderPaymentSelector v-model="formData" :branches="branchNames" />
-
-          <details class="more">
-            <summary>Vendedor y nota interna</summary>
-            <div class="field">
-              <label for="cl-seller">Vendedor (sale en la factura para comisiones)</label>
-              <select id="cl-seller" :value="formData.sellerIdentification || ''" @change="onSellerChange">
-                <option value="">Sin vendedor asignado</option>
-                <option v-for="seller in sellersForSource" :key="seller._id" :value="seller.identification">{{ seller.name }}</option>
-              </select>
+          <div class="extras">
+            <div class="seller">
+              <i class="fa-solid fa-user-tie" aria-hidden="true"></i>
+              <span>Vendedor: <strong>{{ formData.sellerName || 'sin asignar' }}</strong></span>
+              <button type="button" class="link" :aria-expanded="sellerOpen" @click="sellerOpen = !sellerOpen">cambiar</button>
+              <ul v-if="sellerOpen" class="seller-menu" role="listbox" aria-label="Vendedor">
+                <li>
+                  <button type="button" role="option" :aria-selected="!formData.sellerIdentification" @click="pickSeller('')">Sin vendedor</button>
+                </li>
+                <li v-for="seller in sellersForSource" :key="seller._id">
+                  <button
+                    type="button"
+                    role="option"
+                    :aria-selected="formData.sellerIdentification === seller.identification"
+                    :class="{ on: formData.sellerIdentification === seller.identification }"
+                    @click="pickSeller(seller.identification)"
+                  >
+                    {{ seller.name }}
+                  </button>
+                </li>
+              </ul>
             </div>
-            <div class="field">
+            <button type="button" class="link" @click="showNotes = !showNotes">
+              <i class="fa-regular fa-note-sticky"></i> {{ showNotes ? 'Quitar nota interna' : 'Agregar nota interna' }}
+            </button>
+            <div v-if="showNotes" class="field">
               <label for="cl-notes">Nota interna <span class="opt">no la ve el cliente</span></label>
               <textarea id="cl-notes" v-model="formData.comments" rows="2" placeholder="Detalles para producción o el equipo…"></textarea>
             </div>
-          </details>
-          <p class="seller-line">
-            <i class="fa-solid fa-user-tie"></i>
-            Vendedor: <strong>{{ formData.sellerName || 'sin asignar' }}</strong>
-          </p>
+          </div>
         </section>
       </div>
 
@@ -1097,54 +1121,134 @@ $ok: #16a34a;
   }
 }
 
-.payphone-box {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
 
-.note {
-  margin: 0;
-  display: flex;
-  gap: 0.5rem;
-  color: #334155;
-  font-size: 0.85rem;
-  background: rgba($NICOLE-PURPLE, 0.06);
-  border-radius: 10px;
-  padding: 0.6rem 0.8rem;
 
-  i {
-    color: $NICOLE-PURPLE;
-    margin-top: 2px;
+.phone-input {
+  display: flex;
+  align-items: center;
+  border: 1px solid #dcd6e0;
+  border-radius: 12px;
+  background: white;
+  max-width: 360px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  .prefix {
+    padding: 0 0.4rem 0 0.9rem;
+    color: #25d366;
+    font-size: 1.25rem;
+  }
+
+  input {
+    flex: 1;
+    min-width: 0;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    font-size: 1.25rem !important;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    font-variant-numeric: tabular-nums;
+    padding: 0.8rem 0.5rem !important;
+  }
+
+  .ok-icon {
+    color: $ok;
+    padding-right: 0.9rem;
+  }
+
+  &:focus-within {
+    border-color: $NICOLE-PURPLE;
+    box-shadow: 0 0 0 3px rgba($NICOLE-PURPLE, 0.18);
   }
 }
 
-.more {
+.phone-field.invalid .phone-input {
+  border-color: #dc2626;
+}
+
+.error {
+  color: #dc2626;
+  font-size: 0.8rem;
+}
+
+.extras {
   border-top: 1px solid $line;
   padding-top: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  align-items: flex-start;
+}
 
-  summary {
-    cursor: pointer;
-    font-weight: 600;
-    color: $muted;
-    font-size: 0.9rem;
-  }
+.seller {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  color: $muted;
+  font-size: 0.9rem;
 
-  &[open] summary {
-    margin-bottom: 0.8rem;
-  }
-
-  .field + .field {
-    margin-top: 0.75rem;
+  strong {
+    color: $ink;
   }
 }
 
-.seller-line {
+.seller-menu {
+  font-family: inherit;
+
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  list-style: none;
   margin: 0;
-  color: $muted;
+  padding: 0.35rem;
+  min-width: 260px;
+  max-height: 260px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid $line;
+  border-radius: 12px;
+  box-shadow: 0 16px 32px rgba(30, 41, 59, 0.12);
+
+  button {
+    font-family: inherit;
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: none;
+    padding: 0.6rem 0.75rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: $ink;
+
+    &:hover {
+      background: rgba($NICOLE-PURPLE, 0.06);
+    }
+
+    &.on {
+      background: rgba($NICOLE-PURPLE, 0.1);
+      color: $NICOLE-PURPLE;
+      font-weight: 700;
+    }
+  }
+}
+
+.link {
+  font-family: inherit;
+  border: none;
+  background: none;
+  padding: 0;
+  color: $NICOLE-PURPLE;
+  font-weight: 600;
   font-size: 0.85rem;
-  display: flex;
-  gap: 0.4rem;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  display: inline-flex;
+  gap: 0.35rem;
   align-items: center;
 }
 

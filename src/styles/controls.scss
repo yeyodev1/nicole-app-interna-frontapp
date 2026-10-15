@@ -1,0 +1,203 @@
+// Controles de formulario de toda la app, con la marca en vez del look nativo del
+// navegador. Todo va dentro de :where() (especificidad 0): cualquier estilo de un
+// componente gana, así que solo cubre lo que nadie estiló.
+
+$ctl-border: #d9d3dd;
+$ctl-border-hover: #bdb3c4;
+$ctl-focus: rgba($NICOLE-PURPLE, 0.2);
+$ctl-radius: 10px;
+$ctl-disabled-bg: #f4f2f6;
+
+// --- Texto, número, fecha, select y textarea --------------------------------
+:where(
+    input:not([type]),
+    input[type='text'],
+    input[type='email'],
+    input[type='tel'],
+    input[type='number'],
+    input[type='search'],
+    input[type='password'],
+    input[type='url'],
+    input[type='date'],
+    input[type='time'],
+    input[type='datetime-local'],
+    input[type='month'],
+    select,
+    textarea
+  ) {
+  font: inherit;
+  font-size: 0.95rem;
+  color: #1e293b;
+  background-color: #fff;
+  border: 1px solid $ctl-border;
+  border-radius: $ctl-radius;
+  padding: 0.6rem 0.8rem;
+  box-sizing: border-box;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+:where(textarea) {
+  line-height: 1.45;
+}
+
+:where(input, select, textarea):hover:not(:disabled):not(:focus) {
+  border-color: $ctl-border-hover;
+}
+
+:where(input, select, textarea):focus {
+  outline: none;
+  border-color: $NICOLE-PURPLE;
+  box-shadow: 0 0 0 3px $ctl-focus;
+}
+
+:where(input, select, textarea):disabled {
+  background-color: $ctl-disabled-bg;
+  color: #8a8291;
+  cursor: not-allowed;
+}
+
+:where(input, textarea)::placeholder {
+  color: #a59cab;
+}
+
+// --- Select con flecha propia --------------------------------------------------
+:where(select) {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 2.4rem;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23812a73' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.9rem center;
+  background-size: 12px 8px;
+}
+
+:where(select[multiple]) {
+  background-image: none;
+  padding-right: 0.8rem;
+}
+
+// --- Fecha y hora ---------------------------------------------------------------
+:where(input[type='date'], input[type='time'], input[type='datetime-local'], input[type='month']) {
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+:where(input[type='date'], input[type='time'], input[type='datetime-local'], input[type='month'])::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.85;
+  padding: 2px;
+  border-radius: 6px;
+  // Tinte morado del ícono nativo (Chrome/Safari/Edge).
+  filter: invert(22%) sepia(38%) saturate(1700%) hue-rotate(276deg) brightness(88%);
+
+  &:hover {
+    background-color: rgba($NICOLE-PURPLE, 0.1);
+  }
+}
+
+// --- Números sin flechas -------------------------------------------------------
+:where(input[type='number']) {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+:where(input[type='number'])::-webkit-outer-spin-button,
+:where(input[type='number'])::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+// --- Checkbox y radio -----------------------------------------------------------
+:where(input[type='checkbox'], input[type='radio']) {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  border: 2px solid $ctl-border-hover;
+  background: #fff;
+  display: inline-grid;
+  place-content: center;
+  vertical-align: middle;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+:where(input[type='checkbox']) {
+  border-radius: 6px;
+}
+
+:where(input[type='radio']) {
+  border-radius: 50%;
+}
+
+:where(input[type='checkbox'])::after {
+  content: '';
+  width: 5px;
+  height: 10px;
+  margin-top: -2px;
+  border: solid #fff;
+  border-width: 0 2.5px 2.5px 0;
+  transform: rotate(45deg) scale(0);
+  transition: transform 0.12s ease;
+}
+
+:where(input[type='radio'])::after {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: $NICOLE-PURPLE;
+  transform: scale(0);
+  transition: transform 0.12s ease;
+}
+
+:where(input[type='checkbox']):checked {
+  background: $NICOLE-PURPLE;
+  border-color: $NICOLE-PURPLE;
+
+  &::after {
+    transform: rotate(45deg) scale(1);
+  }
+}
+
+:where(input[type='radio']):checked {
+  border-color: $NICOLE-PURPLE;
+
+  &::after {
+    transform: scale(1);
+  }
+}
+
+:where(input[type='checkbox'], input[type='radio']):hover:not(:disabled) {
+  border-color: $NICOLE-PURPLE;
+}
+
+:where(input[type='checkbox'], input[type='radio']):focus {
+  box-shadow: none;
+}
+
+:where(input[type='checkbox'], input[type='radio']):focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px $ctl-focus;
+}
+
+:where(input[type='checkbox'], input[type='radio']):disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(input, select, textarea),
+  :where(input[type='checkbox'], input[type='radio'])::after {
+    transition: none;
+  }
+}
