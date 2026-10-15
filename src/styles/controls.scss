@@ -201,3 +201,47 @@ $ctl-disabled-bg: #f4f2f6;
     transition: none;
   }
 }
+
+// --- Blindaje de casillas y radios ------------------------------------------------
+// Muchas vistas tienen reglas genéricas como `.form-group input { width: 100%;
+// padding…; background: #fff }` que también caen sobre casillas y radios: los
+// estiraban en cajas vacías o tapaban el color al marcarlos. Tamaño, relleno y el
+// estado marcado se fijan con prioridad para que se vean igual en todas partes.
+// Las vistas que los esconden (display: none) no cambian.
+input[type='checkbox'],
+input[type='radio'] {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  width: 20px !important;
+  min-width: 20px !important;
+  max-width: 20px !important;
+  height: 20px !important;
+  min-height: 20px !important;
+  padding: 0 !important;
+  flex: 0 0 20px !important;
+  box-shadow: none;
+}
+
+input[type='checkbox'] {
+  border-radius: 6px !important;
+}
+
+input[type='radio'] {
+  border-radius: 50% !important;
+}
+
+input[type='checkbox']:checked {
+  background-color: $NICOLE-PURPLE !important;
+  border-color: $NICOLE-PURPLE !important;
+}
+
+input[type='radio']:checked {
+  background-color: #fff !important;
+  border-color: $NICOLE-PURPLE !important;
+}
+
+// Selects: que el texto nunca pise la flecha, aunque la vista cambie el relleno.
+select:not([multiple]) {
+  padding-right: 2.4rem !important;
+  text-overflow: ellipsis;
+}
