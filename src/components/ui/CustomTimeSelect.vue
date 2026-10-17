@@ -9,6 +9,7 @@ const props = defineProps<{
   required?: boolean
   options: string[] // List of time strings "HH:MM"
   hint?: string
+  emptyText?: string // Se muestra si no hay horarios (p. ej. hoy ya pasó el cierre)
 }>()
 
 const emit = defineEmits(['update:modelValue'])
@@ -60,7 +61,8 @@ const displayValue = computed(() => {
 
     <transition name="fade">
       <div v-if="isOpen" class="dropdown-menu">
-         <div class="time-grid">
+         <p v-if="!options.length" class="empty">{{ emptyText || 'No hay horarios disponibles.' }}</p>
+         <div v-else class="time-grid">
            <button 
              v-for="time in options" 
              :key="time" 
@@ -208,6 +210,13 @@ const displayValue = computed(() => {
     font-weight: 700;
     box-shadow: 0 2px 8px rgba($NICOLE-PURPLE, 0.3);
   }
+}
+
+.empty {
+  margin: 0;
+  font-size: 0.9rem;
+  color: $text-light;
+  line-height: 1.4;
 }
 
 .hint {

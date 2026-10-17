@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import ClientLinkService from '@/services/client-link.service'
 import { useToast } from '@/composables/useToast'
-import { clientLinkMessage, clientLinkState, clientLinkUrl, copyText, CLIENT_LINK_LABELS } from '@/utils/clientLink'
+import { clientLinkCompletedMessage, clientLinkMessage, clientLinkState, clientLinkUrl, copyText, CLIENT_LINK_LABELS } from '@/utils/clientLink'
 import { whatsappUrl } from '@/utils/payphone'
 import { formatECT } from '@/utils/dateUtils'
 
@@ -51,13 +51,16 @@ const copy = async () => {
   else showError('No se pudo copiar. Selecciónalo y cópialo a mano.')
 }
 
+// Pendiente: el mensaje para que llene el link. Completado: el de "tu pedido quedó agendado".
+const message = () => (isCompleted.value ? clientLinkCompletedMessage(props.order) : clientLinkMessage(props.order))
+
 const copyMessage = async () => {
-  if (await copyText(clientLinkMessage(props.order))) success('Mensaje copiado: pégalo en el WhatsApp del cliente')
+  if (await copyText(message())) success('Mensaje copiado: pégalo en el WhatsApp del cliente')
   else showError('No se pudo copiar. Inténtalo con "Copiar link".')
 }
 
 const resend = () => {
-  window.open(whatsappUrl(buyerPhone.value, clientLinkMessage(props.order)), '_blank')
+  window.open(whatsappUrl(buyerPhone.value, message()), '_blank')
 }
 
 const renew = async () => {
@@ -104,11 +107,11 @@ const renew = async () => {
     </div>
 
     <div class="actions">
-      <button v-if="!isCompleted" type="button" class="btn-copy-msg" @click="copyMessage">
-        <i class="fa-regular fa-copy"></i> Copiar mensaje
+      <button type="button" class="btn-copy-msg" @click="copyMessage">
+        <i class="fa-regular fa-copy"></i> {{ isCompleted ? 'Copiar confirmación' : 'Copiar mensaje' }}
       </button>
-      <button v-if="!isCompleted" type="button" class="btn-wa" @click="resend">
-        <i class="fa-brands fa-whatsapp"></i> Abrir WhatsApp
+      <button type="button" class="btn-wa" @click="resend">
+        <i class="fa-brands fa-whatsapp"></i> {{ isCompleted ? 'Enviar confirmación' : 'Abrir WhatsApp' }}
       </button>
       <button v-if="!isCompleted" type="button" class="btn-outline" :disabled="isRenewing" @click="renew">
         <i class="fa-solid" :class="isRenewing ? 'fa-circle-notch fa-spin' : 'fa-rotate'"></i> Renovar 7 días
