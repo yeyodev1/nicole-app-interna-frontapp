@@ -169,6 +169,10 @@ const timeOptions = computed(() => {
   return current && props.isEditMode && !slots.includes(current) ? [...slots, current].sort() : slots
 })
 
+// Hoy después del cierre no quedan horas: se explica en vez de mostrar la lista vacía.
+const noSlotsLeft = computed(() => !isDirectPickup.value && timeOptions.value.length === 0 && schedule.isToday(props.modelValue.deliveryDate))
+const NO_SLOTS_TEXT = 'Ya pasó la última hora de entrega de hoy. Elige mañana, o marca "No enviar a producción" si el cliente ya se lo llevó.'
+
 const selectTime = (time: string) => {
   props.modelValue.deliveryTime = time
 }
@@ -311,6 +315,7 @@ const onRucInput = () => {
            label="Hora Exacta"
            v-model="props.modelValue.deliveryTime"
            :options="timeOptions"
+           :empty-text="NO_SLOTS_TEXT"
            required
            hint="Horarios de entrega configurados en el admin de la web."
         />
@@ -328,7 +333,10 @@ const onRucInput = () => {
           </button>
         </div>
 
-        <small v-if="timeError" class="error-msg">
+        <small v-if="noSlotsLeft" class="error-msg">
+          <i class="fa-solid fa-triangle-exclamation"></i> {{ NO_SLOTS_TEXT }}
+        </small>
+        <small v-else-if="timeError" class="error-msg">
           <i class="fa-solid fa-triangle-exclamation"></i> {{ timeError }}
         </small>
       </div>

@@ -47,7 +47,7 @@ function nowECTime(): string {
 
 /**
  * `allowToday`: el pedido manual del asesor puede ser para hoy (en horario y a una
- * hora que todavía no pasó). El link del cliente y la web siguen desde mañana.
+ * hora que todavía no pasó). La web sigue desde mañana.
  */
 export function useScheduleRules(options: { allowToday?: boolean } = {}) {
   const allowToday = !!options.allowToday
@@ -85,9 +85,6 @@ export function useScheduleRules(options: { allowToday?: boolean } = {}) {
 
   const closedWeekdays = computed(() => _settings.value?.closedWeekdays ?? [])
 
-  /** Primer día que se puede elegir, YYYY-MM-DD en hora de Ecuador. */
-  const minDate = computed(() => (allowToday ? getECTTodayString() : addDays(getECTTodayString(), minLeadDays.value)))
-
   const isToday = (date?: string) => !!date && date === getECTTodayString()
 
   /** Horarios que todavía se pueden elegir ese día (hoy: solo los que no pasaron). */
@@ -96,6 +93,16 @@ export function useScheduleRules(options: { allowToday?: boolean } = {}) {
     const now = nowECTime()
     return timeSlots.value.filter(t => t > now)
   }
+
+  /** Hoy ya pasó la última hora de entrega: el primer día que se puede elegir es mañana. */
+  const todayClosed = () => allowToday && slotsFor(getECTTodayString()).length === 0
+
+  /** Primer día que se puede elegir, YYYY-MM-DD en hora de Ecuador. */
+  const minDate = computed(() => {
+    const today = getECTTodayString()
+    if (!allowToday) return addDays(today, minLeadDays.value)
+    return todayClosed() ? addDays(today, 1) : today
+  })
 
   /** Texto para el asesor, igual de claro que el que ve el cliente. */
   const ruleText = computed(() => {
@@ -118,5 +125,5 @@ export function useScheduleRules(options: { allowToday?: boolean } = {}) {
     return null
   }
 
-  return { load, minLeadDays, timeSlots, minDate, ruleText, validate, isToday, slotsFor }
+  return { load, minLeadDays, timeSlots, minDate, ruleText, validate, isToday, slotsFor, todayClosed }
 }

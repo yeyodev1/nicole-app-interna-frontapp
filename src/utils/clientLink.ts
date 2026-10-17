@@ -1,3 +1,5 @@
+import { parseECTDate } from '@/utils/dateUtils'
+
 /**
  * Estado visible del link de gestión de entrega de un pedido (contrato v8).
  * El backend guarda PENDING / COMPLETED; "vencido" sale de `expiresAt`.
@@ -59,7 +61,35 @@ export function clientLinkMessage(order: any): string {
     `Ahora completa en este link ${what}, la fecha y hora, y tus datos si necesitas factura:`,
     clientLinkUrl(order),
     '',
-    'Entregamos desde el día siguiente, de 11h00 a 19h00. El link vence en 7 días.'
+    'Entregamos de 11h00 a 19h00, también hoy mismo si faltan al menos 2 horas. El link vence en 7 días.'
+  ].join('\n')
+}
+
+/**
+ * Mensaje para cuando el cliente ya completó el link: confirma lo agendado y le deja
+ * el mismo link para que revise su pedido cuando quiera.
+ */
+export function clientLinkCompletedMessage(order: any): string {
+  const link = order?.clientLink || {}
+  const name = String(link.buyer?.name || order?.customerName || '').trim().split(/\s+/)[0] || ''
+  const day = order?.deliveryDate
+    ? parseECTDate(order.deliveryDate).toLocaleDateString('es-EC', { weekday: 'long', day: 'numeric', month: 'long' })
+    : ''
+  const when = [day, order?.deliveryTime?.replace(':', 'h')].filter(Boolean).join(', ')
+  const where = order?.deliveryType === 'delivery'
+    ? `🛵 Entrega en ${order?.deliveryAddress || 'la dirección que nos diste'}`
+    : `📍 Retiro en ${order?.branch || 'la tienda que elegiste'}`
+  return [
+    `¡Hola ${name}! Gracias por tu compra en Nicole Pastry Arts 💜`,
+    '',
+    'Tu pedido quedó agendado:',
+    ...(when ? [`📅 ${when}`] : []),
+    where,
+    '',
+    'En este link puedes revisar tu pedido cuando quieras:',
+    clientLinkUrl(order),
+    '',
+    'Si necesitas cambiar algo, escríbenos por aquí.'
   ].join('\n')
 }
 
