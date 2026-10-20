@@ -26,6 +26,15 @@ export interface DailyFormData {
   upcomingOrders?: any[];
 }
 
+/** Venta del día según Contífico (porciones vendidas por producto). */
+export interface DailySales {
+  branch: string;
+  date: string;
+  available: boolean;
+  puntos: string[];
+  products: Record<string, number>;
+}
+
 export type LossCategory = "Transport" | "Storage" | "Production" | "Other";
 
 export interface DetailedLoss {
@@ -95,6 +104,15 @@ class POSRestockService extends APIBase {
    */
   async getDailyForm(branch: string): Promise<DailyFormData> {
     const { data } = await this.get<any>('pos/restock/daily-form', undefined, { params: { branch } });
+    return data.data;
+  }
+
+  /**
+   * Venta del día de la sucursal según Contífico. Se pide aparte del
+   * formulario porque Contífico tarda ~10-15s la primera vez por día.
+   */
+  async getDailySales(branch: string, date?: string): Promise<DailySales> {
+    const { data } = await this.get<any>('pos/restock/daily-sales', undefined, { params: { branch, date } });
     return data.data;
   }
 
