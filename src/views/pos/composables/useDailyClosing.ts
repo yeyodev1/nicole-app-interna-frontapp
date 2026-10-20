@@ -4,6 +4,19 @@ import { posRestockService, type DailyFormData, type DailySales, type DetailedLo
 /** Motivo que se guarda cuando la baja se escribe directo en el número (sin modal). */
 export const QUICK_LOSS_REASON = 'Baja registrada en el cierre';
 
+const CLOSER_NAME_KEY = 'pos-closing-name';
+
+const norm = (s: string) =>
+  s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+
+export interface ClosingGroup {
+  key: string;
+  label: string;
+  icon: string;
+  items: RestockItemData[];
+  pedidos: number; // cuántos ítems del grupo ya tienen pedido > 0
+}
+
 export interface RestockItemData {
   productName: string;
   unit: string;
@@ -108,6 +121,40 @@ export function useDailyClosing(branch: Ref<string>) {
       : [];
   };
 
+  // --- Quién realiza el cierre (se recuerda en el dispositivo) ---
+  const submittedBy = ref('');
+  try {
+    submittedBy.value = localStorage.getItem(CLOSER_NAME_KEY) || '';
+  } catch { /* almacenamiento bloqueado: se pedirá el nombre igual */ }
+
+  const setSubmittedBy = (name: string) => {
+    submittedBy.value = name.trim();
+    try {
+      localStorage.setItem(CLOSER_NAME_KEY, submittedBy.value);
+    } catch { /* no pasa nada: solo no se recuerda para la próxima */ }
+  };
+
+  // --- Buscador + grupos por categoría (la lista crece mucho) ---
+  const searchQuery = ref('');
+
+  const groupedItems = computed<ClosingGroup[]>(() => {
+    const q = norm(searchQuery.value);
+    const filtered = q
+      ? formItems.value.filter(i => norm(i.productName).includes(q))
+      : formItems.value;
+
+    const produccion: ClosingGroup = { key: 'produccion', label: 'Producción', icon: 'fa-cake-candles', items: [], pedidos: 0 };
+    const bodega: ClosingGroup = { key: 'bodega', label: 'Bodega', icon: 'fa-warehouse', items: [], pedidos: 0 };
+    const suministros: ClosingGroup = { key: 'suministros', label: 'Suministros', icon: 'fa-box-open', items: [], pedidos: 0 };
+
+    for (const item of filtered) {
+      const group = item.isGeneral ? suministros : (item.category === 'Bodega' ? bodega : produccion);
+      group.items.push(item);
+      if (getFinalPedido(item) > 0) group.pedidos++;
+    }
+    return [produccion, bodega, suministros].filter(g => g.items.length > 0);
+  });
+
   // Producto agregado al vuelo desde el buscador del modal. false = ya estaba.
   const addQuickItem = (p: any): boolean => {
     if (formItems.value.some(i => i.productName === p.productName)) return false;
@@ -194,7 +241,7 @@ export function useDailyClosing(branch: Ref<string>) {
   const buildPayload = (rounds?: Array<{ productName: string; deliveryRounds: Array<{ label: string; quantity: number }> }>) => ({
     branch: branch.value,
     date: formData.value!.formDate,
-    submittedBy: 'POS User',
+    submittedBy: submittedBy.value || 'POS User',
     items: formItems.value.map(item => ({
       productName: item.productName,
       unit: item.unit,
@@ -213,6 +260,7 @@ export function useDailyClosing(branch: Ref<string>) {
     sales, salesLoading,
     fetchDailyForm, fetchDailySales,
     getVendido, getFinalPedido, hasModalLosses, handleQuickBajas, addQuickItem,
+    submittedBy, setSubmittedBy, searchQuery, groupedItems,
     showLossModal, activeProductForLoss, openLossModal, handleSaveLosses,
     overriddenItems, hasExcessiveOverride, confirmMessage, confirmMessageHtml,
     buildPayload,

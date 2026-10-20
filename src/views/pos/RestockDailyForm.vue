@@ -3,12 +3,15 @@ import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { posRestockService } from '@/services/pos-restock.service';
 import { useDailyClosing } from '@/views/pos/composables/useDailyClosing';
-import ConfirmationModal from '@/components/ConfirmationModal.vue';
-import RestockLossDetailModal from './components/RestockLossDetailModal.vue';
 import RestockProductRow from './components/RestockProductRow.vue';
 import RestockClosingBanner from './components/RestockClosingBanner.vue';
 import RestockExcessBanner from './components/RestockExcessBanner.vue';
 import RestockClosingStates from './components/RestockClosingStates.vue';
+import RestockCategorySection from './components/RestockCategorySection.vue';
+import RestockSearchBar from './components/RestockSearchBar.vue';
+import RestockCloserChip from './components/RestockCloserChip.vue';
+import RestockPageHeader from './components/RestockPageHeader.vue';
+import RestockClosingModals from './components/RestockClosingModals.vue';
 import { useToast } from '@/composables/useToast';
 
 const route = useRoute();
@@ -23,10 +26,19 @@ const {
   sales, salesLoading,
   fetchDailyForm, fetchDailySales,
   getVendido,
+  submittedBy, setSubmittedBy, searchQuery, groupedItems,
   showLossModal, activeProductForLoss, openLossModal, handleSaveLosses,
   overriddenItems, hasExcessiveOverride, confirmMessage, confirmMessageHtml,
   buildPayload,
 } = useDailyClosing(branch);
+
+// Modal de nombre: se pide al abrir el cierre si aún no hay nombre guardado.
+const showNameModal = ref(false);
+
+const handleNameSave = (name: string) => {
+  setSubmittedBy(name);
+  showNameModal.value = false;
+};
 
 const goBack = () => {
   router.push({ name: 'pos-shipments' });
@@ -44,6 +56,10 @@ const loadAll = async () => {
 
 const handleSubmitClick = () => {
   if (!formData.value) return;
+  if (!submittedBy.value) {
+    showNameModal.value = true;
+    return;
+  }
   showConfirmModal.value = true;
 };
 
@@ -65,6 +81,7 @@ const executeSubmission = async () => {
 };
 
 onMounted(() => {
+  showNameModal.value = !submittedBy.value;
   if (branch.value) loadAll();
 });
 </script>
@@ -72,28 +89,12 @@ onMounted(() => {
 <template>
   <div class="restock-page">
     <div class="container">
-      <header class="header">
-        <div class="header-top">
-          <button class="btn-back" @click="goBack">
-            <i class="fa-solid fa-arrow-left"></i> Volver al POS
-          </button>
-          <button
-            class="btn-config"
-            @click="router.push({ name: 'pos-restock-management', query: { branch } })"
-            title="Configurar objetivos de stock mínimos"
-          >
-            <i class="fa-solid fa-sliders"></i>
-            <span>Configurar Objetivos</span>
-          </button>
-        </div>
-        <div class="title-group">
-          <h1>Cierre de Producción</h1>
-          <p v-if="formData">
-            Sucursal: <strong>{{ branch }}</strong> <span class="divider">|</span>
-            Fecha: <strong>{{ formData.formDate }}</strong>
-          </p>
-        </div>
-      </header>
+      <RestockPageHeader
+        :branch="branch"
+        :form-date="formData?.formDate"
+        @back="goBack"
+        @config="router.push({ name: 'pos-restock-management', query: { branch } })"
+      />
 
       <RestockClosingStates
         v-if="isLoading || !formData || formItems.length === 0"
@@ -104,20 +105,36 @@ onMounted(() => {
       </RestockClosingStates>
 
       <form v-else @submit.prevent="handleSubmitClick" class="form-grid">
+        <RestockCloserChip :name="submittedBy" @change="showNameModal = true" />
         <RestockClosingBanner
           :target-date="formData.targetDate"
           :sales="sales"
           :sales-loading="salesLoading"
         />
+        <RestockSearchBar v-model="searchQuery" />
 
-        <RestockProductRow
-          v-for="item in formItems"
-          :key="item.productName"
-          :item="item"
-          :vendido="getVendido(item)"
-          :sales-loading="salesLoading"
-          @open-losses="openLossModal(item)"
-        />
+        <RestockCategorySection
+          v-for="group in groupedItems"
+          :key="group.key"
+          :label="group.label"
+          :icon="group.icon"
+          :count="group.items.length"
+          :pedidos="group.pedidos"
+          :force-open="!!searchQuery"
+        >
+          <RestockProductRow
+            v-for="item in group.items"
+            :key="item.productName"
+            :item="item"
+            :vendido="getVendido(item)"
+            :sales-loading="salesLoading"
+            @open-losses="openLossModal(item)"
+          />
+        </RestockCategorySection>
+
+        <p v-if="searchQuery && groupedItems.length === 0" class="no-results">
+          Sin resultados para «{{ searchQuery }}»
+        </p>
 
         <RestockExcessBanner v-if="hasExcessiveOverride" :items="overriddenItems" />
 
@@ -129,26 +146,20 @@ onMounted(() => {
         </div>
       </form>
 
-      <RestockLossDetailModal
-        v-if="showLossModal && activeProductForLoss"
-        :is-open="showLossModal"
-        :product-name="activeProductForLoss.productName"
-        :initial-losses="activeProductForLoss.detailedLosses"
-        :stock-objective-today="activeProductForLoss.stockObjectiveToday"
-        :excedente="activeProductForLoss.excedente"
-        @close="showLossModal = false"
-        @save="handleSaveLosses"
-      />
-
-      <ConfirmationModal
-        :is-open="showConfirmModal"
-        title="Confirmar Reporte"
-        :message="confirmMessage"
-        :message-html="confirmMessageHtml"
-        confirm-text="Enviar Reporte"
-        :is-hold-to-confirm="true"
-        @close="showConfirmModal = false"
+      <RestockClosingModals
+        :show-name="showNameModal"
+        :submitted-by="submittedBy"
+        :show-loss="showLossModal"
+        :active-product="activeProductForLoss"
+        :show-confirm="showConfirmModal"
+        :confirm-message="confirmMessage"
+        :confirm-message-html="confirmMessageHtml"
+        @name-save="handleNameSave"
+        @name-close="showNameModal = false"
+        @loss-save="handleSaveLosses"
+        @loss-close="showLossModal = false"
         @confirm="executeSubmission"
+        @confirm-close="showConfirmModal = false"
       />
     </div>
   </div>
@@ -171,78 +182,17 @@ $bg-light: #f8fafc;
   padding-bottom: 3rem;
 }
 
-.header {
-  margin-bottom: 1.5rem;
-}
-
-.header-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.btn-back {
-  background: none;
-  border: none;
-  color: #64748b;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0;
-  font-size: 0.9rem;
-
-  &:hover { color: #333; }
-}
-
-.btn-config {
-  background: #f8fafc;
-  border: 1.5px solid #e2e8f0;
-  color: #475569;
-  font-weight: 700;
-  font-size: 0.82rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.45rem 0.9rem;
-  border-radius: 8px;
-  transition: all 0.2s;
-
-  i { font-size: 0.85rem; }
-
-  &:hover {
-    background: #e2e8f0;
-    border-color: #94a3b8;
-    color: #1e293b;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
-  }
-}
-
-.title-group {
-  h1 {
-    font-size: 1.5rem;
-    margin: 0 0 0.5rem 0;
-    color: #1e293b;
-  }
-
-  p {
-    margin: 0;
-    color: #64748b;
-    font-size: 0.95rem;
-
-    strong { color: #333; }
-    .divider { margin: 0 0.5rem; color: #ccc; }
-  }
-}
-
 .sub-text {
   font-size: 0.85rem;
   margin-top: 0.5rem;
   color: #94a3b8;
+}
+
+.no-results {
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.9rem;
+  margin: 0.5rem 0;
 }
 
 .form-grid {

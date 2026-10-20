@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { useRouter } from 'vue-router';
 import { posRestockService } from '@/services/pos-restock.service';
 import ProductionSettingsService from '@/services/production-settings.service';
 import { useDailyClosing } from '@/views/pos/composables/useDailyClosing';
-import RestockLossDetailModal from './RestockLossDetailModal.vue';
 import RestockQuickAdd from './RestockQuickAdd.vue';
 import RestockProductRow from './RestockProductRow.vue';
 import RestockClosingBanner from './RestockClosingBanner.vue';
@@ -12,7 +10,10 @@ import RestockExcessBanner from './RestockExcessBanner.vue';
 import RestockDistributionStep, { type DeliveryRoundResult } from './RestockDistributionStep.vue';
 import RestockModalHeader from './RestockModalHeader.vue';
 import RestockClosingStates from './RestockClosingStates.vue';
-import ConfirmationModal from '@/components/ConfirmationModal.vue';
+import RestockCategorySection from './RestockCategorySection.vue';
+import RestockSearchBar from './RestockSearchBar.vue';
+import RestockCloserChip from './RestockCloserChip.vue';
+import RestockClosingModals from './RestockClosingModals.vue';
 
 const props = defineProps({
   isOpen: { type: Boolean, required: true },
@@ -20,8 +21,6 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['close', 'success', 'notify']);
-
-const router = useRouter();
 
 // --- Branch switching (dynamic) ---
 const dynamicBranches = ref<string[]>([]);
@@ -42,6 +41,7 @@ const {
   sales, salesLoading,
   fetchDailyForm, fetchDailySales,
   getVendido, getFinalPedido, addQuickItem,
+  submittedBy, setSubmittedBy, searchQuery, groupedItems,
   showLossModal, activeProductForLoss, openLossModal, handleSaveLosses,
   overriddenItems, hasExcessiveOverride, confirmMessage, confirmMessageHtml,
   buildPayload,
@@ -49,9 +49,12 @@ const {
 
 const showConfirmModal = ref(false);
 
-const goToManagement = () => {
-  closeModal();
-  router.push({ name: 'pos-restock-management', query: { branch: localBranch.value } });
+// Modal de nombre: se pide al abrir el cierre si aún no hay nombre guardado.
+const showNameModal = ref(false);
+
+const handleNameSave = (name: string) => {
+  setSubmittedBy(name);
+  showNameModal.value = false;
 };
 
 const loadAll = () => {
@@ -65,6 +68,10 @@ const distributionData = ref<DeliveryRoundResult[] | null>(null);
 
 const handleSubmitClick = () => {
   if (!formData.value) return;
+  if (!submittedBy.value) {
+    showNameModal.value = true;
+    return;
+  }
   currentStep.value = 'distribution';
 };
 
@@ -124,25 +131,20 @@ watch(() => props.isOpen, (newVal) => {
     localBranch.value = props.branch;
     currentStep.value = 'form';
     distributionData.value = null;
+    searchQuery.value = '';
+    showNameModal.value = !submittedBy.value;
     fetchBranches();
     loadAll();
   }
 });
 
-watch(localBranch, () => {
-  if (props.isOpen) loadAll();
-});
+watch(localBranch, () => { if (props.isOpen) loadAll(); });
 </script>
 
 <template>
   <div v-if="isOpen" class="modal-overlay" @click.self="closeModal">
     <div class="modal-content">
-      <RestockModalHeader
-        v-model="localBranch"
-        :options="branchOptions"
-        @manage="goToManagement"
-        @close="closeModal"
-      />
+      <RestockModalHeader v-model="localBranch" :options="branchOptions" @close="closeModal" />
 
       <div class="modal-body">
         <!-- Step 1: Form -->
@@ -152,29 +154,43 @@ watch(localBranch, () => {
             :is-loading="isLoading"
             :branch="localBranch"
           >
-            <router-link :to="{ name: 'pos-restock-management' }" class="btn-config" @click="closeModal">
-              <i class="fa-solid fa-gear"></i> Configurar Objetivos
-            </router-link>
+            <p class="empty-hint">Pide a Administración configurar los "Objetivos de Stock".</p>
           </RestockClosingStates>
 
           <form v-else @submit.prevent="handleSubmitClick" class="form-grid">
+            <RestockCloserChip :name="submittedBy" @change="showNameModal = true" />
             <RestockClosingBanner
               :target-date="formData.targetDate"
               :sales="sales"
               :sales-loading="salesLoading"
             />
+            <RestockSearchBar v-model="searchQuery" />
 
             <div class="products-container">
               <RestockQuickAdd :branch="localBranch" @add="handleQuickAdd" @close="closeModal" />
 
-              <RestockProductRow
-                v-for="item in formItems"
-                :key="item.productName"
-                :item="item"
-                :vendido="getVendido(item)"
-                :sales-loading="salesLoading"
-                @open-losses="openLossModal(item)"
-              />
+              <RestockCategorySection
+                v-for="group in groupedItems"
+                :key="group.key"
+                :label="group.label"
+                :icon="group.icon"
+                :count="group.items.length"
+                :pedidos="group.pedidos"
+                :force-open="!!searchQuery"
+              >
+                <RestockProductRow
+                  v-for="item in group.items"
+                  :key="item.productName"
+                  :item="item"
+                  :vendido="getVendido(item)"
+                  :sales-loading="salesLoading"
+                  @open-losses="openLossModal(item)"
+                />
+              </RestockCategorySection>
+
+              <p v-if="searchQuery && groupedItems.length === 0" class="no-results">
+                Sin resultados para «{{ searchQuery }}»
+              </p>
             </div>
 
             <RestockExcessBanner v-if="hasExcessiveOverride" :items="overriddenItems" />
@@ -199,26 +215,20 @@ watch(localBranch, () => {
       </div>
     </div>
 
-    <RestockLossDetailModal
-      v-if="showLossModal && activeProductForLoss"
-      :is-open="showLossModal"
-      :product-name="activeProductForLoss.productName"
-      :initial-losses="activeProductForLoss.detailedLosses"
-      :stock-objective-today="activeProductForLoss.stockObjectiveToday"
-      :excedente="activeProductForLoss.excedente"
-      @close="showLossModal = false"
-      @save="handleSaveLosses"
-    />
-
-    <ConfirmationModal
-      :is-open="showConfirmModal"
-      title="Confirmar Reporte"
-      :message="confirmMessage"
-      :message-html="confirmMessageHtml"
-      confirm-text="Enviar Reporte"
-      :is-hold-to-confirm="true"
-      @close="showConfirmModal = false"
+    <RestockClosingModals
+      :show-name="showNameModal"
+      :submitted-by="submittedBy"
+      :show-loss="showLossModal"
+      :active-product="activeProductForLoss"
+      :show-confirm="showConfirmModal"
+      :confirm-message="confirmMessage"
+      :confirm-message-html="confirmMessageHtml"
+      @name-save="handleNameSave"
+      @name-close="showNameModal = false"
+      @loss-save="handleSaveLosses"
+      @loss-close="showLossModal = false"
       @confirm="executeSubmission"
+      @confirm-close="showConfirmModal = false"
     />
   </div>
 </template>
@@ -234,8 +244,6 @@ watch(localBranch, () => {
   z-index: 1000;
   backdrop-filter: blur(2px);
 }
-.modal-body { padding: 1.2rem; overflow-y: auto; flex: 1; }
-
 .modal-content {
   background: white;
   border-radius: 12px;
@@ -251,22 +259,12 @@ watch(localBranch, () => {
   from { transform: translateY(20px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
+.modal-body { padding: 1.2rem; overflow-y: auto; flex: 1; }
 .form-grid { display: flex; flex-direction: column; gap: 1rem; }
 .products-container { display: flex; flex-direction: column; gap: 0.8rem; }
 
-.btn-config {
-  margin-top: 1rem;
-  background: #d32f2f;
-  color: white;
-  text-decoration: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-weight: 600;
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-  &:hover { background: darken(#d32f2f, 10%); }
-}
+.empty-hint { font-size: 0.85rem; color: #94a3b8; margin: 0; }
+.no-results { text-align: center; color: #94a3b8; font-size: 0.9rem; margin: 0.5rem 0; }
 
 .modal-actions {
   display: flex;
@@ -292,7 +290,6 @@ watch(localBranch, () => {
     align-items: center;
     gap: 0.5rem;
     box-shadow: 0 4px 12px rgba($NICOLE-PURPLE, 0.2);
-
     &:hover:not(:disabled) { background: darken($NICOLE-PURPLE, 5%); transform: translateY(-1px); }
     &:disabled { background: #94a3b8; cursor: not-allowed; }
   }

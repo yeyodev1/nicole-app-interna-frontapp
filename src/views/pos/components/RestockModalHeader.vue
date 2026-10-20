@@ -6,7 +6,7 @@ defineProps<{
   options: Array<{ value: string; label: string }>;
 }>();
 
-const emit = defineEmits(['update:modelValue', 'manage', 'close']);
+const emit = defineEmits(['update:modelValue', 'close']);
 </script>
 
 <template>
@@ -19,16 +19,12 @@ const emit = defineEmits(['update:modelValue', 'manage', 'close']);
         <SearchableSelect
           :model-value="modelValue"
           :options="options"
-          placeholder="Sucursal..."
+          placeholder="Elige la sucursal del cierre..."
           @update:model-value="emit('update:modelValue', $event)"
         />
       </div>
     </div>
     <div class="header-actions">
-      <button class="btn-manage" @click="emit('manage')" title="Gestionar stocks mínimos diarios">
-        <i class="fa-solid fa-sliders"></i>
-        <span>Gestionar Stocks</span>
-      </button>
       <button class="close-btn" @click="emit('close')">&times;</button>
     </div>
   </header>
@@ -65,7 +61,8 @@ const emit = defineEmits(['update:modelValue', 'manage', 'close']);
   }
 
   .branch-select-wrap {
-    width: 200px;
+    width: 240px;
+    max-width: 100%;
   }
 
   .header-actions {
@@ -73,28 +70,6 @@ const emit = defineEmits(['update:modelValue', 'manage', 'close']);
     align-items: center;
     gap: 0.75rem;
     flex-shrink: 0;
-  }
-
-  .btn-manage {
-    background: white;
-    border: 1.5px solid #e2e8f0;
-    color: #475569;
-    font-size: 0.8rem;
-    font-weight: 700;
-    padding: 0.4rem 0.8rem;
-    border-radius: 8px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    transition: all 0.2s;
-    white-space: nowrap;
-
-    &:hover {
-      background: #f1f5f9;
-      border-color: #94a3b8;
-      color: #1e293b;
-    }
   }
 
   .close-btn {
