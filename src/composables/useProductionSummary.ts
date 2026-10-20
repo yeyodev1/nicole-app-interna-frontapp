@@ -243,10 +243,30 @@ export function useProductionSummary() {
 
   const isBatchProcessing = ref(false)
 
+  // Cantidad a producir por producto en el modal de confirmación.
+  // Por defecto todo lo pendiente; la cocina puede bajarlo (piden 100, hará 20).
+  const batchQuantities = ref<Record<string, number>>({})
+
+  const prepareBatchQuantities = () => {
+    const next: Record<string, number> = {}
+    for (const name of selectedRawProducts.value) {
+      next[name] = totalByProduct.value[name] || 0
+    }
+    batchQuantities.value = next
+  }
+
+  const setBatchQuantity = (name: string, qty: number) => {
+    const max = totalByProduct.value[name] || 0
+    batchQuantities.value[name] = Math.max(0, Math.min(max, Math.round(qty)))
+  }
+
   const batchCompleteSelected = async () => {
     if (selectedRawProducts.value.size === 0) return
     const items = Array.from(selectedRawProducts.value)
-      .map(name => ({ productName: name, quantity: totalByProduct.value[name] || 0 }))
+      .map(name => ({
+        productName: name,
+        quantity: batchQuantities.value[name] ?? (totalByProduct.value[name] || 0),
+      }))
       .filter(i => i.quantity > 0)
     if (items.length === 0) return
     try {
@@ -303,6 +323,9 @@ export function useProductionSummary() {
     toggleRawProductSelection,
     clearRawSelection,
     batchCompleteSelected,
+    batchQuantities,
+    prepareBatchQuantities,
+    setBatchQuantity,
     isBatchProcessing,
     totalByProduct,
     // Secondary (history panel / compatibility)
