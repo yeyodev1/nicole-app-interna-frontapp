@@ -28,10 +28,11 @@ const {
   sourceFilter,
   batchCompleteSelected,
   isBatchProcessing,
-  totalByProduct,
   batchQuantities,
   prepareBatchQuantities,
   setBatchQuantity,
+  selectedRows,
+  selectedProductNames,
 } = useProductionSummary()
 
 const { isExporting, exportDispatchOrder, exportProductionOrder } = useOrderExport()
@@ -55,9 +56,20 @@ const openBatchConfirm = () => {
 }
 
 const handleBatchConfirm = async () => {
-  await batchCompleteSelected()
-  isBatchConfirmOpen.value = false
-  success('Producción registrada correctamente')
+  try {
+    const result = await batchCompleteSelected()
+    isBatchConfirmOpen.value = false
+    if (result.sent === 0) {
+      showError('No había nada pendiente por producir en la selección.')
+    } else if (result.failures.length > 0) {
+      showError(`Se registraron ${result.sent} unids, pero fallaron: ${result.failures.join(', ')}. Vuelve a intentarlo con esos productos.`)
+    } else {
+      success(`¡Listo! Se registraron ${result.sent} unidades producidas.`)
+    }
+  } catch (err) {
+    console.error(err)
+    showError('No se pudo registrar la producción. Revisa tu conexión e inténtalo de nuevo.')
+  }
 }
 
 const handleExportClick = (mode: 'dispatch' | 'production') => {
@@ -67,7 +79,7 @@ const handleExportClick = (mode: 'dispatch' | 'production') => {
 
 const handleExportProduction = async (responsibleName: string) => {
   try {
-    const selectedProducts = Array.from(selectedRawProducts.value)
+    const selectedProducts = selectedProductNames.value
 
     let ordersToExport: any[] = []
 
@@ -154,7 +166,6 @@ onMounted(() => {
           :rounds="rounds"
           :collapsed-keys="collapsedProductCategories"
           :selected="selectedRawProducts"
-          :totals="totalByProduct"
           @toggle-category="toggleProductCategory"
           @toggle-product="toggleRawProductSelection"
         />
@@ -179,8 +190,7 @@ onMounted(() => {
     <!-- Cantidades editables: piden 100, la cocina puede marcar que hará 20 -->
     <ProductionBatchModal
       :is-open="isBatchConfirmOpen"
-      :products="Array.from(selectedRawProducts)"
-      :pending="totalByProduct"
+      :rows="selectedRows"
       :quantities="batchQuantities"
       :is-processing="isBatchProcessing"
       @set-quantity="setBatchQuantity"

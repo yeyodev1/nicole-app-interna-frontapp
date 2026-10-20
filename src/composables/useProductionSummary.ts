@@ -3,6 +3,20 @@ import ProductionService from '@/services/production.service'
 import type { CategoryGroup } from '@/types/production'
 import { parseECTDate, getECTNow, isSameDayECT } from '@/utils/dateUtils'
 
+/** Celda de producto en el resumen: lo pedido y lo que falta por producir. */
+export interface ProductCell { qty: number; pending: number }
+
+/** Fila seleccionable del resumen (producto dentro de un destino/ronda). */
+export interface ProductRowMeta {
+  key: string
+  name: string
+  destination: string
+  round: string
+  qty: number
+  pending: number
+  orderIds: string[]
+}
+
 export function useProductionSummary() {
   const isLoading = ref(true)
   const error = ref('')
@@ -50,32 +64,23 @@ export function useProductionSummary() {
     })
   })
 
-  const rawStatsByDestination = computed(() => {
-    const stats: Record<string, Record<string, number>> = {}
-    if (!rawFilteredOrders.value.length) return stats
+  // ── Destino / ronda de una orden ────────────────────────────────────
+  const destOf = (order: any): string => {
+    if (order.deliveryType === 'delivery') return 'Delivery'
+    if (order.branch) {
+      const b = order.branch.toLowerCase()
+      if (b.includes('marino')) return 'San Marino'
+      if (b.includes('mall') || b.includes('sol')) return 'Mall del Sol'
+      if (b.includes('centro') || b.includes('producci')) return 'Centro Prod.'
+      return order.branch
+    }
+    return 'Otros / Sin Local'
+  }
 
-    rawFilteredOrders.value.forEach(order => {
-      let dest = 'Otros / Sin Local'
-      if (order.deliveryType === 'delivery') {
-        dest = 'Delivery'
-      } else if (order.branch) {
-        const b = order.branch.toLowerCase()
-        if (b.includes('marino')) dest = 'San Marino'
-        else if (b.includes('mall') || b.includes('sol')) dest = 'Mall del Sol'
-        else if (b.includes('centro') || b.includes('producci')) dest = 'Centro Prod.'
-        else dest = order.branch
-      }
-
-      if (!stats[dest]) stats[dest] = {}
-      const destGroup = stats[dest] as Record<string, number>
-
-      order.products.forEach((p: any) => {
-        destGroup[p.name] = (destGroup[p.name] || 0) + (p.quantity || 0)
-      })
-    })
-
-    return stats
-  })
+  const roundOf = (order: any): string => {
+    const isRestock = order.salesChannel === 'Restock' || order.salesChannel === 'Restock-Bodega'
+    return isRestock && order.comments ? order.comments : ''
+  }
 
   // ── Category mapping helper ─────────────────────────────────────────
   const mapCategory = (productName: string, rawCategory?: string): string => {
@@ -105,25 +110,18 @@ export function useProductionSummary() {
 
   const CATEGORY_ORDER = ['TORTAS', 'TORTAS PORCIÓN', 'JOYITAS', 'BOLLERÍA', 'GALLETERÍA', 'SIROPES', 'VEGETALES', 'HELADERÍA', 'CASA MIA', 'OTROS']
 
-  // Groups by Destination → Round Label → Category → Product → Quantity
-  const rawStatsByDestRoundCategory = computed(() => {
-    const stats: Record<string, Record<string, Record<string, Record<string, number>>>> = {}
-    if (!rawFilteredOrders.value.length) return stats
+  // Groups by Destination → Round Label → Category → Product → { qty, pending }
+  // y metadatos por fila (clave dest|||ronda|||producto): pendiente real y los
+  // ids de las órdenes de esa fila, para acreditar la producción donde se marcó.
+  const destRoundData = computed(() => {
+    const stats: Record<string, Record<string, Record<string, Record<string, ProductCell>>>> = {}
+    const meta = new Map<string, ProductRowMeta>()
+    if (!rawFilteredOrders.value.length) return { stats, meta }
 
     rawFilteredOrders.value.forEach(order => {
-      let dest = 'Otros / Sin Local'
-      if (order.deliveryType === 'delivery') {
-        dest = 'Delivery'
-      } else if (order.branch) {
-        const b = order.branch.toLowerCase()
-        if (b.includes('marino')) dest = 'San Marino'
-        else if (b.includes('mall') || b.includes('sol')) dest = 'Mall del Sol'
-        else if (b.includes('centro') || b.includes('producci')) dest = 'Centro Prod.'
-        else dest = order.branch
-      }
-
-      const isRestock = order.salesChannel === 'Restock' || order.salesChannel === 'Restock-Bodega'
-      const roundLabel = isRestock && order.comments ? order.comments : ''
+      const dest = destOf(order)
+      const roundLabel = roundOf(order)
+      const orderId = String(order.id || order._id || '')
 
       if (!stats[dest]) stats[dest] = {}
       if (!stats[dest]![roundLabel]) stats[dest]![roundLabel] = {}
@@ -131,8 +129,25 @@ export function useProductionSummary() {
       order.products.forEach((p: any) => {
         const cat = mapCategory(p.name, p.category)
         if (!stats[dest]![roundLabel]![cat]) stats[dest]![roundLabel]![cat] = {}
-        const catGroup = stats[dest]![roundLabel]![cat] as Record<string, number>
-        catGroup[p.name] = (catGroup[p.name] || 0) + (p.quantity || 0)
+        const catGroup = stats[dest]![roundLabel]![cat] as Record<string, ProductCell>
+        const qty = p.quantity || 0
+        const pending = p.productionStatus !== 'COMPLETED'
+          ? Math.max(0, qty - (p.produced || 0))
+          : 0
+
+        if (!catGroup[p.name]) catGroup[p.name] = { qty: 0, pending: 0 }
+        catGroup[p.name]!.qty += qty
+        catGroup[p.name]!.pending += pending
+
+        const key = `${dest}|||${roundLabel}|||${p.name}`
+        let row = meta.get(key)
+        if (!row) {
+          row = { key, name: p.name, destination: dest, round: roundLabel, qty: 0, pending: 0, orderIds: [] }
+          meta.set(key, row)
+        }
+        row.qty += qty
+        row.pending += pending
+        if (orderId && !row.orderIds.includes(orderId)) row.orderIds.push(orderId)
       })
     })
 
@@ -141,7 +156,7 @@ export function useProductionSummary() {
     Object.entries(stats).forEach(([dest, rounds]) => {
       sorted[dest] = {}
       Object.entries(rounds).forEach(([round, cats]) => {
-        const sortedCats: Record<string, Record<string, number>> = {}
+        const sortedCats: Record<string, Record<string, ProductCell>> = {}
         Object.keys(cats)
           .sort((a, b) => {
             const ia = CATEGORY_ORDER.indexOf(a), ib = CATEGORY_ORDER.indexOf(b)
@@ -154,8 +169,11 @@ export function useProductionSummary() {
       })
     })
 
-    return sorted
+    return { stats: sorted, meta }
   })
+
+  const rawStatsByDestRoundCategory = computed(() => destRoundData.value.stats)
+  const rowMeta = computed(() => destRoundData.value.meta)
 
   // Collapsed state for category sections in the raw view
   const collapsedProductCategories = ref<Set<string>>(new Set())
@@ -167,38 +185,6 @@ export function useProductionSummary() {
       collapsedProductCategories.value.add(key)
     }
   }
-
-  // Groups by Destination → Round Label → Product → Quantity
-  const rawStatsByDestinationAndRound = computed(() => {
-    const stats: Record<string, Record<string, Record<string, number>>> = {}
-    if (!rawFilteredOrders.value.length) return stats
-
-    rawFilteredOrders.value.forEach(order => {
-      let dest = 'Otros / Sin Local'
-      if (order.deliveryType === 'delivery') {
-        dest = 'Delivery'
-      } else if (order.branch) {
-        const b = order.branch.toLowerCase()
-        if (b.includes('marino')) dest = 'San Marino'
-        else if (b.includes('mall') || b.includes('sol')) dest = 'Mall del Sol'
-        else if (b.includes('centro') || b.includes('producci')) dest = 'Centro Prod.'
-        else dest = order.branch
-      }
-
-      const isRestock = order.salesChannel === 'Restock' || order.salesChannel === 'Restock-Bodega'
-      const roundLabel = isRestock && order.comments ? order.comments : ''
-
-      if (!stats[dest]) stats[dest] = {}
-      if (!stats[dest]![roundLabel]) stats[dest]![roundLabel] = {}
-      const roundGroup = stats[dest]![roundLabel] as Record<string, number>
-
-      order.products.forEach((p: any) => {
-        roundGroup[p.name] = (roundGroup[p.name] || 0) + (p.quantity || 0)
-      })
-    })
-
-    return stats
-  })
 
   // Total pending quantity per product across filtered orders
   const totalByProduct = computed(() => {
@@ -229,13 +215,30 @@ export function useProductionSummary() {
     }
   }
 
-  const toggleRawProductSelection = (productName: string) => {
-    if (selectedRawProducts.value.has(productName)) {
-      selectedRawProducts.value.delete(productName)
+  // La selección es por FILA (destino|||ronda|||producto): marcar un producto en
+  // un destino no marca el del mismo nombre en otro. Filas sin pendiente no se
+  // seleccionan (ya está todo producido ahí).
+  const toggleRawProductSelection = (rowKey: string) => {
+    if (selectedRawProducts.value.has(rowKey)) {
+      selectedRawProducts.value.delete(rowKey)
     } else {
-      selectedRawProducts.value.add(productName)
+      const row = rowMeta.value.get(rowKey)
+      if (!row || row.pending <= 0) return
+      selectedRawProducts.value.add(rowKey)
     }
   }
+
+  // Filas seleccionadas con sus metadatos (para el modal y el envío)
+  const selectedRows = computed<ProductRowMeta[]>(() =>
+    Array.from(selectedRawProducts.value)
+      .map(key => rowMeta.value.get(key))
+      .filter((r): r is ProductRowMeta => !!r)
+  )
+
+  // Nombres únicos de producto de la selección (para las exportaciones)
+  const selectedProductNames = computed(() =>
+    Array.from(new Set(selectedRows.value.map(r => r.name)))
+  )
 
   const clearRawSelection = () => {
     selectedRawProducts.value.clear()
@@ -243,37 +246,43 @@ export function useProductionSummary() {
 
   const isBatchProcessing = ref(false)
 
-  // Cantidad a producir por producto en el modal de confirmación.
+  // Cantidad a producir por fila en el modal de confirmación.
   // Por defecto todo lo pendiente; la cocina puede bajarlo (piden 100, hará 20).
   const batchQuantities = ref<Record<string, number>>({})
 
   const prepareBatchQuantities = () => {
     const next: Record<string, number> = {}
-    for (const name of selectedRawProducts.value) {
-      next[name] = totalByProduct.value[name] || 0
+    for (const row of selectedRows.value) {
+      next[row.key] = row.pending
     }
     batchQuantities.value = next
   }
 
-  const setBatchQuantity = (name: string, qty: number) => {
-    const max = totalByProduct.value[name] || 0
-    batchQuantities.value[name] = Math.max(0, Math.min(max, Math.round(qty)))
+  const setBatchQuantity = (rowKey: string, qty: number) => {
+    const max = rowMeta.value.get(rowKey)?.pending || 0
+    batchQuantities.value[rowKey] = Math.max(0, Math.min(max, Math.round(qty)))
   }
 
-  const batchCompleteSelected = async () => {
-    if (selectedRawProducts.value.size === 0) return
-    const items = Array.from(selectedRawProducts.value)
-      .map(name => ({
-        productName: name,
-        quantity: batchQuantities.value[name] ?? (totalByProduct.value[name] || 0),
+  // Envía la producción. Devuelve cuántas unidades se registraron y los fallos,
+  // para que la vista avise claramente (antes fallaba en silencio).
+  const batchCompleteSelected = async (): Promise<{ sent: number; failures: string[] }> => {
+    const items = selectedRows.value
+      .map(row => ({
+        productName: row.name,
+        quantity: batchQuantities.value[row.key] ?? row.pending,
+        orderIds: row.orderIds,
       }))
       .filter(i => i.quantity > 0)
-    if (items.length === 0) return
+    if (items.length === 0) return { sent: 0, failures: [] }
     try {
       isBatchProcessing.value = true
-      await ProductionService.batchRegisterProgress(items)
+      const results = await ProductionService.batchRegisterProgress(items)
+      const failures = (results || [])
+        .filter((r: any) => !r.success)
+        .map((r: any) => r.name)
       clearRawSelection()
       await fetchSummary(true)
+      return { sent: items.reduce((s, i) => s + i.quantity, 0), failures }
     } finally {
       isBatchProcessing.value = false
     }
@@ -314,9 +323,10 @@ export function useProductionSummary() {
     rawBucketFilter,
     sourceFilter,
     rawFilteredOrders,
-    rawStatsByDestination,
-    rawStatsByDestinationAndRound,
     rawStatsByDestRoundCategory,
+    rowMeta,
+    selectedRows,
+    selectedProductNames,
     collapsedProductCategories,
     toggleProductCategory,
     selectedRawProducts,

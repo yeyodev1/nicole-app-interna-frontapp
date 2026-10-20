@@ -1,19 +1,20 @@
 <script setup lang="ts">
+import type { ProductCell } from '@/composables/useProductionSummary';
+
 defineProps<{
   destination: string;
-  rounds: Record<string, Record<string, Record<string, number>>>;
+  rounds: Record<string, Record<string, Record<string, ProductCell>>>;
   collapsedKeys: Set<string>;
-  selected: Set<string>;
-  totals: Record<string, number>;
+  selected: Set<string>; // claves de fila: dest|||ronda|||producto
 }>();
 
 const emit = defineEmits(['toggle-category', 'toggle-product']);
 
-const sumCats = (cats: Record<string, Record<string, number>>) =>
-  Object.values(cats).reduce((a, prods) => a + Object.values(prods).reduce((a2, b2) => a2 + b2, 0), 0);
+const sumCats = (cats: Record<string, Record<string, ProductCell>>) =>
+  Object.values(cats).reduce((a, prods) => a + Object.values(prods).reduce((a2, c) => a2 + c.qty, 0), 0);
 
-const sumProds = (prods: Record<string, number>) =>
-  Object.values(prods).reduce((a, b) => a + b, 0);
+const sumPending = (prods: Record<string, ProductCell>) =>
+  Object.values(prods).reduce((a, c) => a + c.pending, 0);
 
 const catSlug = (name: string) =>
   name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
@@ -32,7 +33,7 @@ const catSlug = (name: string) =>
       <div class="dest-info">
         <h3>{{ destination }}</h3>
         <span class="dest-total">
-          {{ Object.values(rounds).reduce((acc, cats) => acc + sumCats(cats), 0) }} unids
+          {{ Object.values(rounds).reduce((acc, cats) => acc + sumCats(cats), 0) }} unids pedidas
         </span>
       </div>
     </div>
@@ -56,28 +57,39 @@ const catSlug = (name: string) =>
             </i>
             {{ catName }}
           </span>
-          <span class="cat-qty">{{ sumProds(products) }} unids</span>
+          <span class="cat-qty">faltan {{ sumPending(products) }}</span>
         </button>
 
         <Transition name="cat-collapse">
           <table v-if="!collapsedKeys.has(`${destination}|||${roundLabel}|||${catName}`)" class="raw-table">
             <tbody>
               <tr
-                v-for="(qty, productName) in products"
+                v-for="(cell, productName) in products"
                 :key="productName"
                 class="raw-row"
-                :class="{ selected: selected.has(String(productName)) }"
-                @click="emit('toggle-product', String(productName))"
+                :class="{
+                  selected: selected.has(`${destination}|||${roundLabel}|||${productName}`),
+                  done: cell.pending === 0,
+                }"
+                :title="cell.pending === 0 ? 'Ya está todo producido' : 'Toca para seleccionar'"
+                @click="emit('toggle-product', `${destination}|||${roundLabel}|||${productName}`)"
               >
                 <td class="col-check">
-                  <div class="custom-checkbox" :class="{ checked: selected.has(String(productName)) }">
-                    <i v-if="selected.has(String(productName))" class="fas fa-check"></i>
+                  <div
+                    v-if="cell.pending > 0"
+                    class="custom-checkbox"
+                    :class="{ checked: selected.has(`${destination}|||${roundLabel}|||${productName}`) }"
+                  >
+                    <i v-if="selected.has(`${destination}|||${roundLabel}|||${productName}`)" class="fas fa-check"></i>
                   </div>
+                  <div v-else class="done-check"><i class="fas fa-check"></i></div>
                 </td>
                 <td class="col-name">{{ productName }}</td>
-                <td class="col-qty"><strong>{{ qty }}</strong></td>
-                <td class="col-qty pending-qty" v-if="totals[String(productName)]">
-                  <strong>{{ totals[String(productName)] }}</strong>
+                <td class="col-status">
+                  <span v-if="cell.pending === 0" class="done-badge">✓ Listo</span>
+                  <span v-else class="pending-pill">
+                    faltan <strong>{{ cell.pending }}</strong><span class="of"> de {{ cell.qty }}</span>
+                  </span>
                 </td>
               </tr>
             </tbody>
@@ -111,15 +123,9 @@ $color-info: #3498db;
   border-bottom: 2px solid #f8f9fa;
 
   .dest-icon-box {
-    width: 48px;
-    height: 48px;
-    border-radius: 14px;
-    background: #f1f5f9;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.4rem;
-    color: $color-info;
+    width: 48px; height: 48px; border-radius: 14px; background: #f1f5f9;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem; color: $color-info;
   }
 
   .dest-info {
@@ -148,15 +154,7 @@ $color-info: #3498db;
 
   i { font-size: 0.75rem; }
 
-  .round-total {
-    margin-left: auto;
-    font-size: 0.7rem;
-    font-weight: 700;
-    background: rgba(124, 58, 237, 0.12);
-    padding: 2px 8px;
-    border-radius: 10px;
-    color: #6d28d9;
-  }
+  .round-total { margin-left: auto; font-size: 0.7rem; font-weight: 700; background: rgba(124, 58, 237, 0.12); padding: 2px 8px; border-radius: 10px; color: #6d28d9; }
 }
 
 .cat-section {
@@ -177,7 +175,6 @@ $color-info: #3498db;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   transition: filter 0.15s;
-
   &:hover { filter: brightness(0.96); }
 
   .cat-name { display: flex; align-items: center; gap: 0.5rem; }
@@ -188,13 +185,7 @@ $color-info: #3498db;
     &.open { transform: rotate(90deg); }
   }
 
-  .cat-qty {
-    font-size: 0.72rem;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 10px;
-    background: rgba(0, 0, 0, 0.08);
-  }
+  .cat-qty { font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: rgba(0, 0, 0, 0.08); }
 
   &.cat--tortas { background: #ede9fe; color: #5b21b6; }
   &.cat--tortas-porción { background: #e0e7ff; color: #3730a3; }
@@ -220,36 +211,36 @@ $color-info: #3498db;
   border-collapse: collapse;
 
   td {
-    padding: 0.75rem;
+    padding: 0.7rem 0.75rem;
     font-size: 0.9rem;
     color: #334155;
     border-bottom: 1px solid #f8fafc;
     font-weight: 500;
   }
 
-  .col-qty {
-    text-align: right;
-    width: 70px;
-    strong { color: $color-info; font-weight: 800; font-size: 1rem; }
-  }
-
   tr:last-child td { border-bottom: none; }
-  tr:hover td { background: #fdfdfd; }
 }
 
 .raw-row {
   cursor: pointer;
   transition: all 0.2s;
 
-  &:hover { background: #f8fafc !important; }
+  &:hover { background: #f8fafc; }
 
   &.selected {
-    background: rgba(142, 68, 173, 0.05) !important;
-    td { color: #8e44ad !important; font-weight: 700; }
+    background: rgba(142, 68, 173, 0.06);
+    td { color: #8e44ad; font-weight: 700; }
+  }
+
+  &.done {
+    cursor: default;
+    td { color: #94a3b8; }
+    &:hover { background: transparent; }
   }
 }
 
 .col-check { width: 40px; padding-right: 0; }
+.col-status { text-align: right; white-space: nowrap; }
 
 .custom-checkbox {
   width: 20px;
@@ -266,7 +257,36 @@ $color-info: #3498db;
   &.checked { background: #8e44ad; border-color: #8e44ad; }
 }
 
-.pending-qty {
-  strong { color: #e67e22 !important; }
+.done-check {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: #dcfce7;
+  color: #16a34a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  i { font-size: 0.7rem; }
+}
+
+.done-badge {
+  background: #dcfce7;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 2px 9px;
+  border-radius: 10px;
+}
+
+.pending-pill {
+  font-size: 0.8rem;
+  color: #9a3412;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  padding: 2px 9px;
+  border-radius: 10px;
+  strong { color: #ea580c; font-size: 0.95rem; }
+  .of { color: #94a3b8; font-size: 0.72rem; }
 }
 </style>

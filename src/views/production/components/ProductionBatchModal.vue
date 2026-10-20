@@ -1,29 +1,32 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import type { ProductRowMeta } from '@/composables/useProductionSummary';
 import ActionHoldButton from '@/components/common/ActionHoldButton.vue';
 
 const props = defineProps<{
   isOpen: boolean;
-  products: string[]; // nombres seleccionados
-  pending: Record<string, number>; // pendiente por producto
-  quantities: Record<string, number>; // cantidad elegida por producto
+  rows: ProductRowMeta[]; // filas seleccionadas (producto en un destino/ronda)
+  quantities: Record<string, number>; // cantidad elegida por fila
   isProcessing: boolean;
 }>();
 
 const emit = defineEmits(['close', 'confirm', 'set-quantity']);
 
-const set = (name: string, qty: number) => emit('set-quantity', name, qty);
+const set = (key: string, qty: number) => emit('set-quantity', key, qty);
 
-const onInput = (name: string, value: string) => {
-  set(name, value === '' ? 0 : Number(value));
+const onInput = (key: string, value: string) => {
+  set(key, value === '' ? 0 : Number(value));
 };
 
 const totalToProduce = computed(() =>
-  props.products.reduce((sum, name) => sum + (props.quantities[name] || 0), 0)
+  props.rows.reduce((sum, row) => sum + (props.quantities[row.key] || 0), 0)
 );
 
-const isPartial = (name: string) =>
-  (props.quantities[name] || 0) < (props.pending[name] || 0);
+const isPartial = (row: ProductRowMeta) =>
+  (props.quantities[row.key] || 0) < row.pending;
+
+const contextOf = (row: ProductRowMeta) =>
+  row.round ? `${row.destination} · ${row.round}` : row.destination;
 </script>
 
 <template>
@@ -37,30 +40,31 @@ const isPartial = (name: string) =>
         </div>
 
         <div class="rows">
-          <div v-for="name in products" :key="name" class="row" :class="{ partial: isPartial(name) }">
+          <div v-for="row in rows" :key="row.key" class="row" :class="{ partial: isPartial(row) }">
             <div class="row-info">
-              <span class="pname">{{ name }}</span>
+              <span class="pname">{{ row.name }}</span>
+              <span class="pcontext"><i class="fas fa-map-marker-alt"></i> {{ contextOf(row) }}</span>
               <span class="pmeta">
-                Pendiente: <strong>{{ pending[name] || 0 }}</strong>
-                <span v-if="isPartial(name)" class="rest-badge">
-                  quedan {{ (pending[name] || 0) - (quantities[name] || 0) }}
+                Pendiente: <strong>{{ row.pending }}</strong>
+                <span v-if="isPartial(row)" class="rest-badge">
+                  quedan {{ row.pending - (quantities[row.key] || 0) }}
                 </span>
               </span>
             </div>
             <div class="row-controls">
-              <button type="button" class="step minus" :disabled="(quantities[name] || 0) <= 0" @click="set(name, (quantities[name] || 0) - 1)">
+              <button type="button" class="step minus" :disabled="(quantities[row.key] || 0) <= 0" @click="set(row.key, (quantities[row.key] || 0) - 1)">
                 <i class="fas fa-minus"></i>
               </button>
               <input
-                type="number" min="0" :max="pending[name] || 0" inputmode="numeric"
-                :value="quantities[name] ?? 0"
-                @input="onInput(name, ($event.target as HTMLInputElement).value)"
+                type="number" min="0" :max="row.pending" inputmode="numeric"
+                :value="quantities[row.key] ?? 0"
+                @input="onInput(row.key, ($event.target as HTMLInputElement).value)"
                 @focus="($event.target as HTMLInputElement).select()"
               />
-              <button type="button" class="step plus" :disabled="(quantities[name] || 0) >= (pending[name] || 0)" @click="set(name, (quantities[name] || 0) + 1)">
+              <button type="button" class="step plus" :disabled="(quantities[row.key] || 0) >= row.pending" @click="set(row.key, (quantities[row.key] || 0) + 1)">
                 <i class="fas fa-plus"></i>
               </button>
-              <button type="button" class="all" :class="{ active: !isPartial(name) }" @click="set(name, pending[name] || 0)">
+              <button type="button" class="all" :class="{ active: !isPartial(row) }" @click="set(row.key, row.pending)">
                 Todo
               </button>
             </div>
@@ -153,6 +157,16 @@ const isPartial = (name: string) =>
   min-width: 0;
 
   .pname { font-weight: 800; color: #1e293b; font-size: 0.92rem; }
+
+  .pcontext {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #7c3aed;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    i { font-size: 0.62rem; }
+  }
 
   .pmeta {
     font-size: 0.75rem;
