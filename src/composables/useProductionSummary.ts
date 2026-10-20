@@ -1,7 +1,11 @@
 import { ref, computed } from 'vue'
 import ProductionService from '@/services/production.service'
+import productService from '@/services/product.service'
 import type { CategoryGroup } from '@/types/production'
 import { parseECTDate, getECTNow, isSameDayECT } from '@/utils/dateUtils'
+
+const normName = (s: string) =>
+  s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
 
 /** Celda de producto en el resumen: lo pedido y lo que falta por producir. */
 export interface ProductCell { qty: number; pending: number }
@@ -34,7 +38,8 @@ export function useProductionSummary() {
   // Category collapse (kept for history panel compatibility)
   const collapsedCategoryIds = ref<Set<string>>(new Set())
 
-  const rawFilteredOrders = computed(() => {
+  // Solo el filtro de fecha (bucket): la base para los contadores Nicole/Sucree
+  const bucketFilteredOrders = computed(() => {
     if (!rawOrders.value.length) return []
 
     const today = getECTNow()
@@ -43,25 +48,39 @@ export function useProductionSummary() {
     tomorrow.setDate(tomorrow.getDate() + 1)
 
     return rawOrders.value.filter(order => {
-      // Source filter (client-side — no API call)
-      if (sourceFilter.value !== 'all' && order.contificoSource !== sourceFilter.value) return false
-
-      if (rawBucketFilter.value === 'all') return order.productionStage !== 'VOID'
+      if (order.productionStage === 'VOID') return false
+      if (rawBucketFilter.value === 'all') return true
 
       if (!order.deliveryDate) return false
       const dDate = parseECTDate(order.deliveryDate)
 
-      if (rawBucketFilter.value === 'today') return isSameDayECT(dDate, today) && order.productionStage !== 'VOID'
-      if (rawBucketFilter.value === 'tomorrow') return isSameDayECT(dDate, tomorrow) && order.productionStage !== 'VOID'
-      if (rawBucketFilter.value === 'delayed') return dDate < today && order.productionStage !== 'VOID'
+      if (rawBucketFilter.value === 'today') return isSameDayECT(dDate, today)
+      if (rawBucketFilter.value === 'tomorrow') return isSameDayECT(dDate, tomorrow)
+      if (rawBucketFilter.value === 'delayed') return dDate < today
       if (rawBucketFilter.value === 'future') {
         const afterTomorrow = new Date(tomorrow)
         afterTomorrow.setDate(afterTomorrow.getDate() + 1)
         afterTomorrow.setHours(0, 0, 0, 0)
-        return dDate >= afterTomorrow && order.productionStage !== 'VOID'
+        return dDate >= afterTomorrow
       }
       return false
     })
+  })
+
+  const rawFilteredOrders = computed(() =>
+    sourceFilter.value === 'all'
+      ? bucketFilteredOrders.value
+      : bucketFilteredOrders.value.filter(o => o.contificoSource === sourceFilter.value)
+  )
+
+  // Cuántos pedidos hay de cada marca en el periodo elegido (para las píldoras)
+  const sourceCounts = computed(() => {
+    const counts = { all: bucketFilteredOrders.value.length, nicole: 0, sucree: 0 }
+    for (const o of bucketFilteredOrders.value) {
+      if (o.contificoSource === 'sucree') counts.sucree++
+      else counts.nicole++
+    }
+    return counts
   })
 
   // ── Destino / ronda de una orden ────────────────────────────────────
@@ -110,6 +129,12 @@ export function useProductionSummary() {
 
   const CATEGORY_ORDER = ['TORTAS', 'TORTAS PORCIÓN', 'JOYITAS', 'BOLLERÍA', 'GALLETERÍA', 'SIROPES', 'VEGETALES', 'HELADERÍA', 'CASA MIA', 'OTROS']
 
+  // Categorías tal cual Contífico (nombre normalizado → categoría)
+  const contificoCatByName = ref<Record<string, string>>({})
+
+  const categoryOf = (productName: string, rawCategory?: string): string =>
+    contificoCatByName.value[normName(productName)] || mapCategory(productName, rawCategory)
+
   // Groups by Destination → Round Label → Category → Product → { qty, pending }
   // y metadatos por fila (clave dest|||ronda|||producto): pendiente real y los
   // ids de las órdenes de esa fila, para acreditar la producción donde se marcó.
@@ -127,7 +152,7 @@ export function useProductionSummary() {
       if (!stats[dest]![roundLabel]) stats[dest]![roundLabel] = {}
 
       order.products.forEach((p: any) => {
-        const cat = mapCategory(p.name, p.category)
+        const cat = categoryOf(p.name, p.category)
         if (!stats[dest]![roundLabel]![cat]) stats[dest]![roundLabel]![cat] = {}
         const catGroup = stats[dest]![roundLabel]![cat] as Record<string, ProductCell>
         const qty = p.quantity || 0
@@ -204,6 +229,8 @@ export function useProductionSummary() {
     try {
       if (!background) isLoading.value = true
       error.value = ''
+      // El mapa de categorías de Contífico se carga en paralelo, sin bloquear
+      productService.getContificoCategoryMap().then(map => { contificoCatByName.value = map })
       rawOrders.value = await ProductionService.getAllOrders('all')
       if (!background) isLoading.value = false
     } catch (err) {
@@ -288,6 +315,20 @@ export function useProductionSummary() {
     }
   }
 
+  // Pedidos para exportar la Orden de Producción/Entrega: por fecha y sucursal,
+  // independiente de las píldoras de arriba. date: 'all' | 'YYYY-MM-DD'.
+  const filterOrdersForExport = (opts: { date: string; destination: string }) => {
+    return rawOrders.value.filter(order => {
+      if (order.productionStage === 'VOID') return false
+      if (opts.date !== 'all') {
+        if (!order.deliveryDate) return false
+        if (!isSameDayECT(parseECTDate(order.deliveryDate), parseECTDate(opts.date))) return false
+      }
+      if (opts.destination !== 'all' && destOf(order) !== opts.destination) return false
+      return true
+    })
+  }
+
   // Kept for history panel / other potential callers
   const toggleCategory = (categoryGroup: CategoryGroup) => {
     if (collapsedCategoryIds.value.has(categoryGroup.id)) {
@@ -327,6 +368,9 @@ export function useProductionSummary() {
     rowMeta,
     selectedRows,
     selectedProductNames,
+    sourceCounts,
+    filterOrdersForExport,
+    contificoCatByName,
     collapsedProductCategories,
     toggleProductCategory,
     selectedRawProducts,

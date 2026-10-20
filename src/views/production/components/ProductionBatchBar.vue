@@ -2,11 +2,10 @@
 defineProps<{
   visible: boolean;
   selectedCount: number;
-  isExporting: boolean;
   isProcessing: boolean;
 }>();
 
-const emit = defineEmits(['clear', 'export', 'complete']);
+const emit = defineEmits(['clear', 'complete']);
 </script>
 
 <template>
@@ -14,16 +13,10 @@ const emit = defineEmits(['clear', 'export', 'complete']);
     <div v-if="visible" class="floating-batch-bar">
       <div class="batch-info">
         <span class="count">{{ selectedCount }}</span>
-        <span class="label">productos seleccionados</span>
+        <span class="label">{{ selectedCount === 1 ? 'producto seleccionado' : 'productos seleccionados' }} · ¿ya los produjiste?</span>
       </div>
       <div class="batch-actions">
         <button class="btn-clear" @click="emit('clear')">Cancelar</button>
-        <button class="btn-process delivery" :disabled="isExporting" @click="emit('export', 'dispatch')">
-          <i class="fas fa-truck-loading"></i> Entrega
-        </button>
-        <button class="btn-process production" :disabled="isExporting" @click="emit('export', 'production')">
-          <i class="fas fa-bread-slice"></i> Producción
-        </button>
         <button class="btn-process complete" :disabled="isProcessing" @click="emit('complete')">
           <i class="fas" :class="isProcessing ? 'fa-spinner fa-spin' : 'fa-check'"></i>
           Marcar Producido

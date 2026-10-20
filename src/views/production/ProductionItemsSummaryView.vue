@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import ProductionHistoryPanel from './components/ProductionHistoryPanel.vue'
-import ExportProductionModal from '../orders/components/ExportProductionModal.vue'
+import ProductionExportModal from './components/ProductionExportModal.vue'
 import ProductionBatchModal from './components/ProductionBatchModal.vue'
 import ProductionSummaryHeader from './components/ProductionSummaryHeader.vue'
 import ProductionDestinationCard from './components/ProductionDestinationCard.vue'
@@ -33,7 +33,19 @@ const {
   setBatchQuantity,
   selectedRows,
   selectedProductNames,
+  sourceCounts,
+  filterOrdersForExport,
+  contificoCatByName,
 } = useProductionSummary()
+
+// Sucursales/destinos para el modal de exportación
+const exportDestinations = computed(() => {
+  const base = ['San Marino', 'Mall del Sol', 'Centro Prod.', 'Delivery']
+  for (const d of Object.keys(rawStatsByDestRoundCategory.value)) {
+    if (!base.includes(d)) base.push(d)
+  }
+  return base
+})
 
 const { isExporting, exportDispatchOrder, exportProductionOrder } = useOrderExport()
 const showExportModal = ref(false)
@@ -77,42 +89,41 @@ const handleExportClick = (mode: 'dispatch' | 'production') => {
   showExportModal.value = true
 }
 
-const handleExportProduction = async (responsibleName: string) => {
+const handleExportConfirm = async (opts: { responsibleName: string; destination: string; date: string }) => {
   try {
+    // Pedidos por sucursal y fecha, independiente de los filtros de la pantalla
+    let ordersToExport = filterOrdersForExport({ date: opts.date, destination: opts.destination })
+
     const selectedProducts = selectedProductNames.value
-
-    let ordersToExport: any[] = []
-
-    if (selectedProducts.length === 0) {
-      ordersToExport = rawFilteredOrders.value
-    } else {
-      ordersToExport = rawFilteredOrders.value.filter((order: any) => {
-        return order.products.some((p: any) => selectedProducts.includes(p.name))
-      }).map((order: any) => {
-        return {
+    if (selectedProducts.length > 0) {
+      ordersToExport = ordersToExport
+        .filter((order: any) => order.products.some((p: any) => selectedProducts.includes(p.name)))
+        .map((order: any) => ({
           ...order,
-          products: order.products.filter((p: any) => selectedProducts.includes(p.name))
-        }
-      })
+          products: order.products.filter((p: any) => selectedProducts.includes(p.name)),
+        }))
     }
 
     if (ordersToExport.length === 0) {
-      showError('No hay órdenes para exportar en este periodo')
+      showError('No hay pedidos para esa sucursal y fecha. Prueba "Todas".')
       return
     }
 
     if (exportMode.value === 'dispatch') {
-      await exportDispatchOrder(ordersToExport, 'Producción (Resumen)')
+      const label = opts.destination === 'all' ? 'Todas las sucursales' : opts.destination
+      await exportDispatchOrder(ordersToExport, label)
+      success('Orden de Entrega exportada (Excel descargado).')
     } else {
-      await exportProductionOrder(ordersToExport, responsibleName)
+      // Excel con las categorías tal cual Contífico
+      await exportProductionOrder(ordersToExport, opts.responsibleName, contificoCatByName.value)
+      success('Orden de Producción exportada (Excel descargado).')
     }
 
-    success('Orden de Producción exportada exitosamente')
     showExportModal.value = false
     clearRawSelection()
   } catch (err) {
     console.error(err)
-    showError('Error al exportar orden de producción')
+    showError('Error al exportar. Inténtalo de nuevo.')
   }
 }
 
@@ -133,6 +144,7 @@ onMounted(() => {
       :selected-count="selectedRawProducts.size"
       :is-exporting="isExporting"
       :export-mode="exportMode"
+      :source-counts="sourceCounts"
       @toggle-history="toggleHistoryPanel"
       @refresh="fetchSummary(false)"
       @set-source="sourceFilter = $event"
@@ -173,17 +185,22 @@ onMounted(() => {
 
       <div v-else class="empty-raw">
         <i class="fas fa-folder-open"></i>
-        <p>No hay pedidos para este periodo</p>
+        <p>
+          No hay pedidos
+          <template v-if="sourceFilter !== 'all'"> de <strong>{{ sourceFilter === 'nicole' ? 'Nicole' : 'Sucree' }}</strong></template>
+          en este periodo
+        </p>
+        <button v-if="sourceFilter !== 'all' || rawBucketFilter !== 'all'" class="btn-see-all" @click="sourceFilter = 'all'; rawBucketFilter = 'all'">
+          Ver todos los pedidos
+        </button>
       </div>
     </div>
 
     <ProductionBatchBar
       :visible="selectedRawProducts.size > 0"
       :selected-count="selectedRawProducts.size"
-      :is-exporting="isExporting"
       :is-processing="isBatchProcessing"
       @clear="clearRawSelection"
-      @export="handleExportClick"
       @complete="openBatchConfirm"
     />
 
@@ -198,11 +215,14 @@ onMounted(() => {
       @confirm="handleBatchConfirm"
     />
 
-    <ExportProductionModal
+    <ProductionExportModal
       :is-open="showExportModal"
       :is-loading="isExporting"
+      :mode="exportMode"
+      :destinations="exportDestinations"
+      :selected-count="selectedProductNames.length"
       @close="showExportModal = false"
-      @confirm="handleExportProduction"
+      @confirm="handleExportConfirm"
     />
   </div>
 </template>
@@ -222,11 +242,7 @@ $font-stack-system: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helve
   }
 }
 
-.content-wrapper {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 1rem;
-}
+.content-wrapper { max-width: 1200px; margin: 0 auto; padding: 0 1rem; }
 
 .destination-grid {
   display: grid;
@@ -242,17 +258,21 @@ $font-stack-system: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helve
 .empty-raw {
   padding: 6rem 2rem;
   text-align: center;
-  color: #cbd5e1;
+  color: #94a3b8;
 
-  i {
-    font-size: 4rem;
-    margin-bottom: 1.5rem;
-    opacity: 0.3;
-  }
+  i { font-size: 4rem; margin-bottom: 1.5rem; opacity: 0.3; }
+  p { font-size: 1.1rem; font-weight: 600; strong { color: #475569; } }
 
-  p {
-    font-size: 1.1rem;
-    font-weight: 600;
+  .btn-see-all {
+    margin-top: 1rem;
+    background: #1e293b;
+    color: white;
+    border: none;
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+    &:hover { background: #0f172a; }
   }
 }
 
@@ -267,32 +287,14 @@ $font-stack-system: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helve
   color: #7f8c8d;
 
   .loader {
-    width: 32px;
-    height: 32px;
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid #3498db;
-    border-radius: 50%;
+    width: 32px; height: 32px; border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db; border-radius: 50%;
     animation: spin 1s linear infinite;
   }
 
-  button {
-    background: #3498db;
-    color: white;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    cursor: pointer;
-  }
-
-  i {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-    color: #bdc3c7;
-  }
+  button { background: #3498db; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; }
+  i { font-size: 3rem; margin-bottom: 1rem; color: #bdc3c7; }
 }
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>

@@ -6,6 +6,8 @@ export interface RestockItem {
   isGeneral?: boolean;
   requiresMinimum?: boolean;
   category?: 'Producción' | 'Bodega';
+  /** Categoría del producto tal cual Contífico (null = suministro o sin categoría). */
+  contificoCategory?: string | null;
   stockObjectiveTomorrow: number;
   stockObjectiveToday: number;
   lastEntry?: {

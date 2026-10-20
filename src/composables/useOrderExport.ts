@@ -12,10 +12,15 @@ export function useOrderExport() {
     XLSX.writeFile(workbook, `${filename}.xlsx`)
   }
 
+  // Categoría tal cual Contífico cuando el mapa está disponible
+  const normName = (s: string) =>
+    s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim()
+
   // --- Production Export (Pivot format: Category × Destination/Round) ---
   const exportProductionOrder = async (
     orders: any[],
-    responsibleName: string
+    responsibleName: string,
+    categoryByName?: Record<string, string>
   ) => {
     isExporting.value = true
     try {
@@ -88,7 +93,7 @@ export function useOrderExport() {
           if (!name) return
           const qty = Number(p.quantity) || 0
           if (qty <= 0) return
-          if (!pivot[name]) pivot[name] = { category: mapCategory(name, p.category), destQty: {} }
+          if (!pivot[name]) pivot[name] = { category: categoryByName?.[normName(name)] || mapCategory(name, p.category), destQty: {} }
           pivot[name].destQty[colKey] = (pivot[name].destQty[colKey] || 0) + qty
         })
       })
@@ -107,6 +112,9 @@ export function useOrderExport() {
       })
       Object.values(grouped).forEach(list => list.sort())
       const sortedCategories = Object.keys(grouped).sort((a, b) => {
+        // "OTROS" siempre al final; el resto por orden conocido o alfabético
+        if (a === 'OTROS') return 1
+        if (b === 'OTROS') return -1
         const ia = CATEGORY_ORDER.indexOf(a), ib = CATEGORY_ORDER.indexOf(b)
         if (ia !== -1 && ib !== -1) return ia - ib
         if (ia !== -1) return -1; if (ib !== -1) return 1

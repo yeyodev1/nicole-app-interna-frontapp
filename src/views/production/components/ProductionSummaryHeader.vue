@@ -9,6 +9,7 @@ defineProps<{
   selectedCount: number;
   isExporting: boolean;
   exportMode: 'dispatch' | 'production';
+  sourceCounts: { all: number; nicole: number; sucree: number };
 }>();
 
 const emit = defineEmits(['toggle-history', 'refresh', 'set-source', 'set-bucket', 'export']);
@@ -62,6 +63,7 @@ const sources = [
       >
         <i :class="`fas ${src.icon}`"></i>
         {{ src.label }}
+        <span class="pill-count">{{ sourceCounts[src.key as 'all' | 'nicole' | 'sucree'] }}</span>
       </button>
     </div>
 
@@ -79,13 +81,24 @@ const sources = [
     </div>
 
     <div class="raw-export-actions" v-if="!showHistory && hasOrders">
-      <button class="btn-export-prod delivery" :disabled="isExporting" @click="emit('export', 'dispatch')">
+      <span class="export-label"><i class="fas fa-file-excel"></i> Exportar:</span>
+      <button
+        class="btn-export-prod delivery"
+        :disabled="isExporting"
+        title="Excel para despachar los pedidos a cada destino (elige sucursal y fecha)"
+        @click="emit('export', 'dispatch')"
+      >
         <i class="fas" :class="isExporting && exportMode === 'dispatch' ? 'fa-spinner fa-spin' : 'fa-truck-loading'"></i>
-        {{ selectedCount > 0 ? `Entrega (${selectedCount})` : 'Orden de Entrega' }}
+        {{ selectedCount > 0 ? `Orden de Entrega (${selectedCount} prod.)` : 'Orden de Entrega' }}
       </button>
-      <button class="btn-export-prod production" :disabled="isExporting" @click="emit('export', 'production')">
+      <button
+        class="btn-export-prod production"
+        :disabled="isExporting"
+        title="Excel para la cocina con las categorías de Contífico (elige sucursal y fecha)"
+        @click="emit('export', 'production')"
+      >
         <i class="fas" :class="isExporting && exportMode === 'production' ? 'fa-spinner fa-spin' : 'fa-bread-slice'"></i>
-        {{ selectedCount > 0 ? `Producción (${selectedCount})` : 'Orden de Producción' }}
+        {{ selectedCount > 0 ? `Orden de Producción (${selectedCount} prod.)` : 'Orden de Producción' }}
       </button>
     </div>
   </div>
@@ -166,16 +179,9 @@ $color-delayed: #e67e22;
 }
 
 .refreshing-badge {
-  font-size: 0.75rem;
-  background: #e1f5fe;
-  color: #0288d1;
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  border: 1px solid #b3e5fc;
+  font-size: 0.75rem; background: #e1f5fe; color: #0288d1;
+  padding: 0.25rem 0.75rem; border-radius: 20px; font-weight: 700;
+  display: flex; align-items: center; gap: 0.4rem; border: 1px solid #b3e5fc;
 }
 
 .source-filter-bar { display: flex; flex-wrap: wrap; gap: 0.5rem; }
@@ -249,7 +255,17 @@ $color-delayed: #e67e22;
   }
 }
 
-.raw-export-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.raw-export-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+
+.export-label {
+  font-size: 0.78rem; font-weight: 800; color: #64748b;
+  text-transform: uppercase; letter-spacing: 0.4px;
+  display: flex; align-items: center; gap: 0.4rem;
+  i { color: #16a34a; }
+}
+
+.pill-count { background: rgba(0, 0, 0, 0.08); font-size: 0.7rem; font-weight: 800; padding: 1px 7px; border-radius: 10px; }
+.source-pill.active .pill-count { background: rgba(255, 255, 255, 0.25); }
 
 .btn-export-prod {
   background: #8e44ad;
@@ -265,17 +281,8 @@ $color-delayed: #e67e22;
   transition: all 0.2s;
   box-shadow: 0 4px 12px rgba(142, 68, 173, 0.25);
 
-  &.delivery {
-    background: #3498db;
-    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.25);
-    &:hover:not(:disabled) { background: darken(#3498db, 5%); }
-  }
-
-  &.production {
-    background: #e67e22;
-    box-shadow: 0 4px 12px rgba(230, 126, 34, 0.25);
-    &:hover:not(:disabled) { background: darken(#e67e22, 5%); }
-  }
+  &.delivery { background: #3498db; box-shadow: 0 4px 12px rgba(52, 152, 219, 0.25); &:hover:not(:disabled) { background: darken(#3498db, 5%); } }
+  &.production { background: #e67e22; box-shadow: 0 4px 12px rgba(230, 126, 34, 0.25); &:hover:not(:disabled) { background: darken(#e67e22, 5%); } }
 
   &:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15); }
   &:disabled { background: #cbd5e1; box-shadow: none; cursor: not-allowed; color: #94a3b8; }

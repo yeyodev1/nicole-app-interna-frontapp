@@ -23,6 +23,7 @@ export interface RestockItemData {
   isGeneral: boolean;
   requiresMinimum: boolean;
   category: 'Producción' | 'Bodega';
+  contificoCategory: string | null;
   stockObjectiveTomorrow: number;
   stockObjectiveToday: number;
   bajas: number;
@@ -67,6 +68,7 @@ export function useDailyClosing(branch: Ref<string>) {
           isGeneral: item.isGeneral || false,
           requiresMinimum: item.requiresMinimum || false,
           category: item.category || 'Producción',
+          contificoCategory: item.contificoCategory || null,
           stockObjectiveTomorrow: item.stockObjectiveTomorrow,
           stockObjectiveToday: item.stockObjectiveToday,
           bajas: (isToday && item.lastEntry) ? item.lastEntry.bajas : 0,
@@ -143,16 +145,28 @@ export function useDailyClosing(branch: Ref<string>) {
       ? formItems.value.filter(i => norm(i.productName).includes(q))
       : formItems.value;
 
-    const produccion: ClosingGroup = { key: 'produccion', label: 'Producción', icon: 'fa-cake-candles', items: [], pedidos: 0 };
-    const bodega: ClosingGroup = { key: 'bodega', label: 'Bodega', icon: 'fa-warehouse', items: [], pedidos: 0 };
-    const suministros: ClosingGroup = { key: 'suministros', label: 'Suministros', icon: 'fa-box-open', items: [], pedidos: 0 };
-
+    // Secciones con la categoría tal cual Contífico; los suministros manuales
+    // van en su propio grupo y lo sin categoría en "Otros" (al final).
+    const groups = new Map<string, ClosingGroup>();
     for (const item of filtered) {
-      const group = item.isGeneral ? suministros : (item.category === 'Bodega' ? bodega : produccion);
+      const label = item.isGeneral ? 'Suministros' : (item.contificoCategory || 'Otros');
+      const key = norm(label);
+      let group = groups.get(key);
+      if (!group) {
+        const icon = item.isGeneral ? 'fa-box-open' : (item.contificoCategory ? 'fa-tag' : 'fa-circle-question');
+        group = { key, label, icon, items: [], pedidos: 0 };
+        groups.set(key, group);
+      }
       group.items.push(item);
       if (getFinalPedido(item) > 0) group.pedidos++;
     }
-    return [produccion, bodega, suministros].filter(g => g.items.length > 0);
+
+    const LAST = ['otros', 'suministros'];
+    return Array.from(groups.values()).sort((a, b) => {
+      const la = LAST.indexOf(a.key), lb = LAST.indexOf(b.key);
+      if (la !== -1 || lb !== -1) return (la === -1 ? -1 : la + 1) - (lb === -1 ? -1 : lb + 1);
+      return a.label.localeCompare(b.label);
+    });
   });
 
   // Producto agregado al vuelo desde el buscador del modal. false = ya estaba.
@@ -164,6 +178,7 @@ export function useDailyClosing(branch: Ref<string>) {
       isGeneral: p.isGeneral,
       requiresMinimum: p.requiresMinimum || false,
       category: p.category || 'Producción',
+      contificoCategory: p.contificoCategory || null,
       stockObjectiveTomorrow: 0,
       stockObjectiveToday: 0,
       bajas: 0,
