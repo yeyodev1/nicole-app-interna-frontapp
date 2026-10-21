@@ -22,6 +22,10 @@ const totalToProduce = computed(() =>
   props.rows.reduce((sum, row) => sum + (props.quantities[row.key] || 0), 0)
 );
 
+const totalEliminated = computed(() =>
+  props.rows.reduce((sum, row) => sum + Math.max(0, row.pending - (props.quantities[row.key] || 0)), 0)
+);
+
 const isPartial = (row: ProductRowMeta) =>
   (props.quantities[row.key] || 0) < row.pending;
 
@@ -36,7 +40,7 @@ const contextOf = (row: ProductRowMeta) =>
         <div class="card-head">
           <i class="fas fa-check-circle"></i>
           <h2>¿Cuánto vas a producir?</h2>
-          <p>Por defecto está todo lo pendiente. Baja la cantidad si hoy harás menos: el resto queda pendiente.</p>
+          <p>Por defecto está todo lo pendiente. Si harás menos, baja la cantidad: <strong>el resto se elimina del pedido</strong> (no queda pendiente).</p>
         </div>
 
         <div class="rows">
@@ -45,9 +49,9 @@ const contextOf = (row: ProductRowMeta) =>
               <span class="pname">{{ row.name }}</span>
               <span class="pcontext"><i class="fas fa-map-marker-alt"></i> {{ contextOf(row) }}</span>
               <span class="pmeta">
-                Pendiente: <strong>{{ row.pending }}</strong>
+                Pedido: <strong>{{ row.pending }}</strong>
                 <span v-if="isPartial(row)" class="rest-badge">
-                  quedan {{ row.pending - (quantities[row.key] || 0) }}
+                  <i class="fas fa-trash-can"></i> se eliminan {{ row.pending - (quantities[row.key] || 0) }}
                 </span>
               </span>
             </div>
@@ -74,6 +78,10 @@ const contextOf = (row: ProductRowMeta) =>
         <div class="total-line">
           <span>Total a marcar como producido:</span>
           <strong>{{ totalToProduce }} unids</strong>
+        </div>
+        <div v-if="totalEliminated > 0" class="eliminated-line">
+          <i class="fas fa-trash-can"></i>
+          <span>Se eliminarán <strong>{{ totalEliminated }}</strong> unidades del pedido (no quedan pendientes).</span>
         </div>
 
         <div class="card-actions">
@@ -179,13 +187,10 @@ const contextOf = (row: ProductRowMeta) =>
   }
 
   .rest-badge {
-    background: #f59e0b;
-    color: white;
-    font-size: 0.68rem;
-    font-weight: 800;
-    padding: 1px 7px;
-    border-radius: 10px;
-    white-space: nowrap;
+    background: #dc2626; color: white; font-size: 0.68rem; font-weight: 800;
+    padding: 1px 7px; border-radius: 10px; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 0.25rem;
+    i { font-size: 0.6rem; }
   }
 }
 
@@ -245,18 +250,17 @@ const contextOf = (row: ProductRowMeta) =>
 }
 
 .total-line {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  border-radius: 10px;
-  padding: 0.65rem 0.9rem;
-  font-size: 0.88rem;
-  color: #065f46;
-  margin-bottom: 1rem;
-
+  display: flex; justify-content: space-between; align-items: center;
+  background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 10px;
+  padding: 0.65rem 0.9rem; font-size: 0.88rem; color: #065f46; margin-bottom: 0.6rem;
   strong { font-size: 1.05rem; color: #047857; }
+}
+
+.eliminated-line {
+  display: flex; align-items: center; gap: 0.5rem;
+  background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px;
+  padding: 0.6rem 0.9rem; font-size: 0.82rem; color: #991b1b; margin-bottom: 1rem;
+  i, strong { color: #dc2626; }
 }
 
 .card-actions {

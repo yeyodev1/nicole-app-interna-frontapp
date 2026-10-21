@@ -96,7 +96,7 @@ class ProductionService extends APIBase {
     await this.post('production/progress', { productName, quantity })
   }
 
-  async batchRegisterProgress(items: { productName: string; quantity: number; orderIds?: string[] }[]) {
+  async batchRegisterProgress(items: { productName: string; quantity: number; orderIds?: string[]; discardRemainder?: boolean }[]) {
     const response = await this.post<any>('production/progress/batch', { items })
     return (response.data as any)?.data || []
   }

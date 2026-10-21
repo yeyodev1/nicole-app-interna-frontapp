@@ -290,17 +290,23 @@ export function useProductionSummary() {
     batchQuantities.value[rowKey] = Math.max(0, Math.min(max, Math.round(qty)))
   }
 
-  // Envía la producción. Devuelve cuántas unidades se registraron y los fallos,
-  // para que la vista avise claramente (antes fallaba en silencio).
-  const batchCompleteSelected = async (): Promise<{ sent: number; failures: string[] }> => {
+  // Envía la producción. Lo que no se marcó de cada fila SE ELIMINA del
+  // pendiente (no queda colgado): piden 50, marcas 40 → 10 eliminadas.
+  // Devuelve unidades registradas, eliminadas y fallos para avisar claro.
+  const batchCompleteSelected = async (): Promise<{ sent: number; eliminated: number; failures: string[] }> => {
     const items = selectedRows.value
       .map(row => ({
         productName: row.name,
         quantity: batchQuantities.value[row.key] ?? row.pending,
         orderIds: row.orderIds,
+        discardRemainder: true,
       }))
       .filter(i => i.quantity > 0)
-    if (items.length === 0) return { sent: 0, failures: [] }
+    if (items.length === 0) return { sent: 0, eliminated: 0, failures: [] }
+    const eliminated = selectedRows.value.reduce(
+      (s, row) => s + Math.max(0, row.pending - (batchQuantities.value[row.key] ?? row.pending)),
+      0
+    )
     try {
       isBatchProcessing.value = true
       const results = await ProductionService.batchRegisterProgress(items)
@@ -309,7 +315,7 @@ export function useProductionSummary() {
         .map((r: any) => r.name)
       clearRawSelection()
       await fetchSummary(true)
-      return { sent: items.reduce((s, i) => s + i.quantity, 0), failures }
+      return { sent: items.reduce((s, i) => s + i.quantity, 0), eliminated, failures }
     } finally {
       isBatchProcessing.value = false
     }

@@ -35,7 +35,9 @@ const filterMode = ref<BulkFilterMode>('today');
 
 watch(filterMode, () => { if (props.isOpen) fetchModalData(); });
 
-const isReadOnly = computed(() => filterMode.value === 'yesterday' || filterMode.value === 'tomorrow');
+// Solo AYER es de lectura: la recepción de MAÑANA sí se puede registrar
+// (el despacho llega hoy aunque el pedido sea para mañana).
+const isReadOnly = computed(() => filterMode.value === 'yesterday');
 
 const formatTabDate = (offset: number): string => {
   const todayStr = getECTTodayString();
@@ -472,12 +474,12 @@ watch(() => props.isOpen, (v) => {
           </button>
         </div>
 
-        <!-- Readonly banner for Ayer / Mañana -->
+        <!-- Readonly banner solo para Ayer -->
         <div v-if="!isLoadingData && isReadOnly" class="readonly-banner">
           <i class="fa-solid fa-eye"></i>
           <div class="readonly-banner-text">
-            <span>Estás viendo <strong>{{ filterMode === 'yesterday' ? 'AYER' : 'MAÑANA' }}</strong> ({{ filterMode === 'yesterday' ? labelYesterday : labelTomorrow }}) — solo lectura.</span>
-            <span>Para confirmar recepciones ve a <strong>HOY</strong>.</span>
+            <span>Estás viendo <strong>AYER</strong> ({{ labelYesterday }}) — solo lectura.</span>
+            <span>Para confirmar recepciones ve a <strong>HOY</strong> o <strong>MAÑANA</strong>.</span>
           </div>
           <button class="btn-go-today" @click="filterMode = 'today'">
             <i class="fa-solid fa-calendar-day"></i> Ir a Hoy · {{ labelToday }}

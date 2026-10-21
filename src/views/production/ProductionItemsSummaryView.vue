@@ -75,6 +75,8 @@ const handleBatchConfirm = async () => {
       showError('No había nada pendiente por producir en la selección.')
     } else if (result.failures.length > 0) {
       showError(`Se registraron ${result.sent} unids, pero fallaron: ${result.failures.join(', ')}. Vuelve a intentarlo con esos productos.`)
+    } else if (result.eliminated > 0) {
+      success(`¡Listo! ${result.sent} unidades producidas y ${result.eliminated} eliminadas del pedido.`)
     } else {
       success(`¡Listo! Se registraron ${result.sent} unidades producidas.`)
     }
@@ -236,10 +238,7 @@ $font-stack-system: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helve
   color: #2c3e50;
   padding-bottom: 4rem;
   font-family: $font-stack-system;
-
-  &.has-selection {
-    padding-bottom: 7rem;
-  }
+  &.has-selection { padding-bottom: 7rem; }
 }
 
 .content-wrapper { max-width: 1200px; margin: 0 auto; padding: 0 1rem; }
