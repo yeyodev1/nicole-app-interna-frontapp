@@ -35,9 +35,7 @@ const filterMode = ref<BulkFilterMode>('today');
 
 watch(filterMode, () => { if (props.isOpen) fetchModalData(); });
 
-// Solo AYER es de lectura: la recepción de MAÑANA sí se puede registrar
-// (el despacho llega hoy aunque el pedido sea para mañana).
-const isReadOnly = computed(() => filterMode.value === 'yesterday');
+const isReadOnly = computed(() => filterMode.value === 'yesterday' || filterMode.value === 'tomorrow');
 
 const formatTabDate = (offset: number): string => {
   const todayStr = getECTTodayString();
@@ -474,12 +472,12 @@ watch(() => props.isOpen, (v) => {
           </button>
         </div>
 
-        <!-- Readonly banner solo para Ayer -->
+        <!-- Readonly banner for Ayer / Mañana -->
         <div v-if="!isLoadingData && isReadOnly" class="readonly-banner">
           <i class="fa-solid fa-eye"></i>
           <div class="readonly-banner-text">
-            <span>Estás viendo <strong>AYER</strong> ({{ labelYesterday }}) — solo lectura.</span>
-            <span>Para confirmar recepciones ve a <strong>HOY</strong> o <strong>MAÑANA</strong>.</span>
+            <span>Estás viendo <strong>{{ filterMode === 'yesterday' ? 'AYER' : 'MAÑANA' }}</strong> ({{ filterMode === 'yesterday' ? labelYesterday : labelTomorrow }}) — solo lectura.</span>
+            <span>Para confirmar recepciones ve a <strong>HOY</strong>.</span>
           </div>
           <button class="btn-go-today" @click="filterMode = 'today'">
             <i class="fa-solid fa-calendar-day"></i> Ir a Hoy · {{ labelToday }}
@@ -1010,10 +1008,13 @@ watch(() => props.isOpen, (v) => {
 
 .items-list.is-readonly {
   opacity: 0.75;
-  pointer-events: none;
-
-  .qty-control button { cursor: not-allowed; }
-  .qty-control input  { background: $gray-50; color: $text-light; cursor: default; }
+  // Ojo: nada de pointer-events:none en el contenedor — mataba el scroll
+  // de la lista en Ayer/Mañana. Los controles se bloquean uno por uno.
+  .qty-control button,
+  .status-selector,
+  select,
+  button { pointer-events: none; cursor: not-allowed; }
+  .qty-control input { background: $gray-50; color: $text-light; cursor: default; pointer-events: none; }
 }
 
 // ─── Edit received banner ─────────────────────────────────────────────────────
