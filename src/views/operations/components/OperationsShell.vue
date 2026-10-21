@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useOperationsReport } from '../composables/useOperationsReport';
 import OperationsHeader from './OperationsHeader.vue';
 import OperationsLoading from './OperationsLoading.vue';
+import OperationsRangeModal from './OperationsRangeModal.vue';
 
 defineProps<{
   title: string;
@@ -11,10 +12,17 @@ defineProps<{
 }>();
 
 const {
-  date, isLoading, isRefreshing, elapsed, report,
-  setDate, fetchReport, ensureLoaded,
+  date, dateTo, isLoading, isRefreshing, elapsed, report,
+  setDate, setRange, fetchReport, ensureLoaded,
   branches, missingClosings, hasError,
 } = useOperationsReport();
+
+const showRangeModal = ref(false);
+
+const applyRange = ({ from, to }: { from: string; to: string }) => {
+  showRangeModal.value = false;
+  setRange(from, to);
+};
 
 onMounted(ensureLoaded);
 </script>
@@ -27,9 +35,19 @@ onMounted(ensureLoaded);
         :subtitle="subtitle"
         :icon="icon"
         :date="date"
+        :date-to="dateTo"
         :is-loading="isLoading"
         @set-date="setDate"
         @refresh="fetchReport(true)"
+        @open-range="showRangeModal = true"
+      />
+
+      <OperationsRangeModal
+        :is-open="showRangeModal"
+        :initial-from="date"
+        :initial-to="dateTo"
+        @apply="applyRange"
+        @close="showRangeModal = false"
       />
 
       <div class="term-note">

@@ -122,9 +122,9 @@ class POSRestockService extends APIBase {
   /**
    * Reporte del Jefe de Operaciones: Contífico vs datos internos por sucursal.
    */
-  async getOperationsReport(date: string): Promise<any> {
-    // Primera carga del día: cruza 2 sucursales con Contífico (~20-40s en frío)
-    const { data } = await this.get<any>('pos/restock/operations-report', undefined, { params: { date }, timeout: 120000 });
+  async getOperationsReport(date: string, to?: string): Promise<any> {
+    // Primera carga: cruza sucursales con Contífico (~20-40s en frío por día sin caché)
+    const { data } = await this.get<any>('pos/restock/operations-report', undefined, { params: { date, to }, timeout: 180000 });
     return data.data;
   }
 

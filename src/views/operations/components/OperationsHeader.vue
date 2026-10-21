@@ -8,10 +8,13 @@ const props = defineProps<{
   subtitle: string;
   icon: string;
   date: string;
+  dateTo: string;
   isLoading: boolean;
 }>();
 
-const emit = defineEmits(['set-date', 'refresh']);
+const emit = defineEmits(['set-date', 'refresh', 'open-range']);
+
+const isRange = computed(() => props.dateTo !== props.date);
 
 const shiftDate = (base: string, days: number) => {
   const [y, m, d] = base.split('-').map(Number);
@@ -22,9 +25,16 @@ const shiftDate = (base: string, days: number) => {
 const today = () => getECTTodayString();
 const yesterday = computed(() => shiftDate(today(), -1));
 
+const fmt = (s: string, opts: Intl.DateTimeFormatOptions) => {
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y!, m! - 1, d!).toLocaleDateString('es-EC', opts);
+};
+
 const niceDate = computed(() => {
-  const [y, m, d] = props.date.split('-').map(Number);
-  return new Date(y!, m! - 1, d!).toLocaleDateString('es-EC', { weekday: 'long', day: 'numeric', month: 'long' });
+  if (isRange.value) {
+    return `Del ${fmt(props.date, { day: 'numeric', month: 'long' })} al ${fmt(props.dateTo, { day: 'numeric', month: 'long' })} (acumulado)`;
+  }
+  return fmt(props.date, { weekday: 'long', day: 'numeric', month: 'long' });
 });
 </script>
 
@@ -36,11 +46,14 @@ const niceDate = computed(() => {
       <span class="nice-date"><i class="fa-regular fa-calendar"></i> {{ niceDate }}</span>
     </div>
     <div class="date-controls">
-      <button :class="{ active: date === today() }" :disabled="isLoading" @click="emit('set-date', today())">Hoy</button>
-      <button :class="{ active: date === yesterday }" :disabled="isLoading" @click="emit('set-date', yesterday)">Ayer</button>
+      <button :class="{ active: !isRange && date === today() }" :disabled="isLoading" @click="emit('set-date', today())">Hoy</button>
+      <button :class="{ active: !isRange && date === yesterday }" :disabled="isLoading" @click="emit('set-date', yesterday)">Ayer</button>
+      <button class="range-btn" :class="{ active: isRange }" :disabled="isLoading" title="Elegir desde–hasta" @click="emit('open-range')">
+        <i class="fa-solid fa-calendar-week"></i> Periodo
+      </button>
       <div class="picker-wrap">
         <CustomDatePicker
-          :model-value="date"
+          :model-value="isRange ? '' : date"
           :max-date="today()"
           :disabled="isLoading"
           placeholder="Otra fecha"
@@ -108,6 +121,14 @@ const niceDate = computed(() => {
     &:disabled { opacity: 0.55; cursor: not-allowed; }
 
     &.refresh { padding: 0.55rem 0.8rem; color: #7c3aed; }
+
+    &.range-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      i { font-size: 0.8rem; }
+      &.active { background: #7c3aed; border-color: #7c3aed; }
+    }
   }
 
   .picker-wrap { min-width: 180px; }

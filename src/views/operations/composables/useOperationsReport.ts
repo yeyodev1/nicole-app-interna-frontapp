@@ -32,7 +32,8 @@ export interface OpsBranch {
 // Una sola carga por fecha: cambiar de sección en el sidebar es instantáneo.
 // Además se guarda en el navegador: al volver a abrir, el día se muestra AL
 // INSTANTE con lo guardado y se refresca por detrás (stale-while-revalidate).
-const date = ref(getECTTodayString());
+const date = ref(getECTTodayString()); // desde
+const dateTo = ref(getECTTodayString()); // hasta (igual a date = un solo día)
 const report = ref<any | null>(null);
 const isLoading = ref(false); // sin nada que mostrar (skeleton)
 const isRefreshing = ref(false); // mostrando datos guardados mientras llega lo fresco
@@ -59,7 +60,7 @@ const writeStored = (key: string, data: any) => {
 };
 
 const fetchReport = async (force = false) => {
-  const key = date.value;
+  const key = date.value === dateTo.value ? date.value : `${date.value}_${dateTo.value}`;
   if (!force && cache.has(key)) {
     report.value = cache.get(key);
     return;
@@ -79,16 +80,19 @@ const fetchReport = async (force = false) => {
   elapsed.value = 0;
   if (timer) clearInterval(timer);
   timer = setInterval(() => { elapsed.value++; }, 1000);
+  const stillCurrent = () =>
+    key === (date.value === dateTo.value ? date.value : `${date.value}_${dateTo.value}`);
+
   try {
-    const data = await posRestockService.getOperationsReport(key);
+    const data = await posRestockService.getOperationsReport(date.value, dateTo.value !== date.value ? dateTo.value : undefined);
     cache.set(key, data);
     writeStored(key, data);
     // Si mientras cargaba cambiaron de fecha, no pisar
-    if (date.value === key) report.value = data;
+    if (stillCurrent()) report.value = data;
   } catch (err) {
     console.error('Error cargando reporte de operaciones:', err);
     // Con datos guardados en pantalla no se rompe nada; sin ellos, error visible
-    if (date.value === key && !stored) {
+    if (stillCurrent() && !stored) {
       report.value = { date: key, branches: [], missingClosings: [], error: true };
     }
   } finally {
@@ -99,8 +103,18 @@ const fetchReport = async (force = false) => {
 };
 
 const setDate = (value: string) => {
-  if (!value || value === date.value) return;
+  if (!value || (value === date.value && value === dateTo.value)) return;
   date.value = value;
+  dateTo.value = value;
+  fetchReport();
+};
+
+const setRange = (from: string, to: string) => {
+  if (!from || !to) return;
+  if (to < from) [from, to] = [to, from];
+  if (from === date.value && to === dateTo.value) return;
+  date.value = from;
+  dateTo.value = to;
   fetchReport();
 };
 
@@ -140,8 +154,8 @@ export function useOperationsReport() {
   };
 
   return {
-    date, report, isLoading, isRefreshing, elapsed,
-    fetchReport, setDate, ensureLoaded,
+    date, dateTo, report, isLoading, isRefreshing, elapsed,
+    fetchReport, setDate, setRange, ensureLoaded,
     branches, globalTotals, allLosses, discrepancies, missingClosings, hasError,
   };
 }

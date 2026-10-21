@@ -4,7 +4,7 @@ import { useOperationsReport } from './composables/useOperationsReport';
 import { useOperationsExport } from './composables/useOperationsExport';
 import OperationsShell from './components/OperationsShell.vue';
 
-const { date, branches } = useOperationsReport();
+const { date, dateTo, branches } = useOperationsReport();
 const { isExporting, exportDay } = useOperationsExport();
 
 const search = ref('');
@@ -19,7 +19,8 @@ const filteredBranches = computed(() =>
   }))
 );
 
-const handleExport = () => exportDay(date.value, branches.value);
+const handleExport = () =>
+  exportDay(date.value === dateTo.value ? date.value : `${date.value}_a_${dateTo.value}`, branches.value);
 </script>
 
 <template>
