@@ -114,6 +114,9 @@ const closePanel = () => { mobileOpen.value = false }
         <router-link to="/operations/discrepancies" active-class="active" @click="closePanel">
           <i class="fa-solid fa-scale-unbalanced"></i> Descuadres
         </router-link>
+        <router-link to="/operations/closings" active-class="active" @click="closePanel">
+          <i class="fa-solid fa-table-list"></i> Detalle del Día
+        </router-link>
       </template>
 
       <!-- Production -->

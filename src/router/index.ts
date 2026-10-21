@@ -241,6 +241,12 @@ const router = createRouter({
       component: () => import('../views/operations/OperationsDiscrepanciesView.vue'),
       meta: { requiresAuth: true, role: 'OPERATIONS_MANAGER', title: 'Descuadres' }
     },
+    {
+      path: '/operations/closings',
+      name: 'operations-closings',
+      component: () => import('../views/operations/OperationsClosingsView.vue'),
+      meta: { requiresAuth: true, role: 'OPERATIONS_MANAGER', title: 'Detalle del Día' }
+    },
     // POS / RetailManager Routes
     {
       path: '/pos/shipments',
