@@ -11,7 +11,7 @@ defineProps<{
 }>();
 
 const {
-  date, isLoading, elapsed, report,
+  date, isLoading, isRefreshing, elapsed, report,
   setDate, fetchReport, ensureLoaded,
   branches, missingClosings, hasError,
 } = useOperationsReport();
@@ -31,6 +31,16 @@ onMounted(ensureLoaded);
         @set-date="setDate"
         @refresh="fetchReport(true)"
       />
+
+      <div class="term-note">
+        <i class="fa-solid fa-circle-question"></i>
+        <span><strong>¿Qué es "cierre"?</strong> Es el conteo que cada sucursal envía al final del día: con él se calcula cuánto salió de vitrina y se compara con lo facturado en Contífico.</span>
+      </div>
+
+      <div v-if="isRefreshing" class="refreshing-pill">
+        <i class="fa-solid fa-rotate fa-spin"></i>
+        Mostrando lo último guardado · actualizando con Contífico ({{ elapsed }}s)...
+      </div>
 
       <OperationsLoading v-if="isLoading" :elapsed="elapsed" />
 
@@ -72,6 +82,34 @@ onMounted(ensureLoaded);
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+}
+
+.term-note {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #faf5ff;
+  border: 1px solid #e9d5ff;
+  color: #6b21a8;
+  border-radius: 10px;
+  padding: 0.55rem 0.9rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  i { color: #9333ea; flex-shrink: 0; }
+}
+
+.refreshing-pill {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.4rem 0.9rem;
+  border-radius: 20px;
 }
 
 .missing-note,

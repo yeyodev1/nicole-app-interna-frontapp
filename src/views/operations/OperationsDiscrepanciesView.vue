@@ -1,9 +1,19 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 import { useOperationsReport } from './composables/useOperationsReport';
 import OperationsShell from './components/OperationsShell.vue';
 
 const { discrepancies, branches } = useOperationsReport();
+
+const search = ref('');
+const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+const filtered = computed(() =>
+  discrepancies.value.filter(d => !search.value
+    || norm(d.name).includes(norm(search.value))
+    || norm(d.branch).includes(norm(search.value))
+    || norm((d as any).categoria || '').includes(norm(search.value)))
+);
 
 // Venta de cierre negativa = recepciones sin confirmar en el POS
 const hasNegativeCierre = computed(() =>
@@ -24,6 +34,12 @@ const hasNegativeCierre = computed(() =>
     </div>
 
     <template v-else>
+      <div class="search-wrap">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input v-model="search" type="text" placeholder="Buscar producto, sucursal o categoría..." />
+        <button v-if="search" @click="search = ''"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
       <div class="legend">
         <span class="pill plus">+ positivo</span> salió más de vitrina que lo facturado (posible venta sin factura o conteo)
         <span class="pill minus">− negativo</span> se facturó más que lo que salió según el cierre
@@ -47,12 +63,18 @@ const hasNegativeCierre = computed(() =>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(d, i) in discrepancies" :key="i">
-              <td class="t-left pname">{{ d.name }}</td>
+            <tr v-for="(d, i) in filtered" :key="i">
+              <td class="t-left pname">
+                {{ d.name }}
+                <span v-if="(d as any).categoria" class="cat-chip">{{ (d as any).categoria }}</span>
+              </td>
               <td class="t-left branch"><i class="fa-solid fa-store"></i> {{ d.branch }}</td>
               <td>{{ d.vendido ?? '—' }}</td>
               <td :class="{ neg: (d.ventaCierre ?? 0) < 0 }">{{ d.ventaCierre ?? '—' }}</td>
               <td class="desc">{{ (d.descuadre ?? 0) > 0 ? `+${d.descuadre}` : d.descuadre }}</td>
+            </tr>
+            <tr v-if="filtered.length === 0">
+              <td colspan="5" class="empty-row">Sin resultados para «{{ search }}»</td>
             </tr>
           </tbody>
         </table>
@@ -73,6 +95,38 @@ const hasNegativeCierre = computed(() =>
   h3 { margin: 0 0 0.3rem; color: #15803d; }
   p { margin: 0; color: #64748b; font-size: 0.9rem; }
 }
+
+.search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: white;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0 1rem;
+  max-width: 420px;
+
+  &:focus-within { border-color: #7c3aed; }
+  > i { color: #94a3b8; font-size: 0.9rem; }
+  input { flex: 1; border: none; outline: none; padding: 0.75rem 0; font-size: 0.95rem; background: transparent; }
+  button { background: #f1f5f9; border: none; color: #64748b; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; }
+}
+
+.cat-chip {
+  display: inline-block;
+  margin-left: 0.35rem;
+  background: #f5f3ff;
+  border: 1px solid #ddd6fe;
+  color: #6d28d9;
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 1px 7px;
+  border-radius: 8px;
+  vertical-align: middle;
+}
+
+.empty-row { padding: 1.5rem; color: #94a3b8; background: white !important; }
 
 .legend {
   font-size: 0.8rem;

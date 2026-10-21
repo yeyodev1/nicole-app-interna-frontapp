@@ -1,9 +1,19 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 import { useOperationsReport } from './composables/useOperationsReport';
 import OperationsShell from './components/OperationsShell.vue';
 
 const { allLosses, globalTotals } = useOperationsReport();
+
+const search = ref('');
+const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+const filteredLosses = computed(() =>
+  allLosses.value.filter(l => !search.value
+    || norm(l.productName).includes(norm(search.value))
+    || norm(l.reason || '').includes(norm(search.value))
+    || norm((l as any).categoria || '').includes(norm(search.value)))
+);
 
 const CATEGORY_LABEL: Record<string, string> = {
   Transport: 'Transporte',
@@ -14,7 +24,7 @@ const CATEGORY_LABEL: Record<string, string> = {
 
 const byBranch = computed(() => {
   const map = new Map<string, typeof allLosses.value>();
-  for (const l of allLosses.value) {
+  for (const l of filteredLosses.value) {
     if (!map.has(l.branch)) map.set(l.branch, []);
     map.get(l.branch)!.push(l);
   }
@@ -39,6 +49,12 @@ const byBranch = computed(() => {
     </div>
 
     <template v-else>
+      <div class="search-wrap">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input v-model="search" type="text" placeholder="Buscar producto, motivo o categoría..." />
+        <button v-if="search" @click="search = ''"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
       <div class="losses-total">
         <i class="fa-solid fa-triangle-exclamation"></i>
         <strong>{{ globalTotals.bajas }}</strong> unidades dadas de baja en total
@@ -53,7 +69,10 @@ const byBranch = computed(() => {
         <ul>
           <li v-for="(l, i) in g.losses" :key="i">
             <span class="qty">{{ l.quantity }}×</span>
-            <span class="pname">{{ l.productName }}</span>
+            <span class="pname">
+              {{ l.productName }}
+              <span v-if="(l as any).categoria" class="cat-chip">{{ (l as any).categoria }}</span>
+            </span>
             <span class="reason">{{ l.reason }}</span>
             <span class="cat">{{ CATEGORY_LABEL[l.category] || l.category }}</span>
           </li>
@@ -74,6 +93,36 @@ const byBranch = computed(() => {
   i { font-size: 3rem; color: #16a34a; margin-bottom: 0.75rem; }
   h3 { margin: 0 0 0.3rem; color: #15803d; }
   p { margin: 0; color: #64748b; font-size: 0.9rem; }
+}
+
+.search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: white;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0 1rem;
+  max-width: 420px;
+
+  &:focus-within { border-color: #7c3aed; }
+  > i { color: #94a3b8; font-size: 0.9rem; }
+  input { flex: 1; border: none; outline: none; padding: 0.75rem 0; font-size: 0.95rem; background: transparent; }
+  button { background: #f1f5f9; border: none; color: #64748b; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; }
+}
+
+.cat-chip {
+  display: inline-block;
+  margin-left: 0.35rem;
+  background: #f5f3ff;
+  border: 1px solid #ddd6fe;
+  color: #6d28d9;
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 1px 7px;
+  border-radius: 8px;
+  vertical-align: middle;
 }
 
 .losses-total {

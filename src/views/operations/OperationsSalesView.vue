@@ -15,7 +15,9 @@ const branchSales = computed(() =>
     total: b.totals.vendido,
     products: b.products
       .filter(p => (p.vendido ?? 0) > 0)
-      .filter(p => !search.value || norm(p.name).includes(norm(search.value)))
+      .filter(p => !search.value
+        || norm(p.name).includes(norm(search.value))
+        || norm(p.categoria || '').includes(norm(search.value)))
       .sort((a, b2) => (b2.vendido ?? 0) - (a.vendido ?? 0)),
   }))
 );
@@ -31,7 +33,7 @@ const maxSold = (products: any[]) => Math.max(1, ...products.map(p => p.vendido 
   >
     <div class="search-wrap">
       <i class="fa-solid fa-magnifying-glass"></i>
-      <input v-model="search" type="text" placeholder="Buscar producto..." />
+      <input v-model="search" type="text" placeholder="Buscar producto o categoría (ej: Cakes Porcion)..." />
       <button v-if="search" @click="search = ''"><i class="fa-solid fa-xmark"></i></button>
     </div>
 
@@ -49,7 +51,10 @@ const maxSold = (products: any[]) => Math.max(1, ...products.map(p => p.vendido 
 
       <ul v-else class="sales-list">
         <li v-for="p in b.products" :key="p.name">
-          <span class="pname">{{ p.name }}</span>
+          <span class="pname">
+            {{ p.name }}
+            <span v-if="p.categoria" class="cat-chip">{{ p.categoria }}</span>
+          </span>
           <div class="bar"><div class="fill" :style="{ width: ((p.vendido ?? 0) / maxSold(b.products) * 100) + '%' }"></div></div>
           <span class="qty">{{ p.vendido }}</span>
         </li>
@@ -130,6 +135,20 @@ const maxSold = (products: any[]) => Math.max(1, ...products.map(p => p.vendido 
     gap: 0.75rem;
 
     .pname { font-size: 0.88rem; font-weight: 600; color: #334155; }
+
+    .cat-chip {
+      display: inline-block;
+      margin-left: 0.35rem;
+      background: #f5f3ff;
+      border: 1px solid #ddd6fe;
+      color: #6d28d9;
+      font-size: 0.64rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      padding: 1px 7px;
+      border-radius: 8px;
+      vertical-align: middle;
+    }
 
     .bar {
       height: 10px; background: #f1f5f9; border-radius: 6px; overflow: hidden;
