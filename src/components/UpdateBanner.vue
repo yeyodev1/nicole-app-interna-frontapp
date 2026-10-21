@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { watch } from 'vue'
 import { useRegisterSW } from 'virtual:pwa-register/vue'
 
-// Intervalo de chequeo de nueva versión (ms)
+// Intervalo de chequeo de nueva versión (ms): cada push a main publica una
+// versión nueva y este modal avisa para actualizar sin forzar la recarga
+// (una recarga forzada podría botar un cierre a medio llenar).
 const CHECK_INTERVAL_MS = 60 * 1000
 
 const { needRefresh, updateServiceWorker } = useRegisterSW({
@@ -17,31 +18,24 @@ const { needRefresh, updateServiceWorker } = useRegisterSW({
 })
 
 const update = () => updateServiceWorker(true)
-
-// Actualización forzada: al detectar nueva versión se recarga sin pedir confirmación
-watch(needRefresh, (v) => {
-  if (v) update()
-}, { immediate: true })
 const dismiss = () => { needRefresh.value = false }
 </script>
 
 <template>
-  <Transition name="banner-slide">
-    <div v-if="needRefresh" class="update-banner" role="alert">
-      <div class="banner-icon">
-        <i class="fa-solid fa-rotate"></i>
-      </div>
-      <div class="banner-text">
-        <strong>¡Nueva versión disponible!</strong>
-        <span>Se publicaron mejoras. Recarga para verlas.</span>
-      </div>
-      <div class="banner-actions">
+  <Transition name="update-fade">
+    <div v-if="needRefresh" class="update-overlay" role="alertdialog" aria-labelledby="update-title">
+      <div class="update-card">
+        <div class="icon-circle">
+          <i class="fa-solid fa-rocket"></i>
+        </div>
+        <h3 id="update-title">¡Hay una nueva versión!</h3>
+        <p>Se publicaron mejoras en la app. Actualiza para verlas (toma 1 segundo).</p>
         <button class="btn-update" @click="update">
           <i class="fa-solid fa-arrow-rotate-right"></i>
           Actualizar ahora
         </button>
-        <button class="btn-dismiss" @click="dismiss" title="Recordar después">
-          <i class="fa-solid fa-times"></i>
+        <button class="btn-later" @click="dismiss">
+          Ahora no — termino lo que estoy haciendo
         </button>
       </div>
     </div>
@@ -49,141 +43,94 @@ const dismiss = () => { needRefresh.value = false }
 </template>
 
 <style lang="scss" scoped>
-.update-banner {
+.update-overlay {
   position: fixed;
-  bottom: 1.5rem;
-  left: 50%;
-  transform: translateX(-50%);
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(3px);
   display: flex;
-  align-items: center;
-  gap: 1rem;
-  background: #0f172a;
-  color: white;
-  padding: 0.9rem 1.1rem 0.9rem 1rem;
-  border-radius: 14px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(255, 255, 255, 0.06);
-  z-index: 9999;
-  max-width: calc(100vw - 2rem);
-  width: max-content;
-
-  @media (max-width: 520px) {
-    flex-direction: column;
-    align-items: flex-start;
-    width: calc(100vw - 2rem);
-    bottom: 1rem;
-  }
-}
-
-.banner-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: rgba($NICOLE-PURPLE, 0.25);
-  border: 1px solid rgba($NICOLE-PURPLE, 0.4);
-  display: flex;
-  align-items: center;
   justify-content: center;
-  flex-shrink: 0;
-
-  i {
-    font-size: 0.95rem;
-    color: #c4b5fd;
-  }
+  align-items: center;
+  z-index: 30000;
+  padding: 1rem;
 }
 
-.banner-text {
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-  min-width: 0;
+.update-card {
+  background: white;
+  border-radius: 18px;
+  padding: 2rem 1.75rem;
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+  animation: update-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 
-  strong {
-    font-size: 0.88rem;
-    font-weight: 800;
+  .icon-circle {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
     color: white;
-    line-height: 1.2;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+    box-shadow: 0 6px 16px rgba(124, 58, 237, 0.35);
   }
 
-  span {
-    font-size: 0.75rem;
-    color: #94a3b8;
-    line-height: 1.3;
+  h3 {
+    margin: 0 0 0.4rem;
+    font-size: 1.25rem;
+    color: #1e293b;
   }
-}
 
-.banner-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-shrink: 0;
+  p {
+    margin: 0 0 1.25rem;
+    font-size: 0.9rem;
+    color: #64748b;
+    line-height: 1.5;
+  }
 
-  @media (max-width: 520px) {
+  .btn-update {
     width: 100%;
-    .btn-update { flex: 1; justify-content: center; }
-  }
-}
+    padding: 13px;
+    background: #7c3aed;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 800;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
 
-.btn-update {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  background: $NICOLE-PURPLE;
-  color: white;
-  border: none;
-  font-weight: 700;
-  font-size: 0.82rem;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background 0.15s, transform 0.15s;
-
-  i { font-size: 0.78rem; }
-
-  &:hover {
-    background: lighten($NICOLE-PURPLE, 6%);
-    transform: translateY(-1px);
+    &:hover { background: #6d28d9; transform: translateY(-1px); }
   }
 
-  &:active {
-    transform: translateY(0);
-  }
-}
-
-.btn-dismiss {
-  width: 30px;
-  height: 30px;
-  border-radius: 7px;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #64748b;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.8rem;
-  transition: background 0.15s, color 0.15s;
-  flex-shrink: 0;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.12);
+  .btn-later {
+    margin-top: 0.75rem;
+    background: none;
+    border: none;
     color: #94a3b8;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:hover { color: #475569; }
   }
 }
 
-// ── Slide-up transition ───────────────────────────────────
-.banner-slide-enter-active {
-  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+@keyframes update-pop {
+  from { transform: scale(0.92); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
-.banner-slide-leave-active {
-  transition: all 0.2s ease-in;
-}
-.banner-slide-enter-from {
-  opacity: 0;
-  transform: translateX(-50%) translateY(20px);
-}
-.banner-slide-leave-to {
-  opacity: 0;
-  transform: translateX(-50%) translateY(12px);
-}
+
+.update-fade-enter-active,
+.update-fade-leave-active { transition: opacity 0.25s ease; }
+.update-fade-enter-from,
+.update-fade-leave-to { opacity: 0; }
 </style>

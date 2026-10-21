@@ -81,7 +81,7 @@ const executeSubmission = async () => {
 };
 
 onMounted(() => {
-  showNameModal.value = !submittedBy.value;
+  // El nombre se pide recién al enviar (si falta), para no tapar el formulario.
   if (branch.value) loadAll();
 });
 </script>

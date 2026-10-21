@@ -132,7 +132,9 @@ watch(() => props.isOpen, (newVal) => {
     currentStep.value = 'form';
     distributionData.value = null;
     searchQuery.value = '';
-    showNameModal.value = !submittedBy.value;
+    // El nombre se pide recién al enviar (si falta): así el modal no tapa
+    // el selector de sucursal al abrir el cierre.
+    showNameModal.value = false;
     fetchBranches();
     loadAll();
   }
