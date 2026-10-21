@@ -47,6 +47,7 @@ const branchIssues = (b: any) => b.products.filter((p: any) => (p.descuadre ?? 0
           <span v-if="branchIssues(b) > 0" class="chip bad">{{ branchIssues(b) }} no cuadran</span>
           <span v-else-if="b.hasClosing" class="chip ok">✓ cuadra</span>
           <span v-else class="chip warn">sin cierre</span>
+          <span v-if="b.sinOkTotal > 0" class="chip warn" :title="`${b.sinOkTotal} unids despachadas sin el OK de Recepción Masiva`">⚠ {{ b.sinOkTotal }} sin OK</span>
         </div>
         <div class="mini-stats">
           <div><span class="n">{{ b.totals.vendido }}</span><span class="l">vendido</span></div>

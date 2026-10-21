@@ -58,13 +58,13 @@ const hasNegativeCierre = computed(() =>
             <tr>
               <th class="t-left">Producto</th>
               <th class="t-left">Sucursal</th>
-              <th title="Con cuánto empezó el día (cierre anterior)">Empezó</th>
-              <th title="Cuánto le llegó según el despacho">Llegó</th>
+              <th title="Con cuánto empezó el día (cierre anterior)">Stock inicial</th>
+              <th title="Despachado por producción + OK de Recepción Masiva">Recibido</th>
               <th title="Vendido según Contífico">Vendido</th>
               <th>Bajas</th>
-              <th title="empezó + llegó − vendido − bajas">Debería quedar</th>
-              <th title="Lo que la sucursal contó al cierre">Quedó</th>
-              <th>Descuadre</th>
+              <th title="inicial + recibido − vendido − bajas">Debería quedar</th>
+              <th title="Stock en isla: lo que contó la sucursal al cierre">Quedó (isla)</th>
+              <th>Diferencia</th>
             </tr>
           </thead>
           <tbody>
@@ -75,7 +75,12 @@ const hasNegativeCierre = computed(() =>
               </td>
               <td class="t-left branch"><i class="fa-solid fa-store"></i> {{ d.branch }}</td>
               <td>{{ d.inicial ?? '—' }}</td>
-              <td>{{ d.recibido || '' }}</td>
+              <td>
+                {{ d.recibido || '' }}
+                <span v-if="d.recibidoSinOk > 0" class="sin-ok" :title="`${d.recibidoSinOk} unids despachadas por producción sin el OK de Recepción Masiva`">
+                  ⚠ {{ d.recibidoSinOk }} sin OK
+                </span>
+              </td>
               <td>{{ d.vendido ?? '—' }}</td>
               <td>{{ d.bajas || '' }}</td>
               <td class="should">{{ d.deberiaQuedar ?? '—' }}</td>
@@ -214,6 +219,14 @@ table {
   }
 
   .should { font-weight: 700; color: #475569; background: #f8fafc; }
+
+  .sin-ok {
+    display: block;
+    font-size: 0.62rem;
+    font-weight: 800;
+    color: #d97706;
+    white-space: nowrap;
+  }
 
   .desc {
     font-weight: 800;

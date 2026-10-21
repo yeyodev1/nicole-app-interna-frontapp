@@ -6,7 +6,9 @@ export interface OpsProduct {
   name: string;
   categoria: string | null; // tal cual Contífico
   inicial: number | null; // con cuánto empezó el día
-  recibido: number; // cuánto le llegó según el despacho
+  recibido: number; // total que llegó (confirmado + sin OK)
+  recibidoOk: number; // confirmado en Recepción Masiva
+  recibidoSinOk: number; // despachado por producción sin el OK de la isla
   vendido: number | null; // vendido según Contífico
   bajas: number;
   deberiaQuedar: number | null; // inicial + recibido - vendido - bajas
@@ -20,6 +22,7 @@ export interface OpsBranch {
   branch: string;
   salesAvailable: boolean;
   hasClosing: boolean;
+  sinOkTotal: number;
   totals: { vendido: number; ventaCierre: number; bajas: number; recibido: number; descuadre: number };
   products: OpsProduct[];
   losses: Array<{ productName: string; quantity: number; reason: string; category: string }>;
