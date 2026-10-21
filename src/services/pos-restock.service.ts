@@ -114,7 +114,8 @@ class POSRestockService extends APIBase {
    * formulario porque Contífico tarda ~10-15s la primera vez por día.
    */
   async getDailySales(branch: string, date?: string): Promise<DailySales> {
-    const { data } = await this.get<any>('pos/restock/daily-sales', undefined, { params: { branch, date } });
+    // Contífico tarda ~10-20s en frío: el timeout por defecto (15s) cortaba la primera carga
+    const { data } = await this.get<any>('pos/restock/daily-sales', undefined, { params: { branch, date }, timeout: 60000 });
     return data.data;
   }
 
@@ -122,7 +123,8 @@ class POSRestockService extends APIBase {
    * Reporte del Jefe de Operaciones: Contífico vs datos internos por sucursal.
    */
   async getOperationsReport(date: string): Promise<any> {
-    const { data } = await this.get<any>('pos/restock/operations-report', undefined, { params: { date } });
+    // Primera carga del día: cruza 2 sucursales con Contífico (~20-40s en frío)
+    const { data } = await this.get<any>('pos/restock/operations-report', undefined, { params: { date }, timeout: 120000 });
     return data.data;
   }
 

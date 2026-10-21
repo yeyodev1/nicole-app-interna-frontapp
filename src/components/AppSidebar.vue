@@ -103,7 +103,16 @@ const closePanel = () => { mobileOpen.value = false }
       <template v-else-if="isOperations">
         <span class="nav-group-label">Operaciones</span>
         <router-link to="/operations/report" active-class="active" @click="closePanel">
-          <i class="fa-solid fa-chart-line"></i> Reporte Diario
+          <i class="fa-solid fa-gauge-high"></i> Resumen del Día
+        </router-link>
+        <router-link to="/operations/sales" active-class="active" @click="closePanel">
+          <i class="fa-solid fa-cash-register"></i> Ventas
+        </router-link>
+        <router-link to="/operations/losses" active-class="active" @click="closePanel">
+          <i class="fa-solid fa-triangle-exclamation"></i> Bajas
+        </router-link>
+        <router-link to="/operations/discrepancies" active-class="active" @click="closePanel">
+          <i class="fa-solid fa-scale-unbalanced"></i> Descuadres
         </router-link>
       </template>
 

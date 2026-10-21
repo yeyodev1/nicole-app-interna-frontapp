@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { getECTTodayString } from '@/utils/dateUtils';
+import CustomDatePicker from '@/components/ui/CustomDatePicker.vue';
+import SearchableSelect from '@/components/ui/SearchableSelect.vue';
 
 const props = defineProps<{
   isOpen: boolean;
@@ -34,6 +36,11 @@ watch(() => props.isOpen, (open) => {
 const title = computed(() =>
   props.mode === 'production' ? 'Exportar Orden de Producción' : 'Exportar Orden de Entrega'
 );
+
+const destinationOptions = computed(() => [
+  { value: 'all', label: 'Todas las sucursales' },
+  ...props.destinations.map(d => ({ value: d, label: d })),
+]);
 
 const subtitle = computed(() =>
   props.mode === 'production'
@@ -74,10 +81,7 @@ const confirm = () => {
 
         <div class="field">
           <label>Sucursal / Destino</label>
-          <select v-model="destination">
-            <option value="all">Todas las sucursales</option>
-            <option v-for="d in destinations" :key="d" :value="d">{{ d }}</option>
-          </select>
+          <SearchableSelect v-model="destination" :options="destinationOptions" placeholder="Elige la sucursal..." search-placeholder="Buscar sucursal..." />
         </div>
 
         <div class="field">
@@ -87,7 +91,12 @@ const confirm = () => {
             <button type="button" :class="{ active: !allDates && date === tomorrowStr() }" @click="quickDate(tomorrowStr())">Mañana</button>
             <button type="button" :class="{ active: allDates }" @click="allDates = true">Todas</button>
           </div>
-          <input type="date" :value="date" :disabled="allDates" @input="quickDate(($event.target as HTMLInputElement).value)" />
+          <CustomDatePicker
+            v-if="!allDates"
+            :model-value="date"
+            placeholder="Otra fecha"
+            @update:model-value="quickDate($event)"
+          />
         </div>
 
         <div v-if="mode === 'production'" class="field">

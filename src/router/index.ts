@@ -221,7 +221,25 @@ const router = createRouter({
       path: '/operations/report',
       name: 'operations-report',
       component: () => import('../views/operations/OperationsReportView.vue'),
-      meta: { requiresAuth: true, role: 'OPERATIONS_MANAGER', title: 'Reporte de Operaciones' }
+      meta: { requiresAuth: true, role: 'OPERATIONS_MANAGER', title: 'Resumen del Día' }
+    },
+    {
+      path: '/operations/sales',
+      name: 'operations-sales',
+      component: () => import('../views/operations/OperationsSalesView.vue'),
+      meta: { requiresAuth: true, role: 'OPERATIONS_MANAGER', title: 'Ventas del Día' }
+    },
+    {
+      path: '/operations/losses',
+      name: 'operations-losses',
+      component: () => import('../views/operations/OperationsLossesView.vue'),
+      meta: { requiresAuth: true, role: 'OPERATIONS_MANAGER', title: 'Bajas del Día' }
+    },
+    {
+      path: '/operations/discrepancies',
+      name: 'operations-discrepancies',
+      component: () => import('../views/operations/OperationsDiscrepanciesView.vue'),
+      meta: { requiresAuth: true, role: 'OPERATIONS_MANAGER', title: 'Descuadres' }
     },
     // POS / RetailManager Routes
     {

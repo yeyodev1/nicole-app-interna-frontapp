@@ -6,6 +6,7 @@ const props = defineProps<{
   label?: string
   placeholder?: string
   minDate?: string // YYYY-MM-DD
+  maxDate?: string // YYYY-MM-DD (ej. reportes: solo hasta hoy)
   required?: boolean
   disabled?: boolean
 }>()
@@ -77,6 +78,7 @@ const calendarDays = computed(() => {
     // Check constraints
     let isDisabled = false
     if (props.minDate && fullDate < props.minDate) isDisabled = true
+    if (props.maxDate && fullDate > props.maxDate) isDisabled = true
 
     calendar.push({ day: d, fullDate, disabled: isDisabled })
   }
