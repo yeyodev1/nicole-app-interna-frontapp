@@ -16,6 +16,7 @@ const router = createRouter({
             if (user?.role === 'production') return { name: 'production-summary' }
             if (user?.role === 'KITCHEN_DISPLAY') return { name: 'kitchen-display' }
             if (user?.role === 'RetailManager') return { name: 'pos-shipments' }
+            if (user?.role === 'OPERATIONS_MANAGER') return { name: 'operations-report' }
             if (user?.role === 'SUPPLY_CHAIN_MANAGER') return { name: 'providers-list' }
             if (user?.role === 'WAREHOUSE_RECEIVER') return { name: 'supply-receptions' }
             if (user?.role === 'superadmin') return { name: 'superadmin-dashboard' }
@@ -215,6 +216,13 @@ const router = createRouter({
       component: () => import('../views/production/RequisitionCreateView.vue'),
       meta: { requiresAuth: true, role: 'production', title: 'Pedir a Bodega' }
     },
+    // Operations Manager Routes
+    {
+      path: '/operations/report',
+      name: 'operations-report',
+      component: () => import('../views/operations/OperationsReportView.vue'),
+      meta: { requiresAuth: true, role: 'OPERATIONS_MANAGER', title: 'Reporte de Operaciones' }
+    },
     // POS / RetailManager Routes
     {
       path: '/pos/shipments',
@@ -285,6 +293,7 @@ router.beforeEach((to, from, next) => {
     if (role === 'production') next({ name: 'production-summary' })
     else if (role === 'KITCHEN_DISPLAY') next({ name: 'kitchen-display' })
     else if (role === 'RetailManager') next({ name: 'pos-shipments' })
+    else if (role === 'OPERATIONS_MANAGER') next({ name: 'operations-report' })
     else if (role === 'SUPPLY_CHAIN_MANAGER') next({ name: 'providers-list' })
     else if (role === 'WAREHOUSE_RECEIVER') next({ name: 'supply-receptions' })
     else if (role === 'superadmin') next({ name: 'superadmin-dashboard' })
@@ -337,6 +346,12 @@ router.beforeEach((to, from, next) => {
     // Retail Manager guard
     if (role === 'RetailManager' && !to.path.startsWith('/pos')) {
       next({ name: 'pos-shipments' })
+      return
+    }
+
+    // Operations Manager guard — solo reportería
+    if (role === 'OPERATIONS_MANAGER' && !to.path.startsWith('/operations')) {
+      next({ name: 'operations-report' })
       return
     }
 

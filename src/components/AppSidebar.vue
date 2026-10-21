@@ -40,7 +40,8 @@ const isSalesManager = computed(() => {
   return role === 'SALES_MANAGER' || role === 'ADMIN' || role === 'SALES'
 })
 const isSuperAdmin = computed(() => userRole.value?.toLowerCase() === 'superadmin')
-const isSales = computed(() => !isRetail.value && !isProduction.value && !isSupplyChain.value && !isSuperAdmin.value)
+const isOperations = computed(() => userRole.value?.toUpperCase() === 'OPERATIONS_MANAGER')
+const isSales = computed(() => !isRetail.value && !isProduction.value && !isSupplyChain.value && !isSuperAdmin.value && !isOperations.value)
 // Avisos de ventas (link del cliente, facturas): asesores, jefes de ventas y superadmin.
 const showNotifications = computed(() => !!userRole.value && (isSales.value || isSuperAdmin.value))
 
@@ -95,6 +96,14 @@ const closePanel = () => { mobileOpen.value = false }
       <template v-if="isRetail">
         <router-link to="/pos/shipments" active-class="active" @click="closePanel">
           <i class="fa-solid fa-store"></i> Gestión Sucursal
+        </router-link>
+      </template>
+
+      <!-- Jefe de Operaciones -->
+      <template v-else-if="isOperations">
+        <span class="nav-group-label">Operaciones</span>
+        <router-link to="/operations/report" active-class="active" @click="closePanel">
+          <i class="fa-solid fa-chart-line"></i> Reporte Diario
         </router-link>
       </template>
 

@@ -119,6 +119,14 @@ class POSRestockService extends APIBase {
   }
 
   /**
+   * Reporte del Jefe de Operaciones: Contífico vs datos internos por sucursal.
+   */
+  async getOperationsReport(date: string): Promise<any> {
+    const { data } = await this.get<any>('pos/restock/operations-report', undefined, { params: { date } });
+    return data.data;
+  }
+
+  /**
    * Submit the daily restock entry.
    */
   async submitDailyEntry(payload: RestockEntryPayload): Promise<any> {
