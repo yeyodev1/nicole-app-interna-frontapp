@@ -41,8 +41,9 @@ const hasNegativeCierre = computed(() =>
       </div>
 
       <div class="legend">
-        <span class="pill plus">+ positivo</span> salió más de vitrina que lo facturado (posible venta sin factura o conteo)
-        <span class="pill minus">− negativo</span> se facturó más que lo que salió según el cierre
+        La cuenta del día por producto: <strong>empezó + llegó − vendido − bajas = debería quedar</strong>, y se compara con lo que la sucursal contó al cierre.
+        <span class="pill minus">− falta</span> quedó menos de lo que debería (producto perdido o vendido sin factura)
+        <span class="pill plus">+ sobra</span> quedó más de lo que debería (recepción sin registrar o error de conteo)
       </div>
 
       <div v-if="hasNegativeCierre" class="hint-note">
@@ -57,8 +58,12 @@ const hasNegativeCierre = computed(() =>
             <tr>
               <th class="t-left">Producto</th>
               <th class="t-left">Sucursal</th>
-              <th>Vendido (Contífico)</th>
-              <th>Venta según cierre</th>
+              <th title="Con cuánto empezó el día (cierre anterior)">Empezó</th>
+              <th title="Cuánto le llegó según el despacho">Llegó</th>
+              <th title="Vendido según Contífico">Vendido</th>
+              <th>Bajas</th>
+              <th title="empezó + llegó − vendido − bajas">Debería quedar</th>
+              <th title="Lo que la sucursal contó al cierre">Quedó</th>
               <th>Descuadre</th>
             </tr>
           </thead>
@@ -66,15 +71,22 @@ const hasNegativeCierre = computed(() =>
             <tr v-for="(d, i) in filtered" :key="i">
               <td class="t-left pname">
                 {{ d.name }}
-                <span v-if="(d as any).categoria" class="cat-chip">{{ (d as any).categoria }}</span>
+                <span v-if="d.categoria" class="cat-chip">{{ d.categoria }}</span>
               </td>
               <td class="t-left branch"><i class="fa-solid fa-store"></i> {{ d.branch }}</td>
+              <td>{{ d.inicial ?? '—' }}</td>
+              <td>{{ d.recibido || '' }}</td>
               <td>{{ d.vendido ?? '—' }}</td>
-              <td :class="{ neg: (d.ventaCierre ?? 0) < 0 }">{{ d.ventaCierre ?? '—' }}</td>
-              <td class="desc">{{ (d.descuadre ?? 0) > 0 ? `+${d.descuadre}` : d.descuadre }}</td>
+              <td>{{ d.bajas || '' }}</td>
+              <td class="should">{{ d.deberiaQuedar ?? '—' }}</td>
+              <td>{{ d.quedo ?? '—' }}</td>
+              <td class="desc" :class="{ falta: (d.descuadre ?? 0) < 0 }">
+                {{ (d.descuadre ?? 0) > 0 ? `+${d.descuadre}` : d.descuadre }}
+                <span class="desc-word">{{ (d.descuadre ?? 0) < 0 ? 'falta' : 'sobra' }}</span>
+              </td>
             </tr>
             <tr v-if="filtered.length === 0">
-              <td colspan="5" class="empty-row">Sin resultados para «{{ search }}»</td>
+              <td colspan="9" class="empty-row">Sin resultados para «{{ search }}»</td>
             </tr>
           </tbody>
         </table>
@@ -201,7 +213,23 @@ table {
     i { color: #2563eb; margin-right: 0.3rem; }
   }
 
-  .neg { color: #b45309; font-weight: 700; }
-  .desc { font-weight: 800; color: #dc2626; font-size: 1rem; }
+  .should { font-weight: 700; color: #475569; background: #f8fafc; }
+
+  .desc {
+    font-weight: 800;
+    color: #b45309;
+    font-size: 1rem;
+    white-space: nowrap;
+
+    &.falta { color: #dc2626; }
+
+    .desc-word {
+      display: block;
+      font-size: 0.62rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      opacity: 0.8;
+    }
+  }
 }
 </style>

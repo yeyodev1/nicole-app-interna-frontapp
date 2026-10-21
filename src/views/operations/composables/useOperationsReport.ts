@@ -5,14 +5,15 @@ import { getECTTodayString } from '@/utils/dateUtils';
 export interface OpsProduct {
   name: string;
   categoria: string | null; // tal cual Contífico
-
-  vendido: number | null;
-  ventaCierre: number | null;
+  inicial: number | null; // con cuánto empezó el día
+  recibido: number; // cuánto le llegó según el despacho
+  vendido: number | null; // vendido según Contífico
   bajas: number;
-  recibido: number;
-  stockFinal: number | null;
+  deberiaQuedar: number | null; // inicial + recibido - vendido - bajas
+  quedo: number | null; // lo que contó el cierre
+  descuadre: number | null; // quedo - deberiaQuedar (negativo = falta)
+  ventaCierre: number | null;
   pedidoFinal: number;
-  descuadre: number | null;
 }
 
 export interface OpsBranch {
