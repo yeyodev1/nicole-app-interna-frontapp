@@ -68,6 +68,7 @@ const openBatchConfirm = () => {
 }
 
 const handleBatchConfirm = async () => {
+  if (isBatchProcessing.value) return // evita doble registro si vuelven a mantener el botón
   try {
     const result = await batchCompleteSelected()
     isBatchConfirmOpen.value = false

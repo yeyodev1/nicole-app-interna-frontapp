@@ -20,6 +20,7 @@ const emit = defineEmits<{
 }>();
 
 const isProcessing = ref(false);
+const errorMessage = ref('');
 const isLoadingData = ref(false);
 const localBranch = ref(props.selectedBranch);
 
@@ -63,20 +64,21 @@ const alreadyReceived    = ref<any[]>([]);  // RECEIVED (history)
 const fetchModalData = async () => {
   isLoadingData.value = true;
   try {
+    // Pendiente = solo PENDING. PROBLEM ya se receptó (con novedad): va al historial.
     const [pending, received] = await Promise.all([
-      POSService.getIncomingDispatches(localBranch.value, { filterMode: 'all', receptionStatus: ['PENDING', 'PROBLEM'] }),
-      POSService.getIncomingDispatches(localBranch.value, { filterMode: filterMode.value, receptionStatus: ['RECEIVED'] }),
+      POSService.getIncomingDispatches(localBranch.value, { filterMode: 'all', receptionStatus: ['PENDING'] }),
+      POSService.getIncomingDispatches(localBranch.value, { filterMode: filterMode.value, receptionStatus: ['RECEIVED', 'PROBLEM'] }),
     ]);
 
     internalDispatches.value = pending.flatMap(o =>
       (o.dispatches || [])
-        .filter((d: any) => ['PENDING', 'PROBLEM'].includes(d.receptionStatus))
+        .filter((d: any) => d.receptionStatus === 'PENDING')
         .map((d: any) => ({ ...o, orderId: o._id, dispatch: d }))
     );
 
     alreadyReceived.value = received.flatMap(o =>
       (o.dispatches || [])
-        .filter((d: any) => d.receptionStatus === 'RECEIVED')
+        .filter((d: any) => ['RECEIVED', 'PROBLEM'].includes(d.receptionStatus))
         .map((d: any) => ({ ...o, orderId: o._id, dispatch: d }))
     );
 
@@ -120,6 +122,7 @@ watch(() => props.isOpen, (newVal) => {
   if (newVal) {
     bulkNotes.value = '';
     showReceipt.value = false;
+    errorMessage.value = '';
     filterMode.value = 'today';
     fetchModalData();
   }
@@ -228,136 +231,61 @@ const handleConfirm = async () => {
     });
   });
 
-  try {
-    await Promise.all(
-      Array.from(dispatchUpdates.entries()).map(async ([dispatchId, data]) => {
-        await POSService.confirmReception(data.orderId, dispatchId, {
-          receivedBy: 'Encargado POS (Masivo)',
-          receptionNotes: bulkNotes.value || 'Recepción Masiva General',
-          items: data.items
-        });
-        const orderData = internalDispatches.value.find(d => d.orderId === data.orderId);
-        if (orderData?.branch) {
-          try { await POSService.settleInIsland(data.orderId, orderData.branch); }
-          catch (e) { console.warn(`Non-blocking settle error for ${data.orderId}:`, e); }
-        }
-      })
-    );
-    // Store snapshot and show receipt
-    receiptSnapshot.value = consolidatedItems.value.map(i => ({
-      name: i.name,
-      totalSent: i.totalSent,
-      quantityReceived: i.quantityReceived,
-      itemStatus: i.itemStatus,
-      itemNote: i.itemNote,
-    }));
-    receiptNotes.value = bulkNotes.value;
-    receiptBranch.value = localBranch.value;
-    receiptDate.value = new Date().toLocaleString('es-EC', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
-    showReceipt.value = true;
-    // success is emitted when user closes the receipt, not here
-  } catch (error) {
-    console.error('Bulk reception error:', error);
-    emit('success');
-    emit('close');
-  } finally {
-    isProcessing.value = false;
+  errorMessage.value = '';
+  // Secuencial: varios despachos pueden vivir en el mismo pedido y guardarlos
+  // en paralelo hace chocar las escrituras en Mongo (se perdían recepciones).
+  const failed: string[] = [];
+  for (const [dispatchId, data] of dispatchUpdates.entries()) {
+    try {
+      await POSService.confirmReception(data.orderId, dispatchId, {
+        receivedBy: 'Encargado POS (Masivo)',
+        receptionNotes: bulkNotes.value || 'Recepción Masiva General',
+        items: data.items
+      });
+      const orderData = internalDispatches.value.find(d => d.orderId === data.orderId);
+      // Solo los pedidos de clientes se liquidan en isla. Una reposición interna
+      // no se "factura en isla" ni se marca entregada: queda RECIBIDA y ya.
+      const isRestockOrder = orderData?.salesChannel === 'Restock' || orderData?.salesChannel === 'Restock-Bodega';
+      if (orderData?.branch && !isRestockOrder) {
+        try { await POSService.settleInIsland(data.orderId, orderData.branch); }
+        catch (e) { console.warn(`Non-blocking settle error for ${data.orderId}:`, e); }
+      }
+    } catch (error) {
+      console.error(`Bulk reception error (dispatch ${dispatchId}):`, error);
+      failed.push(dispatchId);
+    }
   }
+
+  if (failed.length > 0) {
+    // Nada de éxito falso: se avisa y se recarga para ver qué quedó pendiente.
+    errorMessage.value = `No se pudo confirmar la recepción de ${failed.length} envío(s). Revisa la lista: lo que siga pendiente, vuelve a confirmarlo.`;
+    await fetchModalData();
+    isProcessing.value = false;
+    return;
+  }
+
+  // Store snapshot and show receipt
+  receiptSnapshot.value = consolidatedItems.value.map(i => ({
+    name: i.name,
+    totalSent: i.totalSent,
+    quantityReceived: i.quantityReceived,
+    itemStatus: i.itemStatus,
+    itemNote: i.itemNote,
+  }));
+  receiptNotes.value = bulkNotes.value;
+  receiptBranch.value = localBranch.value;
+  receiptDate.value = new Date().toLocaleString('es-EC', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+  showReceipt.value = true;
+  // success is emitted when user closes the receipt, not here
+  isProcessing.value = false;
 };
 
 const handleEditReceipt = () => {
   showReceipt.value = false;
 };
 
-// ── Edit already-received dispatches ────────────────────────────────────────
-const isEditingReceived = ref(false);
-const editableReceivedItems = ref<ConsolidatedItem[]>([]);
-
-const startEditReceived = () => {
-  const map = new Map<string, ConsolidatedItem>();
-  alreadyReceived.value.forEach(d => {
-    (d.dispatch.items || []).forEach((item: any) => {
-      const key = item.productId || item.name;
-      if (!map.has(key)) {
-        map.set(key, {
-          productId: item.productId,
-          name: item.name,
-          totalSent: 0,
-          quantityReceived: 0,
-          itemStatus: (item.itemStatus || 'OK') as 'OK' | 'MISSING' | 'DAMAGED' | 'BAD_CONDITION',
-          itemNote: item.itemNote || '',
-          sources: [],
-          deliveryRounds: [],
-        });
-      }
-      const entry = map.get(key)!;
-      entry.totalSent        += item.quantitySent ?? 0;
-      entry.quantityReceived += item.quantityReceived ?? item.quantitySent ?? 0;
-      entry.sources.push({ orderId: d.orderId, dispatchId: d.dispatch._id, quantitySent: item.quantitySent, productId: String(item.productId) });
-    });
-  });
-  editableReceivedItems.value = Array.from(map.values());
-  isEditingReceived.value = true;
-};
-
-const handleConfirmEdit = async () => {
-  if (editableReceivedItems.value.length === 0) return;
-  isProcessing.value = true;
-
-  const dispatchUpdates = new Map<string, {
-    orderId: string;
-    items: { productId: string; quantityReceived: number; itemStatus: string; itemNote?: string }[];
-  }>();
-
-  editableReceivedItems.value.forEach(cItem => {
-    let remaining = cItem.quantityReceived;
-    cItem.sources.forEach(source => {
-      if (!dispatchUpdates.has(source.dispatchId)) {
-        dispatchUpdates.set(source.dispatchId, { orderId: source.orderId, items: [] });
-      }
-      const update = dispatchUpdates.get(source.dispatchId)!;
-      let allocated = Math.min(remaining, source.quantitySent);
-      remaining = Math.max(0, remaining - source.quantitySent);
-      let status = cItem.itemStatus as string;
-      if (allocated < source.quantitySent && status === 'OK') status = 'MISSING';
-      update.items.push({
-        productId: source.productId,
-        quantityReceived: allocated,
-        itemStatus: status,
-        ...(cItem.itemNote ? { itemNote: cItem.itemNote } : {})
-      });
-    });
-  });
-
-  try {
-    await Promise.all(
-      Array.from(dispatchUpdates.entries()).map(async ([dispatchId, data]) => {
-        await POSService.confirmReception(data.orderId, dispatchId, {
-          receivedBy: 'Encargado POS (Edición)',
-          receptionNotes: bulkNotes.value || 'Edición de Recepción',
-          items: data.items
-        });
-      })
-    );
-    receiptSnapshot.value = editableReceivedItems.value.map(i => ({
-      name: i.name, totalSent: i.totalSent, quantityReceived: i.quantityReceived,
-      itemStatus: i.itemStatus, itemNote: i.itemNote,
-    }));
-    receiptNotes.value = bulkNotes.value;
-    receiptBranch.value = localBranch.value;
-    receiptDate.value = new Date().toLocaleString('es-EC', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
-    isEditingReceived.value = false;
-    showReceipt.value = true;
-    emit('success');
-  } catch (error) {
-    console.error('Edit reception error:', error);
-  } finally {
-    isProcessing.value = false;
-  }
-};
-
 watch(() => props.isOpen, (v) => {
-  if (!v) { showReceipt.value = false; isEditingReceived.value = false; }
+  if (!v) { showReceipt.value = false; }
 });
 </script>
 
@@ -469,7 +397,7 @@ watch(() => props.isOpen, (v) => {
         </div>
 
         <!-- Empty -->
-        <div v-if="!isLoadingData && consolidatedItems.length === 0 && !isEditingReceived" class="empty-msg">
+        <div v-if="!isLoadingData && consolidatedItems.length === 0" class="empty-msg">
           <template v-if="receivedHistory.length > 0 && filterMode === 'today'">
             <!-- Already received today -->
             <div class="already-received-header">
@@ -491,9 +419,10 @@ watch(() => props.isOpen, (v) => {
                 <span class="ar-item-qty">× {{ item.quantityReceived }}</span>
               </div>
             </div>
-            <button class="btn-edit-received" @click="startEditReceived">
-              <i class="fa-solid fa-pen-to-square"></i> Editar recepción registrada
-            </button>
+            <div class="locked-notice">
+              <i class="fa-solid fa-lock"></i>
+              <span>Una recepción confirmada <strong>no se puede editar</strong>. Si hubo una novedad, quedó registrada con su estado.</span>
+            </div>
           </template>
           <template v-else>
             <i class="fa-solid fa-check-circle"></i>
@@ -509,74 +438,6 @@ watch(() => props.isOpen, (v) => {
             <i class="fa-solid fa-clipboard-check"></i>
             Hacer Cierre de Producción (Reposición)
           </button>
-        </div>
-
-        <!-- Edit mode: editing already-received dispatches -->
-        <div v-if="isEditingReceived && !isLoadingData" class="edit-received-banner">
-          <i class="fa-solid fa-pen-to-square"></i>
-          <span>Editando recepción ya registrada — ajusta cantidades o estados y confirma.</span>
-          <button @click="isEditingReceived = false">
-            <i class="fa-solid fa-arrow-left"></i> Cancelar edición
-          </button>
-        </div>
-
-        <div v-if="isEditingReceived && !isLoadingData" class="items-list">
-          <div class="list-header">
-            <span>Producto</span>
-            <span class="col-right">Enviado / Recibido</span>
-            <span class="col-status">Estado Físico</span>
-          </div>
-          <div
-            v-for="item in editableReceivedItems"
-            :key="item.productId"
-            class="item-row"
-            :class="{ 'has-issue': item.quantityReceived !== item.totalSent || item.itemStatus !== 'OK', 'is-bad': item.itemStatus === 'BAD_CONDITION' }"
-          >
-            <div class="item-main">
-              <div class="item-info">
-                <span class="item-name">{{ item.name }}</span>
-                <div v-if="item.quantityReceived !== item.totalSent" class="diff-badge">
-                  <i class="fa-solid fa-triangle-exclamation"></i>
-                  <span v-if="item.quantityReceived < item.totalSent">Faltan {{ item.totalSent - item.quantityReceived }}</span>
-                  <span v-else>Sobran {{ item.quantityReceived - item.totalSent }}</span>
-                </div>
-              </div>
-              <div class="item-qty-block">
-                <div class="sent-count">
-                  <span class="sent-label">Env.</span>
-                  <strong>{{ item.totalSent }}</strong>
-                </div>
-                <div class="qty-control">
-                  <button tabindex="-1" @click="item.quantityReceived = Math.max(0, item.quantityReceived - 1)">−</button>
-                  <input type="number" v-model="item.quantityReceived" min="0" />
-                  <button tabindex="-1" @click="item.quantityReceived++">+</button>
-                </div>
-              </div>
-            </div>
-            <div class="item-status-block">
-              <div class="status-select-wrap" :class="item.itemStatus.toLowerCase()">
-                <SearchableSelect
-                  v-model="item.itemStatus"
-                  :options="statusOptions"
-                  placeholder="Estado..."
-                  searchPlaceholder="Buscar estado..."
-                >
-                  <template #icon>
-                    <i v-if="item.itemStatus === 'OK'"            class="fa-solid fa-circle-check status-icon ok"></i>
-                    <i v-else-if="item.itemStatus === 'MISSING'"  class="fa-solid fa-triangle-exclamation status-icon missing"></i>
-                    <i v-else-if="item.itemStatus === 'DAMAGED'"  class="fa-solid fa-circle-xmark status-icon damaged"></i>
-                    <i v-else                                      class="fa-solid fa-comment-dots status-icon bad"></i>
-                  </template>
-                </SearchableSelect>
-              </div>
-              <Transition name="slide-note">
-                <div v-if="item.itemStatus === 'BAD_CONDITION'" class="note-field">
-                  <i class="fa-solid fa-pen-to-square note-icon"></i>
-                  <input v-model="item.itemNote" type="text" placeholder="Ej: llegó mal glaseado, deformado..." class="note-input" />
-                </div>
-              </Transition>
-            </div>
-          </div>
         </div>
 
         <!-- Items list (normal: PENDING dispatches) -->
@@ -672,22 +533,18 @@ watch(() => props.isOpen, (v) => {
 
       </div>
 
+      <!-- Error de confirmación -->
+      <div v-if="errorMessage && !showReceipt" class="confirm-error-banner">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <span>{{ errorMessage }}</span>
+      </div>
+
       <!-- ── Footer ── -->
       <div v-if="!showReceipt" class="modal-footer">
-        <button class="btn-cancel" @click="isEditingReceived ? (isEditingReceived = false) : $emit('close')">
-          {{ isEditingReceived ? 'Cancelar edición' : 'Cancelar' }}
-        </button>
+        <button class="btn-cancel" @click="$emit('close')">Cancelar</button>
         <div class="hold-btn-container">
           <HoldConfirmButton
-            v-if="isEditingReceived"
-            label="Guardar cambios"
-            @confirmed="handleConfirmEdit"
-            :disabled="isProcessing || editableReceivedItems.length === 0"
-            color="#0284c7"
-          />
-          <HoldConfirmButton
-            v-else
-            label="Confirmar Recepción Masiva"
+            :label="isProcessing ? 'Confirmando recepción…' : 'Confirmar Recepción Masiva'"
             @confirmed="handleConfirm"
             :disabled="isProcessing || isLoadingData || consolidatedItems.length === 0"
             color="#7C3AED"
@@ -877,6 +734,24 @@ watch(() => props.isOpen, (v) => {
   to { transform: rotate(360deg); }
 }
 
+.confirm-error-banner {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 1.25rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-left: 4px solid #dc2626;
+  border-radius: 8px;
+  padding: 0.65rem 0.9rem;
+  font-size: 0.83rem;
+  font-weight: 600;
+  color: #991b1b;
+
+  i { color: #dc2626; flex-shrink: 0; }
+}
+
 // ─── Filter tabs ──────────────────────────────────────────────────────────────
 .filter-tabs {
   flex-shrink: 0;
@@ -929,41 +804,6 @@ watch(() => props.isOpen, (v) => {
     line-height: 1.1;
   }
 
-}
-
-// ─── Edit received banner ─────────────────────────────────────────────────────
-.edit-received-banner {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-left: 4px solid #0284c7;
-  border-radius: 8px;
-  padding: 0.7rem 1rem;
-  font-size: 0.84rem;
-  color: #1d4ed8;
-  font-weight: 500;
-
-  > i { flex-shrink: 0; font-size: 0.95rem; }
-  > span { flex: 1; }
-
-  button {
-    flex-shrink: 0;
-    background: white;
-    color: #1d4ed8;
-    border: 1px solid #bfdbfe;
-    border-radius: 7px;
-    padding: 0.38rem 0.75rem;
-    font-size: 0.78rem;
-    font-weight: 700;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    white-space: nowrap;
-    &:hover { background: #dbeafe; }
-  }
 }
 
 // ─── Items list ───────────────────────────────────────────────────────────────
@@ -1462,22 +1302,21 @@ watch(() => props.isOpen, (v) => {
   i { font-size: 3rem; color: $success; }
   p { font-size: 1.05rem; margin: 0; }
 
-  .btn-edit-received {
+  .locked-notice {
     display: flex;
     align-items: center;
-    gap: 0.45rem;
-    padding: 0.6rem 1.25rem;
+    gap: 0.55rem;
+    padding: 0.6rem 1rem;
     border-radius: 8px;
-    border: 1.5px solid #0284c7;
-    background: #f0f9ff;
-    color: #0284c7;
-    font-size: 0.87rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 0.82rem;
+    text-align: left;
     margin-top: 0.25rem;
 
-    &:hover { background: #e0f2fe; transform: translateY(-1px); }
+    i { font-size: 0.85rem !important; color: #94a3b8 !important; flex-shrink: 0; }
+    strong { color: #475569; }
   }
 
   .already-received-header {

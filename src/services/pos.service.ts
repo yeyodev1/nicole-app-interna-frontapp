@@ -46,6 +46,8 @@ export interface POSOrder {
   isGlobalCourtesy?: boolean;
   globalDiscountPercentage?: number;
   branch?: string;
+  salesChannel?: string;
+  comments?: string;
 }
 
 export interface POSFilters {

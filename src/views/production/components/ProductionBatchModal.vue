@@ -87,11 +87,15 @@ const contextOf = (row: ProductRowMeta) =>
         <div class="card-actions">
           <button class="btn-cancel" :disabled="isProcessing" @click="emit('close')">Cancelar</button>
           <ActionHoldButton
-            label="MANTENER 2S PARA CONFIRMAR"
+            :label="isProcessing ? 'REGISTRANDO… ESPERA UN MOMENTO' : 'MANTENER 2S PARA CONFIRMAR'"
             :duration="2000"
+            :disabled="isProcessing"
             color="#2ecc71"
             @trigger="emit('confirm')"
           />
+          <p v-if="isProcessing" class="processing-hint">
+            <i class="fas fa-circle-notch fa-spin"></i> Guardando la producción, no cierres esta ventana…
+          </p>
         </div>
       </div>
     </div>
@@ -280,6 +284,18 @@ const contextOf = (row: ProductRowMeta) =>
 
     &:hover:not(:disabled) { background: #e1e2e6; }
     &:disabled { opacity: 0.5; cursor: not-allowed; }
+  }
+
+  .processing-hint {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #047857;
+
+    i { font-size: 0.85rem; }
   }
 }
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { POSOrder } from '@/services/pos.service'
 import { formatECT } from '@/utils/dateUtils'
 import { useOrderHelpers } from '@/composables/useOrderHelpers'
@@ -15,6 +16,13 @@ const emit = defineEmits<{
 }>()
 
 const { getEffectivePaymentMethod, getStatusLabel, getStatusColorClass, calculateRemainingBalance, isOrderFullyPaid } = useOrderHelpers()
+
+// Reposición interna: no se entrega a cliente ni se cobra; su estado final es
+// "Recibido por el local". La ronda (ej. "Primera Entrega") viaja en comments.
+const isRestock = computed(() =>
+  props.order.salesChannel === 'Restock' || props.order.salesChannel === 'Restock-Bodega'
+)
+const roundLabel = computed(() => (isRestock.value && props.order.comments) ? props.order.comments : '')
 </script>
 
 <template>
@@ -35,6 +43,9 @@ const { getEffectivePaymentMethod, getStatusLabel, getStatusColorClass, calculat
         </div>
         <div v-if="selectedBranch === 'Todas las sucursales'" class="branch-mini-pill">
           <i class="fa-solid fa-map-location-dot"></i> {{ order.branch }}
+        </div>
+        <div v-if="isRestock" class="restock-pill">
+          <i class="fa-solid fa-boxes-stacked"></i> Reposición<template v-if="roundLabel"> · {{ roundLabel }}</template>
         </div>
       </div>
       <div class="header-right">
@@ -73,7 +84,7 @@ const { getEffectivePaymentMethod, getStatusLabel, getStatusColorClass, calculat
         </div>
       </div>
 
-      <div class="payment-info">
+      <div v-if="!isRestock" class="payment-info">
         <div class="p-row">
           <div class="payment-method">
             <i class="fa-solid fa-credit-card"></i>
@@ -97,12 +108,22 @@ const { getEffectivePaymentMethod, getStatusLabel, getStatusColorClass, calculat
     </div>
 
     <div class="card-actions">
-      <button v-if="order.posStatus !== 'DELIVERED'" class="action-btn btn-deliver" @click="emit('deliver', order)">
-        <i class="fa-solid fa-hand-holding-heart"></i> Entregar a Cliente
-      </button>
-      <button v-else class="action-btn btn-delivered-static" disabled>
-        <i class="fa-solid fa-check-double"></i> Entregado
-      </button>
+      <template v-if="isRestock">
+        <button v-if="order.posStatus === 'RECEIVED'" class="action-btn btn-received-static" disabled>
+          <i class="fa-solid fa-store"></i> Recibido por el local
+        </button>
+        <button v-else class="action-btn btn-restock-pending" disabled>
+          <i class="fa-solid fa-truck-fast"></i> Pendiente de recepción
+        </button>
+      </template>
+      <template v-else>
+        <button v-if="order.posStatus !== 'DELIVERED'" class="action-btn btn-deliver" @click="emit('deliver', order)">
+          <i class="fa-solid fa-hand-holding-heart"></i> Entregar a Cliente
+        </button>
+        <button v-else class="action-btn btn-delivered-static" disabled>
+          <i class="fa-solid fa-check-double"></i> Entregado
+        </button>
+      </template>
     </div>
   </div>
 </template>
@@ -473,5 +494,34 @@ const { getEffectivePaymentMethod, getStatusLabel, getStatusColorClass, calculat
   color: #16A34A;
   border: 1px solid #DCFCE7;
   cursor: default;
+}
+
+.btn-received-static {
+  background: #EFF6FF;
+  color: #1D4ED8;
+  border: 1px solid #DBEAFE;
+  cursor: default;
+}
+
+.btn-restock-pending {
+  background: #FFFBEB;
+  color: #92400E;
+  border: 1px solid #FDE68A;
+  cursor: default;
+}
+
+.restock-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #1D4ED8;
+  background: #EFF6FF;
+  border: 1px solid #DBEAFE;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  width: fit-content;
 }
 </style>

@@ -70,7 +70,7 @@ const fetchData = async () => {
       POSService.getIncomingDispatches(selectedBranch.value, filters),
       POSService.getIncomingDispatches(selectedBranch.value, {
         filterMode: 'all',
-        receptionStatus: ['PENDING', 'PROBLEM']
+        receptionStatus: ['PENDING']
       })
     ])
     const pickups = pickupData || []
@@ -78,9 +78,10 @@ const fetchData = async () => {
       .filter(o => o.posStatus === 'IN_TRANSIT')
       .flatMap(o => (o.dispatches || []).filter(d => d.receptionStatus === 'PENDING').map(d => ({ ...o, orderId: o._id, dispatch: d })))
 
+    // PROBLEM ya se receptó (con novedad): no vuelve a la cola de recepción.
     pendingDispatchesForBulk.value = bulkData
       .flatMap(o => (o.dispatches || [])
-        .filter(d => ['PENDING', 'PROBLEM'].includes(d.receptionStatus))
+        .filter(d => d.receptionStatus === 'PENDING')
         .map(d => ({ ...o, orderId: o._id, dispatch: d }))
       )
 
@@ -121,11 +122,11 @@ const fetchBulkDispatches = async (branch = selectedBranch.value) => {
   try {
     const bulkData = await POSService.getIncomingDispatches(branch, {
       filterMode: 'all',
-      receptionStatus: ['PENDING', 'PROBLEM']
+      receptionStatus: ['PENDING']
     })
     pendingDispatchesForBulk.value = bulkData
       .flatMap(o => (o.dispatches || [])
-        .filter(d => ['PENDING', 'PROBLEM'].includes(d.receptionStatus))
+        .filter(d => d.receptionStatus === 'PENDING')
         .map(d => ({ ...o, orderId: o._id, dispatch: d }))
       )
   } catch (e) {
