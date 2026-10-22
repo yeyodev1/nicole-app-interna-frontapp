@@ -16,6 +16,8 @@ export function useOrderFilters() {
   const filterMode = ref<FilterMode>('today')
   const dateType = ref<DateType>('deliveryDate')
   const customDate = ref('')
+  // Fin del rango de fechas; vacío = filtrar solo el día de customDate
+  const customEndDate = ref('')
   const searchQuery = ref('')
 
   // Pedidos de la tienda online pendientes de gestionar (badge del filtro)
@@ -70,22 +72,13 @@ export function useOrderFilters() {
         filters.clientLinkPending = 'true'
       } else if (filterMode.value === 'invoiceError') {
         filters.invoiceStatus = 'ERROR'
-        if (!searchQuery.value && customDate.value) {
-          filters.startDate = customDate.value
-          filters.endDate = customDate.value
-        }
+        applyCustomRange(filters)
       } else if (filterMode.value === 'unbilled') {
         filters.invoiceStatus = 'UNBILLED'
-        if (!searchQuery.value && customDate.value) {
-          filters.startDate = customDate.value
-          filters.endDate = customDate.value
-        }
+        applyCustomRange(filters)
       } else if (filterMode.value === 'returns') {
         filters.dispatchStatus = 'RETURNED'
-        if (!searchQuery.value && customDate.value) {
-          filters.startDate = customDate.value
-          filters.endDate = customDate.value
-        }
+        applyCustomRange(filters)
       } else if (!searchQuery.value) {
         // Only apply date filters when not searching
         if (filterMode.value === 'today') {
@@ -103,7 +96,7 @@ export function useOrderFilters() {
           filters.endDate = filters.startDate
         } else if (filterMode.value === 'custom' && customDate.value) {
           filters.startDate = customDate.value
-          filters.endDate = customDate.value
+          filters.endDate = customEndDate.value || customDate.value
         }
       }
       // When searchQuery is set in non-status modes, no date filter is applied (global search)
@@ -125,8 +118,16 @@ export function useOrderFilters() {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
   }
 
+  // Rango opcional en los modos de estado especial (fecha única si no hay fin)
+  const applyCustomRange = (filters: any) => {
+    if (!searchQuery.value && customDate.value) {
+      filters.startDate = customDate.value
+      filters.endDate = customEndDate.value || customDate.value
+    }
+  }
+
   // Reactivity
-  watch([filterMode, customDate, dateType], () => {
+  watch([filterMode, customDate, customEndDate, dateType], () => {
     // Logic for clearing 'customDate' when switching modes could be here,
     // but typically we might want to persist if the user comes back.
     // However, if switching To 'today', customDate is ignored anyway.
@@ -152,6 +153,7 @@ export function useOrderFilters() {
     filterMode,
     dateType,
     customDate,
+    customEndDate,
     searchQuery,
     showDatePicker,
     fetchOrders,

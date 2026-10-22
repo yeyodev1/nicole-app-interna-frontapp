@@ -34,6 +34,7 @@ const {
   filterMode,
   dateType,
   customDate,
+  customEndDate,
   searchQuery,
   showDatePicker,
   fetchOrders,
@@ -408,6 +409,7 @@ onUnmounted(() => {
         v-model:filter-mode="filterMode"
         v-model:date-type="dateType"
         v-model:custom-date="customDate"
+        v-model:custom-end-date="customEndDate"
         v-model:search-query="searchQuery"
         :show-date-picker="showDatePicker"
         :show-select-all="(filterMode === 'invoiceError' || filterMode === 'unbilled') && orders.length > 0"

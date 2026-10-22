@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import CustomDatePicker from '@/components/ui/CustomDatePicker.vue'
+import CustomDateRangePicker from '@/components/ui/CustomDateRangePicker.vue'
 
 export type FilterMode = 'today' | 'yesterday' | 'tomorrow' | 'all' | 'custom' | 'invoiceError' | 'unbilled' | 'returns' | 'webPending' | 'clientLinkPending'
 export type DateType = 'deliveryDate' | 'createdAt'
@@ -8,6 +8,7 @@ const props = defineProps<{
   filterMode: FilterMode
   dateType: DateType
   customDate: string
+  customEndDate: string
   searchQuery: string
   showDatePicker: boolean
   showSelectAll: boolean
@@ -22,6 +23,7 @@ const emit = defineEmits<{
   (e: 'update:filterMode', value: FilterMode): void
   (e: 'update:dateType', value: DateType): void
   (e: 'update:customDate', value: string): void
+  (e: 'update:customEndDate', value: string): void
   (e: 'update:searchQuery', value: string): void
   (e: 'search'): void
   (e: 'toggle-select-all'): void
@@ -131,10 +133,12 @@ const emit = defineEmits<{
 
       <!-- Specific Date Picker -->
       <div v-if="showDatePicker" class="nav-section">
-        <span class="section-label">{{ ['invoiceError', 'returns', 'unbilled'].includes(filterMode) ? 'Fecha (opcional)' : 'Seleccionar fecha' }}</span>
-        <CustomDatePicker
-          :model-value="customDate"
-          @update:model-value="emit('update:customDate', $event)"
+        <span class="section-label">{{ ['invoiceError', 'returns', 'unbilled'].includes(filterMode) ? 'Fechas (opcional)' : 'Seleccionar fechas' }}</span>
+        <CustomDateRangePicker
+          :start="customDate"
+          :end="customEndDate"
+          @update:start="emit('update:customDate', $event)"
+          @update:end="emit('update:customEndDate', $event)"
         />
       </div>
 
