@@ -373,8 +373,8 @@ router.beforeEach((to, from, next) => {
       return
     }
 
-    // Operations Manager guard — solo reportería
-    if (role === 'OPERATIONS_MANAGER' && !to.path.startsWith('/operations')) {
+    // Operations Manager guard — reportería + gestión de sucursal (recepción y cierre)
+    if (role === 'OPERATIONS_MANAGER' && !to.path.startsWith('/operations') && !to.path.startsWith('/pos')) {
       next({ name: 'operations-report' })
       return
     }

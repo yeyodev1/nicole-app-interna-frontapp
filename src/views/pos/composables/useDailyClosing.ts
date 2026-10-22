@@ -218,7 +218,7 @@ export function useDailyClosing(branch: Ref<string>) {
   const confirmMessage = computed(() =>
     hasExcessiveOverride.value
       ? ''
-      : '¿Confirmas el envío del reporte? Se generarán los pedidos para mañana según las cantidades indicadas.'
+      : '¿Confirmas el envío del reporte? Los pedidos se generarán al instante y cocina los verá de inmediato.'
   );
 
   const confirmMessageHtml = computed(() => {

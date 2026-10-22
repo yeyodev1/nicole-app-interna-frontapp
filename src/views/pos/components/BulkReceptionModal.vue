@@ -35,8 +35,6 @@ const filterMode = ref<BulkFilterMode>('today');
 
 watch(filterMode, () => { if (props.isOpen) fetchModalData(); });
 
-const isReadOnly = computed(() => filterMode.value === 'yesterday' || filterMode.value === 'tomorrow');
-
 const formatTabDate = (offset: number): string => {
   const todayStr = getECTTodayString();
   const d = new Date(todayStr + 'T12:00:00');
@@ -459,7 +457,6 @@ watch(() => props.isOpen, (v) => {
           <button :class="{ active: filterMode === 'yesterday' }" @click="filterMode = 'yesterday'">
             <span class="tab-day">Ayer</span>
             <span class="tab-date">{{ labelYesterday }}</span>
-            <span class="readonly-badge">Solo lectura</span>
           </button>
           <button :class="{ active: filterMode === 'today' }" @click="filterMode = 'today'">
             <span class="tab-day">Hoy</span>
@@ -468,19 +465,6 @@ watch(() => props.isOpen, (v) => {
           <button :class="{ active: filterMode === 'tomorrow' }" @click="filterMode = 'tomorrow'">
             <span class="tab-day">Mañana</span>
             <span class="tab-date">{{ labelTomorrow }}</span>
-            <span class="readonly-badge">Solo lectura</span>
-          </button>
-        </div>
-
-        <!-- Readonly banner for Ayer / Mañana -->
-        <div v-if="!isLoadingData && isReadOnly" class="readonly-banner">
-          <i class="fa-solid fa-eye"></i>
-          <div class="readonly-banner-text">
-            <span>Estás viendo <strong>{{ filterMode === 'yesterday' ? 'AYER' : 'MAÑANA' }}</strong> ({{ filterMode === 'yesterday' ? labelYesterday : labelTomorrow }}) — solo lectura.</span>
-            <span>Para confirmar recepciones ve a <strong>HOY</strong>.</span>
-          </div>
-          <button class="btn-go-today" @click="filterMode = 'today'">
-            <i class="fa-solid fa-calendar-day"></i> Ir a Hoy · {{ labelToday }}
           </button>
         </div>
 
@@ -596,7 +580,7 @@ watch(() => props.isOpen, (v) => {
         </div>
 
         <!-- Items list (normal: PENDING dispatches) -->
-        <div v-else-if="!isLoadingData && consolidatedItems.length > 0" class="items-list" :class="{ 'is-readonly': isReadOnly }">
+        <div v-else-if="!isLoadingData && consolidatedItems.length > 0" class="items-list">
           <div class="list-header">
             <span>Producto</span>
             <span class="col-right">Enviado / Recibido</span>
@@ -636,9 +620,9 @@ watch(() => props.isOpen, (v) => {
                   <strong>{{ item.totalSent }}</strong>
                 </div>
                 <div class="qty-control">
-                  <button tabindex="-1" :disabled="isReadOnly" @click="item.quantityReceived = Math.max(0, item.quantityReceived - 1)">−</button>
-                  <input type="number" v-model="item.quantityReceived" min="0" :readonly="isReadOnly" />
-                  <button tabindex="-1" :disabled="isReadOnly" @click="item.quantityReceived++">+</button>
+                  <button tabindex="-1" @click="item.quantityReceived = Math.max(0, item.quantityReceived - 1)">−</button>
+                  <input type="number" v-model="item.quantityReceived" min="0" />
+                  <button tabindex="-1" @click="item.quantityReceived++">+</button>
                 </div>
               </div>
             </div>
@@ -649,7 +633,6 @@ watch(() => props.isOpen, (v) => {
                 <SearchableSelect
                   v-model="item.itemStatus"
                   :options="statusOptions"
-                  :disabled="isReadOnly"
                   placeholder="Estado..."
                   searchPlaceholder="Buscar estado..."
                 >
@@ -706,7 +689,7 @@ watch(() => props.isOpen, (v) => {
             v-else
             label="Confirmar Recepción Masiva"
             @confirmed="handleConfirm"
-            :disabled="isProcessing || isLoadingData || isReadOnly || consolidatedItems.length === 0"
+            :disabled="isProcessing || isLoadingData || consolidatedItems.length === 0"
             color="#7C3AED"
           />
         </div>
@@ -894,52 +877,6 @@ watch(() => props.isOpen, (v) => {
   to { transform: rotate(360deg); }
 }
 
-// ─── Readonly banner ──────────────────────────────────────────────────────────
-.readonly-banner {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  background: #f8fafc;
-  border: 1px solid $border-light;
-  border-left: 4px solid $text-light;
-  border-radius: 8px;
-  padding: 0.7rem 1rem;
-  font-size: 0.83rem;
-  color: $text-light;
-
-  > i { flex-shrink: 0; font-size: 0.95rem; }
-
-  .readonly-banner-text {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    line-height: 1.4;
-  }
-
-  .btn-go-today {
-    flex-shrink: 0;
-    background: $NICOLE-PURPLE;
-    color: white;
-    border: none;
-    border-radius: 7px;
-    padding: 0.45rem 0.85rem;
-    font-size: 0.78rem;
-    font-weight: 700;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    white-space: nowrap;
-    transition: all 0.15s;
-
-    &:hover {
-      background: darken(#7C3AED, 5%);
-      transform: translateY(-1px);
-    }
-  }
-}
-
 // ─── Filter tabs ──────────────────────────────────────────────────────────────
 .filter-tabs {
   flex-shrink: 0;
@@ -992,29 +929,6 @@ watch(() => props.isOpen, (v) => {
     line-height: 1.1;
   }
 
-  .readonly-badge {
-    display: inline-block;
-    font-size: 0.58rem;
-    font-weight: 700;
-    background: $gray-200;
-    color: $text-light;
-    padding: 1px 5px;
-    border-radius: 4px;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    margin-top: 1px;
-  }
-}
-
-.items-list.is-readonly {
-  opacity: 0.75;
-  // Ojo: nada de pointer-events:none en el contenedor — mataba el scroll
-  // de la lista en Ayer/Mañana. Los controles se bloquean uno por uno.
-  .qty-control button,
-  .status-selector,
-  select,
-  button { pointer-events: none; cursor: not-allowed; }
-  .qty-control input { background: $gray-50; color: $text-light; cursor: default; pointer-events: none; }
 }
 
 // ─── Edit received banner ─────────────────────────────────────────────────────

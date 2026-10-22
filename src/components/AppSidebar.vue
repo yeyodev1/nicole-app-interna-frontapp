@@ -117,6 +117,10 @@ const closePanel = () => { mobileOpen.value = false }
         <router-link to="/operations/closings" active-class="active" @click="closePanel">
           <i class="fa-solid fa-table-list"></i> Detalle del Día
         </router-link>
+        <span class="nav-group-label">Sucursal</span>
+        <router-link to="/pos/shipments" active-class="active" @click="closePanel">
+          <i class="fa-solid fa-store"></i> Gestión Sucursal
+        </router-link>
       </template>
 
       <!-- Production -->
