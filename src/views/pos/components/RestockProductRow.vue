@@ -63,9 +63,10 @@ const isSimpleSupply = () => props.item.isGeneral && !props.item.requiresMinimum
       <div class="field pedido">
         <label>Cantidad a Pedir</label>
         <input
-          type="number" min="0" placeholder="0" class="num pedido-input"
+          type="number" min="0" inputmode="numeric" class="num pedido-input"
           :class="{ 'has-value': getFinalPedido() > 0 }"
-          :value="item.pedidoOverride !== null ? item.pedidoOverride : ''"
+          :value="getFinalPedido()"
+          @focus="($event.target as HTMLInputElement).select()"
           @input="setPedido(($event.target as HTMLInputElement).value)"
         />
       </div>
@@ -99,9 +100,10 @@ const isSimpleSupply = () => props.item.isGeneral && !props.item.requiresMinimum
       <div class="field pedido">
         <label>Pedido a {{ item.category === 'Bodega' ? 'Bodega' : 'Producción' }}</label>
         <input
-          type="number" min="0" placeholder="0" class="num pedido-input"
+          type="number" min="0" inputmode="numeric" class="num pedido-input"
           :class="{ 'has-value': getFinalPedido() > 0 }"
-          :value="item.pedidoOverride !== null ? item.pedidoOverride : ''"
+          :value="getFinalPedido()"
+          @focus="($event.target as HTMLInputElement).select()"
           @input="setPedido(($event.target as HTMLInputElement).value)"
         />
       </div>

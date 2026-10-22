@@ -74,11 +74,9 @@ export function useDailyClosing(branch: Ref<string>) {
           bajas: (isToday && item.lastEntry) ? item.lastEntry.bajas : 0,
           excedente: (isToday && item.lastEntry) ? item.lastEntry.stockFinal : 0,
           detailedLosses: (isToday && item.lastEntry) ? (item.lastEntry.detailedLosses || []) : [],
-          // Ya no hay pedido sugerido: si hoy ya se envió un reporte se
-          // precarga el pedido enviado, si no la encargada lo escribe.
-          pedidoOverride: (isToday && item.lastEntry && item.lastEntry.pedidoFinal !== undefined)
-            ? item.lastEntry.pedidoFinal
-            : null,
+          // Sin sugeridos ni precargas: el pedido SIEMPRE arranca en 0 y la
+          // encargada escribe exactamente lo que necesita en cada envío.
+          pedidoOverride: null,
         };
       });
     } finally {
