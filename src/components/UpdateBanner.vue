@@ -1,18 +1,16 @@
 <script setup lang="ts">
-import { computed, ref, watch, onUnmounted } from 'vue'
+import { computed, ref } from 'vue'
 import { useRegisterSW } from 'virtual:pwa-register/vue'
 
-// Cada push a main publica una versión nueva. El modal es obligatorio: no se
-// puede seguir usando una versión vieja (los datos del cierre y la recepción
-// cambian de forma). Se da una cuenta regresiva corta para que alcancen a
-// guardar lo que estén escribiendo antes de la recarga.
+// Cada push a main publica una versión nueva. El aviso NO fuerza nada: no hay
+// cuenta regresiva ni recarga automática. La persona decide cuándo actualizar
+// (una recarga a destiempo puede botar un cierre a medio llenar).
 const CHECK_INTERVAL_MS = 60 * 1000
-const COUNTDOWN_SECONDS = 20
 
 const { needRefresh, updateServiceWorker } = useRegisterSW({
   onRegisteredSW(_url, registration) {
     if (!registration) return
-    // Chequeo inmediato (no esperar el primer intervalo) y luego periódico.
+    // Chequeo inmediato y luego periódico.
     registration.update().catch(() => {})
     setInterval(() => registration.update().catch(() => {}), CHECK_INTERVAL_MS)
   },
@@ -21,11 +19,9 @@ const { needRefresh, updateServiceWorker } = useRegisterSW({
   },
 })
 
-// El service worker está configurado con skipWaiting + clientsClaim: la versión
-// nueva toma control sin pasar por el estado "waiting", así que `needRefresh`
-// muchas veces no se dispara y la pestaña abierta se queda con el código viejo
-// (por eso "recargué y no veo cambios"). El cambio de controlador es la señal
-// fiable de que ya hay versión nueva sirviendo.
+// El service worker usa skipWaiting + clientsClaim: la versión nueva toma
+// control sin pasar por el estado "waiting", así que `needRefresh` muchas veces
+// no se dispara. El cambio de controlador es la señal fiable de versión nueva.
 const controllerChanged = ref(false)
 if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
   navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -33,39 +29,33 @@ if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
   })
 }
 
-const showUpdate = computed(() => needRefresh.value || controllerChanged.value)
+const hasUpdate = computed(() => needRefresh.value || controllerChanged.value)
 
-const secondsLeft = ref(COUNTDOWN_SECONDS)
+const dismissed = ref(false)
 const isUpdating = ref(false)
-let ticker: number | undefined
+
+// Si lo deja para después, el aviso no se pierde: queda una pastilla discreta.
+const showModal = computed(() => hasUpdate.value && !dismissed.value)
+const showPill = computed(() => hasUpdate.value && dismissed.value)
 
 const update = () => {
   if (isUpdating.value) return
   isUpdating.value = true
   updateServiceWorker(true)
-  // Respaldo: si no había un worker "waiting" al que pedirle el relevo,
-  // updateServiceWorker no recarga por su cuenta.
-  window.setTimeout(() => window.location.reload(), 1500)
+  window.setTimeout(() => window.location.reload(), 1200)
 }
-
-watch(showUpdate, (pending) => {
-  if (!pending || ticker) return
-  secondsLeft.value = COUNTDOWN_SECONDS
-  ticker = window.setInterval(() => {
-    secondsLeft.value -= 1
-    if (secondsLeft.value <= 0) {
-      window.clearInterval(ticker)
-      update()
-    }
-  }, 1000)
-})
-
-onUnmounted(() => window.clearInterval(ticker))
 </script>
 
 <template>
+  <!-- Aviso central (se puede cerrar) -->
   <Transition name="update-fade">
-    <div v-if="showUpdate" class="update-overlay" role="alertdialog" aria-labelledby="update-title">
+    <div
+      v-if="showModal"
+      class="update-overlay"
+      role="alertdialog"
+      aria-labelledby="update-title"
+      @click.self="dismissed = true"
+    >
       <div class="update-card">
         <div class="glow" aria-hidden="true"></div>
 
@@ -73,12 +63,11 @@ onUnmounted(() => window.clearInterval(ticker))
           <i class="fa-solid fa-rocket"></i>
         </div>
 
-        <span class="pill">Actualización requerida</span>
-        <h3 id="update-title">Hay una versión nueva</h3>
+        <span class="pill">Nueva versión disponible</span>
+        <h3 id="update-title">Hay mejoras listas</h3>
         <p>
-          Para seguir usando la app necesitas la última versión.
-          <strong v-if="!isUpdating">Guarda lo que estés escribiendo</strong>
-          <template v-if="!isUpdating"> antes de continuar.</template>
+          Puedes actualizar cuando quieras. Si estás a medio llenar algo,
+          <strong>termina primero</strong> y actualiza después.
         </p>
 
         <button class="btn-update" :disabled="isUpdating" @click="update">
@@ -86,17 +75,19 @@ onUnmounted(() => window.clearInterval(ticker))
           {{ isUpdating ? 'Actualizando…' : 'Actualizar ahora' }}
         </button>
 
-        <div v-if="!isUpdating" class="countdown">
-          <div class="bar">
-            <div
-              class="fill"
-              :style="{ width: `${(secondsLeft / COUNTDOWN_SECONDS) * 100}%` }"
-            ></div>
-          </div>
-          <span>Se actualizará automáticamente en {{ secondsLeft }}s</span>
-        </div>
+        <button v-if="!isUpdating" class="btn-later" @click="dismissed = true">
+          Ahora no — sigo trabajando
+        </button>
       </div>
     </div>
+  </Transition>
+
+  <!-- Pastilla discreta cuando lo dejó para después -->
+  <Transition name="update-fade">
+    <button v-if="showPill" class="update-pill" @click="update">
+      <i :class="isUpdating ? 'fa-solid fa-circle-notch fa-spin' : 'fa-solid fa-arrow-rotate-right'"></i>
+      {{ isUpdating ? 'Actualizando…' : 'Actualizar app' }}
+    </button>
   </Transition>
 </template>
 
@@ -104,8 +95,8 @@ onUnmounted(() => window.clearInterval(ticker))
 .update-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.72);
-  backdrop-filter: blur(6px);
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(5px);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -118,7 +109,7 @@ onUnmounted(() => window.clearInterval(ticker))
   overflow: hidden;
   background: white;
   border-radius: 22px;
-  padding: 2.25rem 1.9rem 1.75rem;
+  padding: 2.25rem 1.9rem 1.6rem;
   width: 100%;
   max-width: 400px;
   text-align: center;
@@ -211,29 +202,40 @@ p {
   &:disabled { opacity: 0.75; cursor: wait; }
 }
 
-.countdown {
-  margin-top: 1rem;
+.btn-later {
+  margin-top: 0.85rem;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
 
-  .bar {
-    height: 4px;
-    background: #f1f5f9;
-    border-radius: 99px;
-    overflow: hidden;
-  }
+  &:hover { color: #475569; }
+}
 
-  .fill {
-    height: 100%;
-    background: linear-gradient(90deg, $purple-light, $NICOLE-PURPLE);
-    border-radius: 99px;
-    transition: width 1s linear;
-  }
+.update-pill {
+  position: fixed;
+  bottom: 1.25rem;
+  right: 1.25rem;
+  z-index: 30000;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.1rem;
+  border: none;
+  border-radius: 30px;
+  background: linear-gradient(135deg, $NICOLE-PURPLE, $purple-dark);
+  color: white;
+  font-size: 0.84rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba($NICOLE-PURPLE, 0.35);
+  transition: transform 0.18s, box-shadow 0.18s;
 
-  span {
-    display: block;
-    margin-top: 0.5rem;
-    font-size: 0.76rem;
-    font-weight: 600;
-    color: #94a3b8;
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 30px rgba($NICOLE-PURPLE, 0.45);
   }
 }
 
