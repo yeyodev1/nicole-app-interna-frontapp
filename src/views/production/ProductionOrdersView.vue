@@ -7,6 +7,7 @@ import { parseECTDate, getECTNow, getECTTodayString, isSameDayECT } from '@/util
 import DispatchReportModal from './components/DispatchReportModal.vue'
 import DispatchByDestinationModal from './components/DispatchByDestinationModal.vue'
 import HoldToConfirmModal from './components/HoldToConfirmModal.vue'
+import ProductionOrderBreakdown from './components/ProductionOrderBreakdown.vue'
 import { useToast } from '@/composables/useToast'
 
 interface Order {
@@ -586,21 +587,12 @@ const getDispatchBadge = (status?: string) => {
                         <span v-if="order.products.length > 1" class="more-count">
                           +{{ order.products.length - 1 }} más
                         </span>
+                        <span class="see-detail">ver qué se hizo</span>
                         <i class="fas fa-chevron-down toggle-icon"></i>
                       </div>
                       
                       <div class="items-expanded-list" v-if="expandedOrders.includes(order._id)">
-                        <div v-for="(prod, idx) in order.products" :key="idx" class="expanded-item">
-                           <div class="item-meta">
-                             <strong>x{{ prod.quantity }}</strong>
-                             <span>{{ prod.name }}</span>
-                           </div>
-                           <i 
-                            v-if="prod.productionStatus === 'COMPLETED'" 
-                            class="fas fa-check-circle" 
-                            style="color: #2ecc71;"
-                          ></i>
-                        </div>
+                        <ProductionOrderBreakdown :order="order" />
                       </div>
                     </div>
                   </td>
@@ -701,21 +693,12 @@ const getDispatchBadge = (status?: string) => {
                         <span v-if="order.products.length > 1" class="more-count">
                           +{{ order.products.length - 1 }} más
                         </span>
+                        <span class="see-detail">ver qué se hizo</span>
                         <i class="fas fa-chevron-down toggle-icon"></i>
                       </div>
                       
                       <div class="items-expanded-list" v-if="expandedOrders.includes(order._id)">
-                        <div v-for="(prod, idx) in order.products" :key="idx" class="expanded-item">
-                           <div class="item-meta">
-                             <strong>x{{ prod.quantity }}</strong>
-                             <span>{{ prod.name }}</span>
-                           </div>
-                           <i 
-                            v-if="prod.productionStatus === 'COMPLETED'" 
-                            class="fas fa-check-circle" 
-                            style="color: #2ecc71;"
-                          ></i>
-                        </div>
+                        <ProductionOrderBreakdown :order="order" />
                       </div>
                     </div>
                   </td>
@@ -1374,6 +1357,18 @@ $color-danger: #e74c3c;
     }
   }
 
+  .see-detail {
+    font-size: 0.62rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: $color-primary;
+    background: rgba(142, 68, 173, 0.08);
+    border-radius: 20px;
+    padding: 1px 7px;
+    white-space: nowrap;
+  }
+
   .items-expanded-list {
     position: absolute;
     top: 100%;
@@ -1381,7 +1376,11 @@ $color-danger: #e74c3c;
     z-index: 100;
     margin-top: 6px;
     background: white;
-    min-width: 250px;
+    // Cabe el desglose (pedido · hecho · enviado) sin salirse de pantalla
+    min-width: 340px;
+    max-width: min(480px, 86vw);
+    max-height: 70vh;
+    overflow-y: auto;
     border-radius: 12px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
     border: 1px solid #f1f2f6;
