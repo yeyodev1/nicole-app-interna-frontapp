@@ -92,6 +92,15 @@ const isSimpleSupply = () => props.item.isGeneral && !props.item.requiresMinimum
         />
       </div>
 
+      <div class="field">
+        <label>Excedente (Vitrina)</label>
+        <input
+          type="number" min="0" inputmode="numeric" class="num"
+          v-model.number="item.excedente"
+          @focus="($event.target as HTMLInputElement).select()"
+        />
+      </div>
+
       <div class="field pedido">
         <label>Pedido a {{ item.category === 'Bodega' ? 'Bodega' : 'Producción' }}</label>
         <input
@@ -193,11 +202,17 @@ const isSimpleSupply = () => props.item.isGeneral && !props.item.requiresMinimum
   }
 }
 
+// Solo flex: se acomoda en cualquier ancho sin media queries de columnas.
 .row-grid {
-  display: grid;
-  grid-template-columns: auto 1fr 1.2fr;
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.75rem;
-  align-items: end;
+  align-items: flex-end;
+
+  :deep(.sold-box) { flex: 0 0 auto; }
+
+  .field { flex: 1 1 120px; min-width: 105px; }
+  .field.pedido { flex: 1 1 150px; }
 }
 
 .field {
@@ -274,11 +289,8 @@ const isSimpleSupply = () => props.item.isGeneral && !props.item.requiresMinimum
 
 @media (max-width: 560px) {
   .row-grid {
-    grid-template-columns: 1fr 1fr;
-
-    :deep(.sold-box) { grid-column: span 2; }
-
-    .field.pedido { grid-column: span 2; }
+    :deep(.sold-box) { flex: 1 1 100%; }
+    .field.pedido { flex: 1 1 100%; }
   }
 
   .simple-supply { flex-direction: column; align-items: stretch; .field { width: 100%; } }

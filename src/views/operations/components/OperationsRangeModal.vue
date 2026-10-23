@@ -139,12 +139,13 @@ const apply = () => {
 }
 
 .presets {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.45rem;
   margin-bottom: 1.1rem;
 
   button {
+    flex: 1 1 90px;
     padding: 0.55rem 0.4rem;
     border-radius: 10px;
     border: 1.5px solid #e2e8f0;

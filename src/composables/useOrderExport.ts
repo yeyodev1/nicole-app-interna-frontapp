@@ -455,7 +455,7 @@ export function useOrderExport() {
       wsData.push(['', '', '', '', '', ''])
 
       // ── Row 3: Column headers ─────────────────────────────
-      const headers = ['PRODUCTO', 'UNIDAD', 'CANT. PEDIDA', 'OBJ. MAÑANA', '✓ ENTREGADO']
+      const headers = ['PRODUCTO', 'UNIDAD', 'CANT. PEDIDA', 'STOCK HOY', 'OBJ. MAÑANA', '✓ ENTREGADO']
       wsData.push(headers)
       for (let c = 0; c < headers.length; c++) {
         setStyle(3, c, {
@@ -489,9 +489,10 @@ export function useOrderExport() {
 
         items.forEach(item => {
           const pedido    = item.lastEntry?.pedidoFinal ?? item.lastEntry?.pedidoSugerido ?? 0
+          const stockHoy  = item.lastEntry?.stockFinal  ?? '—'
           const objMañana = item.stockObjectiveTomorrow  ?? '—'
 
-          wsData.push([item.productName, item.unit, pedido, objMañana, ''])
+          wsData.push([item.productName, item.unit, pedido, stockHoy, objMañana, ''])
 
           for (let c = 0; c <= 5; c++) {
             setStyle(currentRow, c, {
@@ -526,7 +527,7 @@ export function useOrderExport() {
       const wb = XLSX.utils.book_new()
       const ws = XLSX.utils.aoa_to_sheet(wsData)
 
-      ws['!cols'] = [{ wch: 42 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 16 }]
+      ws['!cols'] = [{ wch: 42 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 14 }]
       ws['!rows'] = [{ hpt: 28 }, { hpt: 18 }]
 
       Object.keys(wsStyle).forEach(ref => {

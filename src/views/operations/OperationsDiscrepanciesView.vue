@@ -85,9 +85,9 @@ const hasNegativeCierre = computed(() =>
               <td>{{ d.bajas || '' }}</td>
               <td class="should">{{ d.deberiaQuedar ?? '—' }}</td>
               <td>{{ d.quedo ?? '—' }}</td>
-              <td class="desc" :class="{ falta: (d.descuadre ?? 0) > 0 }">
+              <td class="desc" :class="{ falta: (d.descuadre ?? 0) < 0 }">
                 {{ (d.descuadre ?? 0) > 0 ? `+${d.descuadre}` : d.descuadre }}
-                <span class="desc-word">{{ (d.descuadre ?? 0) > 0 ? 'falta' : 'sobra' }}</span>
+                <span class="desc-word">{{ (d.descuadre ?? 0) < 0 ? 'falta' : 'sobra' }}</span>
               </td>
             </tr>
             <tr v-if="filtered.length === 0">

@@ -26,6 +26,7 @@
 
 <style lang="scss" scoped>
 .brand-panel {
+  flex: 1 1 460px;
   position: relative;
   overflow: hidden;
   display: flex;
@@ -111,8 +112,9 @@
     width: 34px;
     height: 34px;
     border-radius: 10px;
-    display: grid;
-    place-items: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 0.85rem;
     background: rgba(255, 255, 255, 0.15);
     border: 1px solid rgba(255, 255, 255, 0.2);

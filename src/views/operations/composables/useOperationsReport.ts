@@ -13,7 +13,7 @@ export interface OpsProduct {
   bajas: number;
   deberiaQuedar: number | null; // inicial + recibido - vendido - bajas
   quedo: number | null; // lo que contó el cierre
-  descuadre: number | null; // deberiaQuedar - quedo (positivo = falta, negativo = sobra)
+  descuadre: number | null; // debería quedar ajustado con lo que quedó en isla (negativo = falta, positivo = sobra)
   ventaCierre: number | null;
   pedidoFinal: number;
 }

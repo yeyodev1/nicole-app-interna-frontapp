@@ -98,8 +98,9 @@ const niceDate = computed(() => {
       width: 40px;
       height: 40px;
       border-radius: 12px;
-      display: grid;
-      place-items: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-size: 1rem;
       color: white;
       background: linear-gradient(135deg, #7c3aed, #9333ea);

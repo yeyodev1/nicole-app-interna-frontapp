@@ -41,19 +41,20 @@ const openForgot = (email: string) => {
 </template>
 
 <style lang="scss" scoped>
+// Solo flex: una sola regla sirve para desktop, tablet y celular.
 .login-page {
-  display: grid;
-  grid-template-columns: 1.05fr 1fr;
+  display: flex;
+  flex-wrap: wrap;
   min-height: 100vh;
   min-height: 100dvh;
   background: white;
-
-  @media (max-width: 860px) { grid-template-columns: 1fr; }
 }
 
 .form-panel {
-  display: grid;
-  place-items: center;
+  flex: 1 1 420px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 2rem 1.5rem;
   background: $background-cream;
 }

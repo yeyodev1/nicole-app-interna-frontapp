@@ -64,12 +64,13 @@ const branchIssues = (b: any) => b.products.filter((p: any) => (p.descuadre ?? 0
 
 <style lang="scss" scoped>
 .quick-links {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
 }
 
 .ql {
+  flex: 1 1 240px;
   display: flex;
   align-items: center;
   gap: 0.9rem;
@@ -113,12 +114,13 @@ const branchIssues = (b: any) => b.products.filter((p: any) => (p.descuadre ?? 0
 }
 
 .branch-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
 }
 
 .branch-mini {
+  flex: 1 1 320px;
   background: white;
   border: 1px solid #e9eef5;
   border-radius: 18px;
@@ -140,7 +142,7 @@ const branchIssues = (b: any) => b.products.filter((p: any) => (p.descuadre ?? 0
 
   > i {
     width: 34px; height: 34px; border-radius: 10px;
-    display: grid; place-items: center; font-size: 0.85rem;
+    display: flex; align-items: center; justify-content: center; font-size: 0.85rem;
     background: #eff6ff; color: #2563eb; flex-shrink: 0;
   }
 
@@ -156,11 +158,12 @@ const branchIssues = (b: any) => b.products.filter((p: any) => (p.descuadre ?? 0
 }
 
 .mini-stats {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
 
   > div {
+    flex: 1 1 64px;
     display: flex;
     flex-direction: column;
     align-items: center;

@@ -71,13 +71,13 @@ export function useDailyClosing(branch: Ref<string>) {
           contificoCategory: item.contificoCategory || null,
           stockObjectiveTomorrow: item.stockObjectiveTomorrow,
           stockObjectiveToday: item.stockObjectiveToday,
-          bajas: (isToday && item.lastEntry) ? item.lastEntry.bajas : 0,
-          // El excedente se vuelve a contar en cada envío: no se arrastra la
-          // existencia que quedó en el requerimiento anterior.
+          // El formulario SIEMPRE arranca en cero: bajas, excedente y pedido se
+          // escriben de nuevo en cada envío y nunca se arrastra lo del cierre
+          // anterior. El único dato que se muestra es el vendido del día
+          // (viene de Contífico, no se teclea).
+          bajas: 0,
           excedente: 0,
-          detailedLosses: (isToday && item.lastEntry) ? (item.lastEntry.detailedLosses || []) : [],
-          // Sin sugeridos ni precargas: el pedido SIEMPRE arranca en 0 y la
-          // encargada escribe exactamente lo que necesita en cada envío.
+          detailedLosses: [],
           pedidoOverride: null,
         };
       });

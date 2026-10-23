@@ -55,12 +55,13 @@ const descuadreOk = computed(() => props.descuadre === 0);
 
 <style lang="scss" scoped>
 .kpi-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.9rem;
 }
 
 .kpi {
+  flex: 1 1 210px;
   position: relative;
   overflow: hidden;
   display: flex;
@@ -92,8 +93,9 @@ const descuadreOk = computed(() => props.descuadre === 0);
   width: 46px;
   height: 46px;
   border-radius: 14px;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 1.1rem;
 }
 

@@ -129,12 +129,12 @@ const maxSold = (products: any[]) => Math.max(1, ...products.map(p => p.vendido 
   gap: 0.45rem;
 
   li {
-    display: grid;
-    grid-template-columns: minmax(140px, 1fr) 2fr 48px;
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 0.75rem;
 
-    .pname { font-size: 0.88rem; font-weight: 600; color: #334155; }
+    .pname { flex: 1 1 140px; min-width: 0; font-size: 0.88rem; font-weight: 600; color: #334155; }
 
     .cat-chip {
       display: inline-block;
@@ -151,15 +151,16 @@ const maxSold = (products: any[]) => Math.max(1, ...products.map(p => p.vendido 
     }
 
     .bar {
+      flex: 2 1 160px;
       height: 10px; background: #f1f5f9; border-radius: 6px; overflow: hidden;
       .fill { height: 100%; background: linear-gradient(90deg, #2563eb, #60a5fa); border-radius: 6px; }
     }
 
-    .qty { text-align: right; font-weight: 800; color: #1d4ed8; font-size: 0.95rem; }
+    .qty { flex: 0 0 48px; text-align: right; font-weight: 800; color: #1d4ed8; font-size: 0.95rem; }
   }
 }
 
 @media (max-width: 560px) {
-  .sales-list li { grid-template-columns: 1fr 1fr 42px; }
+  .sales-list li .bar { flex: 1 1 100px; }
 }
 </style>

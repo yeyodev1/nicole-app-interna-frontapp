@@ -21,10 +21,9 @@ const categories: { value: LossCategory; label: string; icon: string }[] = [
   { value: 'Other', label: 'Otro', icon: 'fa-circle-question' }
 ];
 
-// Tope de bajas: el stock mínimo del día. El excedente de vitrina ya no se
-// captura en el cierre, así que no se descuenta del tope.
+// Calculation of limits
 const maxAllowedLosses = computed(() => {
-  return Math.max(0, props.stockObjectiveToday);
+  return Math.max(0, props.stockObjectiveToday - props.excedente);
 });
 
 const totalReportedLosses = computed(() => {
@@ -107,7 +106,7 @@ const handleClose = () => {
             <i class="fa-solid fa-hand"></i>
             <div class="alert-content">
               <strong>Límite de bajas excedido</strong>
-              <p>No puedes reportar más de {{ maxAllowedLosses }} unidades (stock mínimo del día: {{ stockObjectiveToday }}).</p>
+              <p>No puedes reportar más de {{ maxAllowedLosses }} unidades (Objetivo {{ stockObjectiveToday }} - Stock {{ excedente }}).</p>
               <router-link :to="{ name: 'pos-restock-management' }" class="redirect-link">
                 Ir a Configurar Objetivos de Stock <i class="fa-solid fa-arrow-right"></i>
               </router-link>

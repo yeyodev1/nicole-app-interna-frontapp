@@ -123,8 +123,9 @@ const handleLogin = async () => {
   border-radius: 8px;
   color: #94a3b8;
   cursor: pointer;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
   &:hover { background: #f1f5f9; color: #475569; }
 }
