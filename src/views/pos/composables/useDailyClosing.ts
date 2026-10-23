@@ -72,7 +72,9 @@ export function useDailyClosing(branch: Ref<string>) {
           stockObjectiveTomorrow: item.stockObjectiveTomorrow,
           stockObjectiveToday: item.stockObjectiveToday,
           bajas: (isToday && item.lastEntry) ? item.lastEntry.bajas : 0,
-          excedente: (isToday && item.lastEntry) ? item.lastEntry.stockFinal : 0,
+          // El excedente se vuelve a contar en cada envío: no se arrastra la
+          // existencia que quedó en el requerimiento anterior.
+          excedente: 0,
           detailedLosses: (isToday && item.lastEntry) ? (item.lastEntry.detailedLosses || []) : [],
           // Sin sugeridos ni precargas: el pedido SIEMPRE arranca en 0 y la
           // encargada escribe exactamente lo que necesita en cada envío.

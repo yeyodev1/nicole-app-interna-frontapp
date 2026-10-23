@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onUnmounted } from 'vue'
+import { computed, ref, watch, onUnmounted } from 'vue'
 import { useRegisterSW } from 'virtual:pwa-register/vue'
 
 // Cada push a main publica una versión nueva. El modal es obligatorio: no se
@@ -12,12 +12,28 @@ const COUNTDOWN_SECONDS = 20
 const { needRefresh, updateServiceWorker } = useRegisterSW({
   onRegisteredSW(_url, registration) {
     if (!registration) return
+    // Chequeo inmediato (no esperar el primer intervalo) y luego periódico.
+    registration.update().catch(() => {})
     setInterval(() => registration.update().catch(() => {}), CHECK_INTERVAL_MS)
   },
   onRegisterError(error) {
     console.error('SW registration error:', error)
   },
 })
+
+// El service worker está configurado con skipWaiting + clientsClaim: la versión
+// nueva toma control sin pasar por el estado "waiting", así que `needRefresh`
+// muchas veces no se dispara y la pestaña abierta se queda con el código viejo
+// (por eso "recargué y no veo cambios"). El cambio de controlador es la señal
+// fiable de que ya hay versión nueva sirviendo.
+const controllerChanged = ref(false)
+if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    controllerChanged.value = true
+  })
+}
+
+const showUpdate = computed(() => needRefresh.value || controllerChanged.value)
 
 const secondsLeft = ref(COUNTDOWN_SECONDS)
 const isUpdating = ref(false)
@@ -27,10 +43,13 @@ const update = () => {
   if (isUpdating.value) return
   isUpdating.value = true
   updateServiceWorker(true)
+  // Respaldo: si no había un worker "waiting" al que pedirle el relevo,
+  // updateServiceWorker no recarga por su cuenta.
+  window.setTimeout(() => window.location.reload(), 1500)
 }
 
-watch(needRefresh, (pending) => {
-  if (!pending) return
+watch(showUpdate, (pending) => {
+  if (!pending || ticker) return
   secondsLeft.value = COUNTDOWN_SECONDS
   ticker = window.setInterval(() => {
     secondsLeft.value -= 1
@@ -46,7 +65,7 @@ onUnmounted(() => window.clearInterval(ticker))
 
 <template>
   <Transition name="update-fade">
-    <div v-if="needRefresh" class="update-overlay" role="alertdialog" aria-labelledby="update-title">
+    <div v-if="showUpdate" class="update-overlay" role="alertdialog" aria-labelledby="update-title">
       <div class="update-card">
         <div class="glow" aria-hidden="true"></div>
 

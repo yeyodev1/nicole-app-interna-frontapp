@@ -94,7 +94,11 @@ const isSimpleSupply = () => props.item.isGeneral && !props.item.requiresMinimum
 
       <div class="field">
         <label>Excedente (Vitrina)</label>
-        <input type="number" min="0" placeholder="0" class="num" v-model.number="item.excedente" />
+        <input
+          type="number" min="0" inputmode="numeric" class="num"
+          v-model.number="item.excedente"
+          @focus="($event.target as HTMLInputElement).select()"
+        />
       </div>
 
       <div class="field pedido">

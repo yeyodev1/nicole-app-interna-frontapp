@@ -10,9 +10,13 @@ export default defineConfig({
     vueDevTools(),
     VitePWA({
       registerType: 'autoUpdate',
-      // Only cache the app shell — no full offline mode
+      // Only cache the app shell — no full offline mode.
+      // El index.html NO se precachea a propósito: si se sirve desde el caché,
+      // una recarga sigue mostrando la versión vieja (apunta a los bundles
+      // viejos) y los cambios no aparecen. Dejándolo fuera, el HTML siempre
+      // viene de la red y una sola recarga trae la versión nueva.
       workbox: {
-        globPatterns: ['**/*.{js,css,html}'],
+        globPatterns: ['**/*.{js,css}'],
         navigateFallback: null,
         // Forzar que la nueva versión tome control de inmediato en todos los clientes
         skipWaiting: true,
