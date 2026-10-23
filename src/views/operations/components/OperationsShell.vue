@@ -89,30 +89,34 @@ onMounted(ensureLoaded);
 <style lang="scss" scoped>
 .ops-page {
   min-height: 100vh;
-  background: #f8fafc;
-  padding: 1.5rem 1rem 4rem;
+  padding: 1.75rem 1.25rem 4rem;
   font-family: 'Inter', -apple-system, sans-serif;
+  background:
+    radial-gradient(900px 320px at 12% -8%, rgba(124, 58, 237, 0.09), transparent 70%),
+    linear-gradient(180deg, #fbfcfe 0%, #f5f7fb 100%);
 }
 
 .container {
-  max-width: 1100px;
+  max-width: 1180px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1.1rem;
 }
 
 .term-note {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  background: #faf5ff;
-  border: 1px solid #e9d5ff;
-  color: #6b21a8;
-  border-radius: 10px;
-  padding: 0.55rem 0.9rem;
+  gap: 0.6rem;
+  background: white;
+  border: 1px solid #ece4fb;
+  border-left: 4px solid #a855f7;
+  color: #5b21b6;
+  border-radius: 12px;
+  padding: 0.7rem 1rem;
   font-size: 0.8rem;
-  line-height: 1.4;
+  line-height: 1.5;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
   i { color: #9333ea; flex-shrink: 0; }
 }
 

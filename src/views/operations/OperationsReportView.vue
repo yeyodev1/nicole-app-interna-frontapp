@@ -74,32 +74,39 @@ const branchIssues = (b: any) => b.products.filter((p: any) => (p.descuadre ?? 0
   align-items: center;
   gap: 0.9rem;
   background: white;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 1rem 1.1rem;
+  border: 1px solid #e9eef5;
+  border-radius: 16px;
+  padding: 1.05rem 1.15rem;
   text-decoration: none;
   color: #0f172a;
-  transition: all 0.15s;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+  transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s;
 
   > i:first-child {
-    width: 42px; height: 42px; border-radius: 12px;
-    display: flex; align-items: center; justify-content: center; font-size: 1.1rem;
+    width: 44px; height: 44px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center; font-size: 1.05rem;
+    flex-shrink: 0;
   }
 
-  div { flex: 1; display: flex; flex-direction: column; }
-  strong { font-size: 0.98rem; }
-  span { font-size: 0.78rem; color: #64748b; }
-  .arrow { color: #cbd5e1; font-size: 0.8rem; }
+  div { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  strong { font-size: 0.97rem; font-weight: 800; }
+  span { font-size: 0.78rem; color: #8a97a8; }
+  .arrow { color: #cbd5e1; font-size: 0.8rem; transition: transform 0.18s; }
 
-  &:hover { border-color: #94a3b8; transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06); }
+  &:hover {
+    border-color: #ddd6fe;
+    transform: translateY(-2px);
+    box-shadow: 0 12px 26px rgba(15, 23, 42, 0.09);
+    .arrow { transform: translateX(3px); color: #7c3aed; }
+  }
 
   &.sales > i:first-child { background: #eff6ff; color: #2563eb; }
   &.losses > i:first-child { background: #fffbeb; color: #d97706; }
   &.disc > i:first-child { background: #f0fdf4; color: #16a34a; }
 
   &.disc.alert {
-    border-color: #fecaca;
-    background: #fff7f7;
+    border-color: #fbd5d5;
+    background: linear-gradient(180deg, #fffafa, white 60%);
     > i:first-child { background: #fee2e2; color: #dc2626; }
     span { color: #b91c1c; font-weight: 700; }
   }
@@ -113,22 +120,35 @@ const branchIssues = (b: any) => b.products.filter((p: any) => (p.descuadre ?? 0
 
 .branch-mini {
   background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 1rem 1.2rem;
+  border: 1px solid #e9eef5;
+  border-radius: 18px;
+  padding: 1.1rem 1.25rem 1.2rem;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+  transition: transform 0.18s, box-shadow 0.18s;
+
+  &:hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08); }
 }
 
 .mini-head {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  margin-bottom: 0.8rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.95rem;
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid #f1f5f9;
 
-  i { color: #2563eb; }
-  h3 { margin: 0; font-size: 1rem; color: #0f172a; flex: 1; }
+  > i {
+    width: 34px; height: 34px; border-radius: 10px;
+    display: grid; place-items: center; font-size: 0.85rem;
+    background: #eff6ff; color: #2563eb; flex-shrink: 0;
+  }
+
+  h3 { margin: 0; font-size: 1rem; font-weight: 800; color: #0f172a; flex: 1; min-width: 0; }
 
   .chip {
-    font-size: 0.7rem; font-weight: 800; padding: 2px 9px; border-radius: 10px;
+    font-size: 0.68rem; font-weight: 800; padding: 3px 10px; border-radius: 20px;
+    white-space: nowrap;
     &.ok { background: #dcfce7; color: #15803d; }
     &.bad { background: #fee2e2; color: #b91c1c; }
     &.warn { background: #fef3c7; color: #92400e; }
@@ -144,14 +164,21 @@ const branchIssues = (b: any) => b.products.filter((p: any) => (p.descuadre ?? 0
     display: flex;
     flex-direction: column;
     align-items: center;
+    gap: 2px;
     background: #f8fafc;
-    border-radius: 10px;
-    padding: 0.5rem 0.25rem;
+    border: 1px solid #eef2f7;
+    border-radius: 12px;
+    padding: 0.6rem 0.25rem;
 
-    .n { font-size: 1.15rem; font-weight: 800; color: #0f172a; }
-    .l { font-size: 0.66rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; }
+    .n { font-size: 1.2rem; font-weight: 800; color: #0f172a; letter-spacing: -0.02em; }
+    .l { font-size: 0.64rem; font-weight: 800; color: #9aa6b6; text-transform: uppercase; letter-spacing: 0.03em; }
 
-    &.bad { background: #fef2f2; .n { color: #dc2626; } }
+    &.bad {
+      background: #fef2f2;
+      border-color: #fbd5d5;
+      .n { color: #dc2626; }
+      .l { color: #b91c1c; }
+    }
   }
 }
 </style>

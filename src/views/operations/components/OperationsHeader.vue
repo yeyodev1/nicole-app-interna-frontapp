@@ -72,31 +72,56 @@ const niceDate = computed(() => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 1rem;
+  gap: 1.25rem;
   flex-wrap: wrap;
+  background: white;
+  border: 1px solid #e9eef5;
+  border-radius: 18px;
+  padding: 1.25rem 1.4rem;
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.04);
 }
 
 .title-side {
+  min-width: 0;
+
   h1 {
-    margin: 0 0 0.25rem;
-    font-size: 1.45rem;
+    margin: 0 0 0.3rem;
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
     color: #0f172a;
     display: flex;
     align-items: center;
-    gap: 0.6rem;
-    i { color: #7c3aed; }
+    gap: 0.7rem;
+
+    i {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      font-size: 1rem;
+      color: white;
+      background: linear-gradient(135deg, #7c3aed, #9333ea);
+      box-shadow: 0 6px 14px rgba(124, 58, 237, 0.3);
+      flex-shrink: 0;
+    }
   }
 
-  p { margin: 0 0 0.35rem; color: #64748b; font-size: 0.88rem; max-width: 560px; }
+  p { margin: 0 0 0.5rem; color: #64748b; font-size: 0.88rem; max-width: 560px; line-height: 1.5; }
 
   .nice-date {
-    color: #7c3aed;
+    color: #6d28d9;
+    background: #f5f3ff;
+    border: 1px solid #e9d5ff;
     font-weight: 800;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     text-transform: capitalize;
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
+    gap: 0.45rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: 20px;
   }
 }
 

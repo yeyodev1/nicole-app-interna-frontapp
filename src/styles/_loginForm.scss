@@ -1,0 +1,110 @@
+// Estilos compartidos por los formularios de la pantalla de acceso
+// (iniciar sesión y recuperar contraseña). Es un mixin: no emite CSS
+// hasta que un componente lo incluye.
+@use 'colorVariables.module.scss' as *;
+
+@mixin login-form-fields {
+  .login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .field-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .input-wrap {
+    position: relative;
+    display: block;
+
+    > i {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+      font-size: 0.9rem;
+      pointer-events: none;
+    }
+
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 0.85rem 2.8rem 0.85rem 2.6rem;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 12px;
+      background: #f8fafc;
+      font-size: 0.95rem;
+      color: #0f172a;
+      transition: all 0.2s;
+
+      &:focus {
+        outline: none;
+        background: white;
+        border-color: $NICOLE-PURPLE;
+        box-shadow: 0 0 0 4px rgba($NICOLE-PURPLE, 0.12);
+      }
+
+      &::placeholder { color: #cbd5e1; }
+    }
+  }
+
+  .btn-primary {
+    padding: 0.95rem;
+    background: linear-gradient(135deg, $NICOLE-PURPLE, $purple-dark);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 0.98rem;
+    font-weight: 800;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 20px rgba($NICOLE-PURPLE, 0.28);
+    transition: transform 0.18s, box-shadow 0.18s;
+
+    &:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 26px rgba($NICOLE-PURPLE, 0.36);
+    }
+
+    &:disabled { opacity: 0.75; cursor: wait; }
+  }
+
+  .link-btn {
+    background: none;
+    border: none;
+    color: $NICOLE-PURPLE;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0.3rem;
+
+    &:hover { text-decoration: underline; }
+  }
+
+  .loader {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #ffffff;
+    border-bottom-color: transparent;
+    border-radius: 50%;
+    animation: login-rotation 1s linear infinite;
+  }
+
+  @keyframes login-rotation {
+    to { transform: rotate(360deg); }
+  }
+}
