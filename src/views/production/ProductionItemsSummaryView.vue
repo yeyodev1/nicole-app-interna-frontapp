@@ -92,6 +92,17 @@ const handleExportClick = (mode: 'dispatch' | 'production') => {
   showExportModal.value = true
 }
 
+// Cuántos pedidos saldrían con la fecha/sucursal elegidas en el modal
+const exportPreviewCount = ref<number | null>(null)
+
+const updateExportPreview = (opts: { destination: string; date: string }) => {
+  try {
+    exportPreviewCount.value = filterOrdersForExport(opts).length
+  } catch {
+    exportPreviewCount.value = null
+  }
+}
+
 const handleExportConfirm = async (opts: { responsibleName: string; destination: string; date: string }) => {
   try {
     // Pedidos por sucursal y fecha, independiente de los filtros de la pantalla
@@ -108,7 +119,7 @@ const handleExportConfirm = async (opts: { responsibleName: string; destination:
     }
 
     if (ordersToExport.length === 0) {
-      showError('No hay pedidos para esa sucursal y fecha. Prueba "Todas".')
+      showError('No hay pedidos con esa fecha y sucursal. Cambia la fecha o elige "Todas las sucursales".')
       return
     }
 
@@ -124,9 +135,9 @@ const handleExportConfirm = async (opts: { responsibleName: string; destination:
 
     showExportModal.value = false
     clearRawSelection()
-  } catch (err) {
+  } catch (err: any) {
     console.error(err)
-    showError('Error al exportar. Inténtalo de nuevo.')
+    showError(`No se pudo exportar: ${err?.message || 'error inesperado'}`)
   }
 }
 
@@ -224,6 +235,8 @@ onMounted(() => {
       :mode="exportMode"
       :destinations="exportDestinations"
       :selected-count="selectedProductNames.length"
+      :preview-count="exportPreviewCount"
+      @preview="updateExportPreview"
       @close="showExportModal = false"
       @confirm="handleExportConfirm"
     />

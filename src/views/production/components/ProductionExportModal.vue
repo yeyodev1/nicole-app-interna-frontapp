@@ -10,9 +10,10 @@ const props = defineProps<{
   mode: 'dispatch' | 'production';
   destinations: string[]; // sucursales/destinos disponibles
   selectedCount: number; // productos seleccionados (0 = todos)
+  previewCount?: number | null;
 }>();
 
-const emit = defineEmits(['close', 'confirm']);
+const emit = defineEmits(['close', 'confirm', 'preview']);
 
 const tomorrowStr = () => {
   const [y, m, d] = getECTTodayString().split('-').map(Number);
@@ -37,6 +38,18 @@ const title = computed(() =>
   props.mode === 'production' ? 'Exportar Orden de Producción' : 'Exportar Orden de Entrega'
 );
 
+// Avisa al padre qué se exportaría con la selección actual, para mostrar
+// el conteo antes de presionar (así nunca se presiona a ciegas).
+const emitPreview = () => {
+  emit('preview', {
+    destination: destination.value,
+    date: allDates.value ? 'all' : date.value,
+  });
+};
+
+watch([destination, date, allDates], emitPreview);
+watch(() => props.isOpen, (open) => { if (open) emitPreview(); });
+
 const destinationOptions = computed(() => [
   { value: 'all', label: 'Todas las sucursales' },
   ...props.destinations.map(d => ({ value: d, label: d })),
@@ -53,14 +66,10 @@ const quickDate = (value: string) => {
   date.value = value;
 };
 
-const canConfirm = computed(() =>
-  props.mode !== 'production' || responsibleName.value.trim().length >= 3
-);
-
 const confirm = () => {
-  if (!canConfirm.value) return;
   emit('confirm', {
-    responsibleName: responsibleName.value.trim(),
+    // El nombre es opcional: sin él el Excel sale a nombre de "Producción".
+    responsibleName: responsibleName.value.trim() || 'Producción',
     destination: destination.value,
     date: allDates.value ? 'all' : date.value,
   });
@@ -100,13 +109,23 @@ const confirm = () => {
         </div>
 
         <div v-if="mode === 'production'" class="field">
-          <label>Nombre del Responsable</label>
+          <label>Nombre del responsable <span class="optional">(opcional)</span></label>
           <input v-model="responsibleName" type="text" placeholder="Ej: Juan Pérez" @keyup.enter="confirm" />
         </div>
 
+        <p class="preview-line" :class="{ empty: previewCount === 0 }">
+          <i :class="previewCount === 0 ? 'fa-solid fa-circle-exclamation' : 'fa-solid fa-circle-info'"></i>
+          <span v-if="previewCount === null || previewCount === undefined">Calculando qué se va a exportar…</span>
+          <span v-else-if="previewCount === 0">
+            No hay pedidos con esta fecha y sucursal. Cambia la fecha, elige
+            <strong>Todas las sucursales</strong> o marca <strong>todas las fechas</strong>.
+          </span>
+          <span v-else>Se exportarán <strong>{{ previewCount }}</strong> pedido(s).</span>
+        </p>
+
         <div class="actions">
           <button class="btn-cancel" :disabled="isLoading" @click="emit('close')">Cancelar</button>
-          <button class="btn-confirm" :class="mode" :disabled="isLoading || !canConfirm" @click="confirm">
+          <button class="btn-confirm" :class="mode" :disabled="isLoading" @click="confirm">
             <i class="fas" :class="isLoading ? 'fa-spinner fa-spin' : 'fa-file-excel'"></i>
             {{ isLoading ? 'Exportando...' : 'Exportar Excel' }}
           </button>
@@ -127,6 +146,35 @@ const confirm = () => {
   align-items: center;
   z-index: 9999;
   padding: 1rem;
+}
+
+.preview-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 10px;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  color: #0369a1;
+  font-size: 0.82rem;
+  line-height: 1.45;
+
+  i { margin-top: 2px; flex-shrink: 0; }
+
+  &.empty {
+    background: #fffbeb;
+    border-color: #fde68a;
+    color: #92400e;
+  }
+}
+
+.optional {
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .export-card {
