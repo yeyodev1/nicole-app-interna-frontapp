@@ -24,6 +24,9 @@ const shiftDate = (base: string, days: number) => {
 
 const today = () => getECTTodayString();
 const yesterday = computed(() => shiftDate(today(), -1));
+// TEMPORAL (pruebas): poder mirar días futuros para verificar que el stock
+// inicial se toma del cierre del día anterior.
+const tomorrow = computed(() => shiftDate(today(), 1));
 
 const fmt = (s: string, opts: Intl.DateTimeFormatOptions) => {
   const [y, m, d] = s.split('-').map(Number);
@@ -48,13 +51,14 @@ const niceDate = computed(() => {
     <div class="date-controls">
       <button :class="{ active: !isRange && date === today() }" :disabled="isLoading" @click="emit('set-date', today())">Hoy</button>
       <button :class="{ active: !isRange && date === yesterday }" :disabled="isLoading" @click="emit('set-date', yesterday)">Ayer</button>
+      <!-- TEMPORAL (pruebas): día siguiente -->
+      <button class="future-btn" :class="{ active: !isRange && date === tomorrow }" :disabled="isLoading" @click="emit('set-date', tomorrow)">Mañana</button>
       <button class="range-btn" :class="{ active: isRange }" :disabled="isLoading" title="Elegir desde–hasta" @click="emit('open-range')">
         <i class="fa-solid fa-calendar-week"></i> Periodo
       </button>
       <div class="picker-wrap">
         <CustomDatePicker
           :model-value="isRange ? '' : date"
-          :max-date="today()"
           :disabled="isLoading"
           placeholder="Otra fecha"
           @update:model-value="emit('set-date', $event)"
@@ -147,6 +151,14 @@ const niceDate = computed(() => {
     &:disabled { opacity: 0.55; cursor: not-allowed; }
 
     &.refresh { padding: 0.55rem 0.8rem; color: #7c3aed; }
+
+    // TEMPORAL (pruebas): se distingue del resto para recordar que es futuro
+    &.future-btn {
+      border-style: dashed;
+      border-color: #c4b5fd;
+      color: #6d28d9;
+      &.active { background: #6d28d9; border-color: #6d28d9; color: white; }
+    }
 
     &.range-btn {
       display: flex;

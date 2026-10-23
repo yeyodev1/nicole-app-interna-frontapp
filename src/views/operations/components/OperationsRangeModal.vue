@@ -78,12 +78,12 @@ const apply = () => {
         <div class="pickers">
           <div class="picker">
             <label><i class="fa-solid fa-play"></i> Desde</label>
-            <CustomDatePicker v-model="from" :max-date="to || today()" placeholder="Desde" />
+            <CustomDatePicker v-model="from" :max-date="to || ''" placeholder="Desde" />
           </div>
           <i class="fa-solid fa-arrow-right arrow"></i>
           <div class="picker">
             <label><i class="fa-solid fa-flag-checkered"></i> Hasta</label>
-            <CustomDatePicker v-model="to" :min-date="from" :max-date="today()" placeholder="Hasta" />
+            <CustomDatePicker v-model="to" :min-date="from" placeholder="Hasta" />
           </div>
         </div>
 
