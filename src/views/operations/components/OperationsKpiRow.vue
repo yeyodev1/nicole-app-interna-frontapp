@@ -8,7 +8,8 @@ const props = defineProps<{
   descuadre: number;
 }>();
 
-const descuadreOk = computed(() => props.descuadre === 0);
+// Negativo = falta (rojo) · Positivo o cero = verde
+const descuadreNeg = computed(() => props.descuadre < 0);
 </script>
 
 <template>
@@ -40,14 +41,16 @@ const descuadreOk = computed(() => props.descuadre === 0);
       </div>
     </article>
 
-    <article class="kpi descuadre" :class="descuadreOk ? 'is-ok' : 'is-bad'">
+    <article class="kpi descuadre" :class="descuadreNeg ? 'is-bad' : 'is-ok'">
       <span class="ico">
-        <i :class="descuadreOk ? 'fa-solid fa-circle-check' : 'fa-solid fa-scale-unbalanced'"></i>
+        <i :class="descuadreNeg ? 'fa-solid fa-scale-unbalanced' : 'fa-solid fa-circle-check'"></i>
       </span>
       <div class="body">
-        <span class="label">Descuadre</span>
+        <span class="label">Diferencia</span>
         <span class="value">{{ descuadre > 0 ? `+${descuadre}` : descuadre }}</span>
-        <span class="hint">{{ descuadreOk ? 'todo cuadra' : 'cierre vs Contífico' }}</span>
+        <span class="hint">
+          {{ descuadre === 0 ? 'todo cuadra' : descuadreNeg ? `faltan ${Math.abs(descuadre)} unids` : `sobran ${descuadre} unids` }}
+        </span>
       </div>
     </article>
   </div>

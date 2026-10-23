@@ -85,8 +85,8 @@ const hasNegativeCierre = computed(() =>
               <td>{{ d.bajas || '' }}</td>
               <td class="should">{{ d.deberiaQuedar ?? '—' }}</td>
               <td>{{ d.quedo ?? '—' }}</td>
-              <td class="desc" :class="{ falta: (d.descuadre ?? 0) < 0 }">
-                {{ (d.descuadre ?? 0) > 0 ? `+${d.descuadre}` : d.descuadre }}
+              <td class="desc" :class="(d.descuadre ?? 0) < 0 ? 'neg' : 'pos'">
+                <span class="desc-num">{{ (d.descuadre ?? 0) > 0 ? `+${d.descuadre}` : d.descuadre }}</span>
                 <span class="desc-word">{{ (d.descuadre ?? 0) < 0 ? 'falta' : 'sobra' }}</span>
               </td>
             </tr>
@@ -228,13 +228,21 @@ table {
     white-space: nowrap;
   }
 
+  // Negativo = rojo · Positivo (y cero) = verde
   .desc {
     font-weight: 800;
-    color: #b45309;
     font-size: 1rem;
     white-space: nowrap;
 
-    &.falta { color: #dc2626; }
+    .desc-num {
+      display: inline-block;
+      padding: 1px 10px;
+      border-radius: 20px;
+      font-size: 1.02rem;
+    }
+
+    &.neg { color: #b91c1c; .desc-num { background: #fee2e2; } }
+    &.pos { color: #15803d; .desc-num { background: #dcfce7; } }
 
     .desc-word {
       display: block;

@@ -53,8 +53,8 @@ const branchIssues = (b: any) => b.products.filter((p: any) => (p.descuadre ?? 0
           <div><span class="n">{{ b.totals.vendido }}</span><span class="l">vendido</span></div>
           <div><span class="n">{{ b.totals.ventaCierre }}</span><span class="l">cierre</span></div>
           <div><span class="n">{{ b.totals.bajas }}</span><span class="l">bajas</span></div>
-          <div :class="{ bad: b.totals.descuadre !== 0 }">
-            <span class="n">{{ b.totals.descuadre > 0 ? `+${b.totals.descuadre}` : b.totals.descuadre }}</span><span class="l">descuadre</span>
+          <div :class="b.totals.descuadre < 0 ? 'neg' : 'pos'">
+            <span class="n">{{ b.totals.descuadre > 0 ? `+${b.totals.descuadre}` : b.totals.descuadre }}</span><span class="l">diferencia</span>
           </div>
         </div>
       </div>
@@ -176,11 +176,19 @@ const branchIssues = (b: any) => b.products.filter((p: any) => (p.descuadre ?? 0
     .n { font-size: 1.2rem; font-weight: 800; color: #0f172a; letter-spacing: -0.02em; }
     .l { font-size: 0.64rem; font-weight: 800; color: #9aa6b6; text-transform: uppercase; letter-spacing: 0.03em; }
 
-    &.bad {
+    // Negativo = rojo · Positivo o cero = verde
+    &.neg {
       background: #fef2f2;
       border-color: #fbd5d5;
       .n { color: #dc2626; }
       .l { color: #b91c1c; }
+    }
+
+    &.pos {
+      background: #f0fdf4;
+      border-color: #bbf7d0;
+      .n { color: #15803d; }
+      .l { color: #15803d; }
     }
   }
 }

@@ -49,7 +49,10 @@ const handleExport = () =>
         <span v-if="!b.hasClosing" class="chip muted">sin cierre</span>
         <span class="totals">
           vendido <strong>{{ b.totals.vendido }}</strong> · bajas <strong>{{ b.totals.bajas }}</strong> ·
-          diferencia <strong :class="{ bad: b.totals.descuadre !== 0 }">{{ b.totals.descuadre > 0 ? `+${b.totals.descuadre}` : b.totals.descuadre }}</strong>
+          diferencia
+          <strong class="diff-chip" :class="b.totals.descuadre < 0 ? 'neg' : 'pos'">
+            {{ b.totals.descuadre > 0 ? `+${b.totals.descuadre}` : b.totals.descuadre }}
+          </strong>
         </span>
       </header>
 
@@ -82,7 +85,7 @@ const handleExport = () =>
               <td :class="{ 'has-bajas': p.bajas > 0 }">{{ p.bajas || '' }}</td>
               <td class="should">{{ p.deberiaQuedar ?? '—' }}</td>
               <td>{{ p.quedo ?? '—' }}</td>
-              <td class="diff" :class="{ falta: (p.descuadre ?? 0) < 0, sobra: (p.descuadre ?? 0) > 0 }">
+              <td class="diff" :class="(p.descuadre ?? 0) < 0 ? 'neg' : 'pos'">
                 {{ p.descuadre === null ? '—' : (p.descuadre > 0 ? `+${p.descuadre}` : p.descuadre) }}
               </td>
             </tr>
@@ -205,12 +208,25 @@ table {
 
   .sin-ok { display: block; font-size: 0.6rem; font-weight: 800; color: #d97706; white-space: nowrap; }
 
+  // Negativo = rojo · Positivo (y cero) = verde
   .diff {
     font-weight: 800;
-    &.falta { color: #dc2626; }
-    &.sobra { color: #d97706; }
+    font-size: 1rem;
+    white-space: nowrap;
+    &.neg { color: #dc2626; }
+    &.pos { color: #15803d; }
   }
 
   .empty-row { padding: 1.4rem; color: #94a3b8; }
+}
+
+.diff-chip {
+  display: inline-block;
+  padding: 1px 9px;
+  border-radius: 20px;
+  font-weight: 800;
+
+  &.neg { background: #fee2e2; color: #b91c1c; }
+  &.pos { background: #dcfce7; color: #15803d; }
 }
 </style>

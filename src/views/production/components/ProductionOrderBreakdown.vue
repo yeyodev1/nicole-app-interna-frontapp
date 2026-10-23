@@ -1,81 +1,12 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { toRef } from 'vue'
+import { useOrderBreakdown } from '../composables/useOrderBreakdown'
 
 // Desglose de una orden para comprobar que cuadra antes (y después) de
 // marcar enviado: lo pedido, lo que realmente se hizo y lo que ya salió.
 const props = defineProps<{ order: any }>()
 
-interface Line {
-  name: string
-  pedido: number
-  hecho: number
-  enviado: number
-  cerrado: boolean // resto eliminado: se cerró produciendo menos
-  estado: { label: string; class: string }
-}
-
-const sentByProduct = computed<Map<string, number>>(() => {
-  const map = new Map<string, number>()
-  for (const d of props.order.dispatches || []) {
-    for (const item of d.items || []) {
-      const key = String(item.name || '')
-      map.set(key, (map.get(key) || 0) + (item.quantitySent || 0))
-    }
-  }
-  return map
-})
-
-const lines = computed<Line[]>(() =>
-  (props.order.products || []).map((p: any) => {
-    const pedido = p.quantity || 0
-    const hecho = p.produced || 0
-    const enviado = sentByProduct.value.get(String(p.name)) || 0
-    const cerrado = p.productionStatus === 'COMPLETED' && hecho < pedido
-
-    // Lo exigible es lo que se hizo cuando la fila se cerró con menos.
-    const exigible = cerrado ? hecho : pedido
-
-    let estado = { label: 'Todo cuadra', class: 'ok' }
-    if (hecho < pedido && !cerrado) {
-      estado = { label: `Falta producir ${pedido - hecho}`, class: 'warn' }
-    } else if (enviado < exigible) {
-      estado = { label: `Falta enviar ${exigible - enviado}`, class: 'pending' }
-    } else if (enviado > pedido) {
-      estado = { label: `Se envió ${enviado - pedido} de más`, class: 'bad' }
-    } else if (cerrado) {
-      estado = { label: `Cerrado con ${pedido - hecho} menos`, class: 'closed' }
-    }
-
-    return { name: p.name, pedido, hecho, enviado, cerrado, estado }
-  })
-)
-
-const totals = computed(() =>
-  lines.value.reduce(
-    (acc, l) => ({
-      pedido: acc.pedido + l.pedido,
-      hecho: acc.hecho + l.hecho,
-      enviado: acc.enviado + l.enviado,
-    }),
-    { pedido: 0, hecho: 0, enviado: 0 }
-  )
-)
-
-const veredicto = computed(() => {
-  const faltaProducir = lines.value.filter(l => l.estado.class === 'warn').length
-  const faltaEnviar = lines.value.filter(l => l.estado.class === 'pending').length
-  const exceso = lines.value.filter(l => l.estado.class === 'bad').length
-  if (exceso) return { label: 'Hay producto enviado de más', class: 'bad' }
-  if (faltaProducir) return { label: `${faltaProducir} producto(s) sin terminar de producir`, class: 'warn' }
-  if (faltaEnviar) return { label: `${faltaEnviar} producto(s) por enviar`, class: 'pending' }
-  return { label: 'Todo cuadra: lo que se hizo ya salió', class: 'ok' }
-})
-
-const fmt = (d: string | Date) =>
-  new Date(d).toLocaleString('es-EC', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
-
-const receptionLabel = (status: string) =>
-  status === 'RECEIVED' ? 'Recibido' : status === 'PROBLEM' ? 'Recibido con novedad' : 'Pendiente de recibir'
+const { lines, totals, veredicto, fmt, receptionLabel } = useOrderBreakdown(toRef(props, 'order'))
 </script>
 
 <template>
