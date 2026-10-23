@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { posRestockService } from '@/services/pos-restock.service';
 import { useDailyClosing } from '@/views/pos/composables/useDailyClosing';
@@ -12,6 +12,8 @@ import RestockSearchBar from './components/RestockSearchBar.vue';
 import RestockCloserChip from './components/RestockCloserChip.vue';
 import RestockPageHeader from './components/RestockPageHeader.vue';
 import RestockClosingModals from './components/RestockClosingModals.vue';
+// TEMPORAL (pruebas): cierre para otro día
+import RestockDateSelector from './components/RestockDateSelector.vue';
 import { useToast } from '@/composables/useToast';
 
 const route = useRoute();
@@ -20,6 +22,9 @@ const branch = ref<string>((route.query.branch as string) || 'San Marino');
 
 const { success, error: showError } = useToast();
 const showConfirmModal = ref(false);
+
+// TEMPORAL (pruebas): día del cierre ('' = hoy)
+const closingDate = ref('');
 
 const {
   isLoading, isSubmitting, formData, formItems, hasExistingEntry,
@@ -30,7 +35,7 @@ const {
   showLossModal, activeProductForLoss, openLossModal, handleSaveLosses,
   overriddenItems, hasExcessiveOverride, confirmMessage, confirmMessageHtml,
   buildPayload,
-} = useDailyClosing(branch);
+} = useDailyClosing(branch, closingDate);
 
 // Modal de nombre: se pide al abrir el cierre si aún no hay nombre guardado.
 const showNameModal = ref(false);
@@ -39,6 +44,12 @@ const handleNameSave = (name: string) => {
   setSubmittedBy(name);
   showNameModal.value = false;
 };
+
+// TEMPORAL (pruebas): recargar al cambiar el día del cierre
+watch(closingDate, () => {
+  fetchDailySales();
+  fetchDailyForm().catch(err => console.error('Error fetching daily form:', err));
+});
 
 const goBack = () => {
   router.push({ name: 'pos-shipments' });
@@ -106,6 +117,8 @@ onMounted(() => {
 
       <form v-else @submit.prevent="handleSubmitClick" class="form-grid">
         <RestockCloserChip :name="submittedBy" @change="showNameModal = true" />
+        <!-- TEMPORAL (pruebas): elegir el día del cierre -->
+        <RestockDateSelector v-model="closingDate" />
         <RestockClosingBanner
           :target-date="formData.targetDate"
           :sales="sales"
