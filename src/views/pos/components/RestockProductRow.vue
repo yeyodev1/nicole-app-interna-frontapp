@@ -92,15 +92,6 @@ const isSimpleSupply = () => props.item.isGeneral && !props.item.requiresMinimum
         />
       </div>
 
-      <div class="field">
-        <label>Excedente (Vitrina)</label>
-        <input
-          type="number" min="0" inputmode="numeric" class="num"
-          v-model.number="item.excedente"
-          @focus="($event.target as HTMLInputElement).select()"
-        />
-      </div>
-
       <div class="field pedido">
         <label>Pedido a {{ item.category === 'Bodega' ? 'Bodega' : 'Producción' }}</label>
         <input
@@ -204,7 +195,7 @@ const isSimpleSupply = () => props.item.isGeneral && !props.item.requiresMinimum
 
 .row-grid {
   display: grid;
-  grid-template-columns: auto 1fr 1fr 1.2fr;
+  grid-template-columns: auto 1fr 1.2fr;
   gap: 0.75rem;
   align-items: end;
 }

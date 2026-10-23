@@ -82,7 +82,7 @@ const handleExport = () =>
               <td :class="{ 'has-bajas': p.bajas > 0 }">{{ p.bajas || '' }}</td>
               <td class="should">{{ p.deberiaQuedar ?? '—' }}</td>
               <td>{{ p.quedo ?? '—' }}</td>
-              <td class="diff" :class="{ falta: (p.descuadre ?? 0) < 0, sobra: (p.descuadre ?? 0) > 0 }">
+              <td class="diff" :class="{ falta: (p.descuadre ?? 0) > 0, sobra: (p.descuadre ?? 0) < 0 }">
                 {{ p.descuadre === null ? '—' : (p.descuadre > 0 ? `+${p.descuadre}` : p.descuadre) }}
               </td>
             </tr>
