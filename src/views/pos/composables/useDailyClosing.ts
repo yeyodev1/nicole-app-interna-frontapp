@@ -37,7 +37,7 @@ export interface RestockItemData {
  * carga del formulario, venta del día desde Contífico, bajas rápidas,
  * pedido manual (ya no existe pedido sugerido) y armado del payload.
  */
-export function useDailyClosing(branch: Ref<string>) {
+export function useDailyClosing(branch: Ref<string>, closingDate?: Ref<string>) {
   const isLoading = ref(false);
   const isSubmitting = ref(false);
   const formData = ref<DailyFormData | null>(null);
@@ -54,7 +54,8 @@ export function useDailyClosing(branch: Ref<string>) {
     formItems.value = [];
     hasExistingEntry.value = false;
     try {
-      const data = await posRestockService.getDailyForm(branch.value);
+      // closingDate vacío = hoy (lo resuelve el backend)
+      const data = await posRestockService.getDailyForm(branch.value, closingDate?.value || undefined);
       formData.value = data;
       const today = data.formDate;
 
@@ -90,7 +91,7 @@ export function useDailyClosing(branch: Ref<string>) {
     salesLoading.value = true;
     sales.value = null;
     try {
-      sales.value = await posRestockService.getDailySales(branch.value);
+      sales.value = await posRestockService.getDailySales(branch.value, closingDate?.value || undefined);
     } catch (error) {
       console.error('Error fetching daily sales:', error);
       sales.value = null;

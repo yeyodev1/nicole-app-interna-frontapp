@@ -3,6 +3,9 @@ import { ref, computed, watch } from 'vue';
 import { posRestockService } from '@/services/pos-restock.service';
 import ProductionSettingsService from '@/services/production-settings.service';
 import { useDailyClosing } from '@/views/pos/composables/useDailyClosing';
+import { useClosingSteps } from '@/views/pos/composables/useClosingSteps';
+// TEMPORAL (pruebas): cierre para otro día
+import RestockDateSelector from './RestockDateSelector.vue';
 import RestockQuickAdd from './RestockQuickAdd.vue';
 import RestockProductRow from './RestockProductRow.vue';
 import RestockClosingBanner from './RestockClosingBanner.vue';
@@ -36,6 +39,9 @@ const fetchBranches = async () => {
   }
 };
 
+// TEMPORAL (pruebas): día del cierre ('' = hoy)
+const closingDate = ref('');
+
 const {
   isLoading, isSubmitting, formData, formItems, hasExistingEntry,
   sales, salesLoading,
@@ -45,9 +51,7 @@ const {
   showLossModal, activeProductForLoss, openLossModal, handleSaveLosses,
   overriddenItems, hasExcessiveOverride, confirmMessage, confirmMessageHtml,
   buildPayload,
-} = useDailyClosing(localBranch);
-
-const showConfirmModal = ref(false);
+} = useDailyClosing(localBranch, closingDate);
 
 // Modal de nombre: se pide al abrir el cierre si aún no hay nombre guardado.
 const showNameModal = ref(false);
@@ -62,9 +66,18 @@ const loadAll = () => {
   fetchDailyForm().catch(err => console.error('Error fetching daily form:', err));
 };
 
-// --- Step Flow: 'form' → 'distribution' ---
-const currentStep = ref<'form' | 'distribution'>('form');
-const distributionData = ref<DeliveryRoundResult[] | null>(null);
+// --- Pasos: formulario → distribución → confirmación → envío ---
+const notify = (message: string, type: 'success' | 'error' | 'warning') => emit('notify', { message, type });
+
+const {
+  currentStep, showConfirmModal, goToDistribution, confirmDistribution, submit: executeSubmission, reset: resetSteps,
+} = useClosingSteps({
+  isSubmitting,
+  buildPayload,
+  notify,
+  onSuccess: () => emit('success'),
+  onClose: () => closeModal(),
+});
 
 const handleSubmitClick = () => {
   if (!formData.value) return;
@@ -72,7 +85,7 @@ const handleSubmitClick = () => {
     showNameModal.value = true;
     return;
   }
-  currentStep.value = 'distribution';
+  goToDistribution();
 };
 
 const distributionItems = computed(() =>
@@ -83,29 +96,6 @@ const distributionItems = computed(() =>
     pedidoFinal: getFinalPedido(item),
   }))
 );
-
-const handleDistributionConfirm = (data: DeliveryRoundResult[]) => {
-  distributionData.value = data;
-  showConfirmModal.value = true;
-};
-
-const executeSubmission = async () => {
-  showConfirmModal.value = false;
-  if (!formData.value) return;
-
-  isSubmitting.value = true;
-  try {
-    await posRestockService.submitDailyEntry(buildPayload(distributionData.value || undefined));
-    emit('notify', { message: 'Cierre de producción enviado correctamente', type: 'success' });
-    emit('success');
-    closeModal();
-  } catch (error) {
-    console.error('Error submitting form:', error);
-    emit('notify', { message: 'Hubo un error al enviar el reporte.', type: 'error' });
-  } finally {
-    isSubmitting.value = false;
-  }
-};
 
 // --- Quick Add ---
 const handleQuickAdd = (newProduct: any) => {
@@ -121,16 +111,14 @@ const handleQuickAdd = (newProduct: any) => {
 };
 
 const closeModal = () => {
-  currentStep.value = 'form';
-  distributionData.value = null;
+  resetSteps();
   emit('close');
 };
 
 watch(() => props.isOpen, (newVal) => {
   if (newVal) {
     localBranch.value = props.branch;
-    currentStep.value = 'form';
-    distributionData.value = null;
+    resetSteps();
     searchQuery.value = '';
     // El nombre se pide recién al enviar (si falta): así el modal no tapa
     // el selector de sucursal al abrir el cierre.
@@ -141,6 +129,8 @@ watch(() => props.isOpen, (newVal) => {
 });
 
 watch(localBranch, () => { if (props.isOpen) loadAll(); });
+// TEMPORAL (pruebas): al cambiar el día del cierre se recarga el formulario
+watch(closingDate, () => { if (props.isOpen) loadAll(); });
 </script>
 
 <template>
@@ -161,6 +151,8 @@ watch(localBranch, () => { if (props.isOpen) loadAll(); });
 
           <form v-else @submit.prevent="handleSubmitClick" class="form-grid">
             <RestockCloserChip :name="submittedBy" @change="showNameModal = true" />
+            <!-- TEMPORAL (pruebas): elegir el día del cierre -->
+            <RestockDateSelector v-model="closingDate" />
             <RestockClosingBanner
               :target-date="formData.targetDate"
               :sales="sales"
@@ -212,7 +204,7 @@ watch(localBranch, () => { if (props.isOpen) loadAll(); });
           v-else-if="currentStep === 'distribution'"
           :items="distributionItems"
           @back="currentStep = 'form'"
-          @confirm="handleDistributionConfirm"
+          @confirm="confirmDistribution"
         />
       </div>
     </div>

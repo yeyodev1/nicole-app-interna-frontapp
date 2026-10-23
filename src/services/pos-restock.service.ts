@@ -104,8 +104,8 @@ class POSRestockService extends APIBase {
   /**
    * Get the daily form data for a specific branch.
    */
-  async getDailyForm(branch: string): Promise<DailyFormData> {
-    const { data } = await this.get<any>('pos/restock/daily-form', undefined, { params: { branch } });
+  async getDailyForm(branch: string, date?: string): Promise<DailyFormData> {
+    const { data } = await this.get<any>('pos/restock/daily-form', undefined, { params: { branch, date } });
     return data.data;
   }
 

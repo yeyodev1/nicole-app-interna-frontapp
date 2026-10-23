@@ -9,7 +9,11 @@ export default defineConfig({
     vue(),
     vueDevTools(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt' = nunca se actualiza sola. Con 'autoUpdate' el plugin
+      // recargaba la página por su cuenta al detectar una versión nueva (eso
+      // era la "actualización forzada"): aquí solo se avisa y la persona
+      // decide, desde UpdateBanner.vue.
+      registerType: 'prompt',
       // Only cache the app shell — no full offline mode.
       // El index.html NO se precachea a propósito: si se sirve desde el caché,
       // una recarga sigue mostrando la versión vieja (apunta a los bundles
@@ -18,9 +22,8 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css}'],
         navigateFallback: null,
-        // Forzar que la nueva versión tome control de inmediato en todos los clientes
-        skipWaiting: true,
-        clientsClaim: true,
+        // Sin skipWaiting/clientsClaim: la versión nueva espera a que la
+        // persona acepte (ahí sí se le pide el relevo y se recarga).
         cleanupOutdatedCaches: true,
       },
       manifest: false, // No PWA manifest needed, just update detection

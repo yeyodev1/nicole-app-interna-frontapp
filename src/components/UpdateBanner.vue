@@ -19,17 +19,9 @@ const { needRefresh, updateServiceWorker } = useRegisterSW({
   },
 })
 
-// El service worker usa skipWaiting + clientsClaim: la versión nueva toma
-// control sin pasar por el estado "waiting", así que `needRefresh` muchas veces
-// no se dispara. El cambio de controlador es la señal fiable de versión nueva.
-const controllerChanged = ref(false)
-if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    controllerChanged.value = true
-  })
-}
-
-const hasUpdate = computed(() => needRefresh.value || controllerChanged.value)
+// En modo 'prompt' la versión nueva queda esperando y `needRefresh` se
+// enciende: nada se actualiza hasta que la persona lo acepte.
+const hasUpdate = computed(() => needRefresh.value)
 
 const dismissed = ref(false)
 const isUpdating = ref(false)
@@ -42,7 +34,6 @@ const update = () => {
   if (isUpdating.value) return
   isUpdating.value = true
   updateServiceWorker(true)
-  window.setTimeout(() => window.location.reload(), 1200)
 }
 </script>
 
