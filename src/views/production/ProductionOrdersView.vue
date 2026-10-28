@@ -8,6 +8,7 @@ import DispatchReportModal from './components/DispatchReportModal.vue'
 import DispatchByDestinationModal from './components/DispatchByDestinationModal.vue'
 import HoldToConfirmModal from './components/HoldToConfirmModal.vue'
 import ProductionOrderBreakdown from './components/ProductionOrderBreakdown.vue'
+import ProductionDateFilter from './components/ProductionDateFilter.vue'
 import { useToast } from '@/composables/useToast'
 
 interface Order {
@@ -48,6 +49,7 @@ const router = useRouter()
 
 // Filter State
 const filterMode = ref('today') // Default to Today for focus
+const filterDate = ref(getECTTodayString()) // Día específico (filterMode = 'date')
 const filterBranch = ref<string | null>(null) // Dynamic branch name or 'delivery'
 const dynamicDestinations = ref<ProductionDestination[]>([])
 
@@ -109,6 +111,7 @@ const getDateParam = (mode: string): string => {
   const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 
   if (mode === 'today') return getECTTodayString()
+  if (mode === 'date') return filterDate.value
   if (mode === 'yesterday') {
     const d = new Date(ecNow)
     d.setDate(d.getDate() - 1)
@@ -139,7 +142,7 @@ const fetchOrders = async () => {
   }
 }
 
-watch(filterMode, () => {
+watch([filterMode, filterDate], () => {
   selectedIds.value = []
   filterBranch.value = null
   fetchOrders()
@@ -231,6 +234,9 @@ const ordersByDate = computed(() => {
 
     if (filterMode.value === 'today') {
       return isSameDayECT(dDate, today)
+    }
+    if (filterMode.value === 'date') {
+      return isSameDayECT(o.deliveryDate, filterDate.value)
     }
     if (filterMode.value === 'tomorrow') {
       return isSameDayECT(dDate, tomorrow)
@@ -448,22 +454,7 @@ const getDispatchBadge = (status?: string) => {
     </div>
 
     <!-- Filter Bar (Moved Top) -->
-    <div class="filter-bar-container">
-      <div class="filter-bar">
-        <button 
-          v-for="mode in ['yesterday', 'today', 'tomorrow', 'future']" 
-          :key="mode"
-          class="filter-pill"
-          :class="{ active: filterMode === mode }"
-          @click="filterMode = mode"
-        >
-          <span v-if="mode === 'yesterday'">Ayer</span>
-          <span v-else-if="mode === 'today'">Hoy</span>
-          <span v-else-if="mode === 'tomorrow'">Mañana</span>
-          <span v-else>Próximos Días</span>
-        </button>
-      </div>
-    </div>
+    <ProductionDateFilter v-model:mode="filterMode" v-model:date="filterDate" />
 
     <!-- Stats Summary (Dynamic Destination Cards) -->
     <div class="stats-grid" v-if="orders.length > 0">
@@ -972,44 +963,6 @@ $color-danger: #e74c3c;
   }
 }
 
-.filter-bar-container {
-  margin-bottom: 2rem;
-  background: white;
-  padding: 0.5rem;
-  border-radius: 14px;
-  display: inline-flex;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
-  border: 1px solid #f1f2f6;
-
-  .filter-bar {
-    display: flex;
-    gap: 0.25rem;
-
-    .filter-pill {
-      background: transparent;
-      border: none;
-      color: #7f8c8d;
-      padding: 0.6rem 1.4rem;
-      border-radius: 10px;
-      font-size: 0.85rem;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.2s;
-      white-space: nowrap;
-
-      &:hover {
-        background: #f8f9fa;
-        color: #2c3e50;
-      }
-
-      &.active {
-        background: #2c3e50;
-        color: white;
-        box-shadow: 0 4px 10px rgba(52, 73, 94, 0.15);
-      }
-    }
-  }
-}
 
 .sections-container {
   display: flex;
@@ -1625,9 +1578,5 @@ $color-danger: #e74c3c;
     gap: 0.75rem;
   }
 
-  .filter-bar-container {
-    width: 100%;
-    overflow-x: auto;
-  }
 }
 </style>
