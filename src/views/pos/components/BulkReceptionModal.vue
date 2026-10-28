@@ -145,19 +145,6 @@ const matchesSelectedDay = (d: any): boolean => {
   return dDateStr === shift(0) || (isRestockOrder(d) && dDateStr === shift(-1));
 };
 
-// Pendientes que no están en el día visible, agrupados por fecha
-const otherPendingDates = computed(() => {
-  const counts = new Map<string, Set<string>>();
-  internalDispatches.value.forEach(d => {
-    if (!d.deliveryDate || matchesSelectedDay(d)) return;
-    const key = getDStr(parseECTDate(d.deliveryDate));
-    if (!counts.has(key)) counts.set(key, new Set());
-    d.dispatch.items.forEach((item: any) => counts.get(key)!.add(item.name));
-  });
-  return Array.from(counts, ([date, names]) => ({ date, count: names.size }))
-    .sort((a, b) => a.date.localeCompare(b.date));
-});
-
 const calculateConsolidated = () => {
   const map = new Map<string, ConsolidatedItem>();
 
@@ -398,7 +385,6 @@ watch(() => props.isOpen, (v) => {
           v-else
           v-model:mode="filterMode"
           v-model:date="filterDate"
-          :other-dates="otherPendingDates"
         />
 
         <!-- Empty -->

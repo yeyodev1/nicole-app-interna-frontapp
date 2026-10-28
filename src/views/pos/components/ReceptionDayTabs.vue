@@ -4,9 +4,6 @@ import { getECTTodayString } from '@/utils/dateUtils';
 
 export type ReceptionDayMode = 'yesterday' | 'today' | 'tomorrow' | 'date';
 
-// Pendientes de días que no se están viendo (ej. reposición de un cierre de prueba)
-defineProps<{ otherDates: { date: string; count: number }[] }>();
-
 const mode = defineModel<ReceptionDayMode>('mode', { required: true });
 const date = defineModel<string>('date', { required: true });
 
@@ -43,11 +40,6 @@ const onDateChange = (event: Event) => {
   date.value = value;
   mode.value = 'date';
 };
-
-const goToDate = (value: string) => {
-  date.value = value;
-  mode.value = 'date';
-};
 </script>
 
 <template>
@@ -61,14 +53,6 @@ const goToDate = (value: string) => {
         <span class="tab-day"><i class="fa-solid fa-calendar-days"></i> {{ mode === 'date' ? 'Fecha' : 'Otra fecha' }}</span>
         <span class="tab-date">{{ mode === 'date' ? formatLong(date) : 'Elegir día' }}</span>
         <input ref="dateInput" type="date" class="date-input" :value="date" tabindex="-1" @change="onDateChange" />
-      </button>
-    </div>
-
-    <div v-if="otherDates.length" class="other-dates">
-      <i class="fa-solid fa-circle-info"></i>
-      <span>Hay envíos pendientes de otros días:</span>
-      <button v-for="o in otherDates" :key="o.date" class="date-chip" @click="goToDate(o.date)">
-        {{ formatLong(o.date) }} · {{ o.count }}
       </button>
     </div>
   </div>
@@ -136,32 +120,6 @@ const goToDate = (value: string) => {
     font-weight: 500;
     opacity: 0.7;
     line-height: 1.1;
-  }
-}
-
-.other-dates {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.5rem 0.75rem;
-  background: #FFFBEB;
-  border: 1px solid #FDE68A;
-  border-radius: 8px;
-  font-size: 0.78rem;
-  color: #92400E;
-
-  .date-chip {
-    border: 1px solid #F59E0B;
-    background: white;
-    color: #92400E;
-    border-radius: 999px;
-    padding: 0.15rem 0.6rem;
-    font-size: 0.75rem;
-    font-weight: 700;
-    cursor: pointer;
-
-    &:hover { background: #FEF3C7; }
   }
 }
 </style>
