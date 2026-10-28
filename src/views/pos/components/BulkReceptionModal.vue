@@ -4,6 +4,7 @@ import POSService from '@/services/pos.service';
 import HoldConfirmButton from '@/components/ui/HoldConfirmButton.vue';
 import SearchableSelect from '@/components/ui/SearchableSelect.vue';
 import { parseECTDate, getECTTodayString } from '@/utils/dateUtils';
+import ReceptionDayTabs, { type ReceptionDayMode } from './ReceptionDayTabs.vue';
 
 const props = defineProps<{
   isOpen: boolean;
@@ -31,21 +32,14 @@ watch(localBranch, (v) => {
 });
 
 const bulkNotes = ref('');
-type BulkFilterMode = 'yesterday' | 'today' | 'tomorrow';
-const filterMode = ref<BulkFilterMode>('today');
+const filterMode = ref<ReceptionDayMode>('today');
+const filterDate = ref(getECTTodayString()); // Día específico (filterMode = 'date')
 
-watch(filterMode, () => { if (props.isOpen) fetchModalData(); });
+watch([filterMode, filterDate], () => { if (props.isOpen) fetchModalData(); });
 
-const formatTabDate = (offset: number): string => {
-  const todayStr = getECTTodayString();
-  const d = new Date(todayStr + 'T12:00:00');
-  d.setDate(d.getDate() + offset);
-  return d.toLocaleDateString('es-EC', { day: 'numeric', month: 'long' });
-};
-
-const labelYesterday = computed(() => formatTabDate(-1));
-const labelToday     = computed(() => formatTabDate(0));
-const labelTomorrow  = computed(() => formatTabDate(1));
+const selectedDateLabel = computed(() =>
+  new Date(filterDate.value + 'T12:00:00').toLocaleDateString('es-EC', { day: 'numeric', month: 'long' })
+);
 
 // --- Options ---
 const statusOptions = [
@@ -67,7 +61,12 @@ const fetchModalData = async () => {
     // Pendiente = solo PENDING. PROBLEM ya se receptó (con novedad): va al historial.
     const [pending, received] = await Promise.all([
       POSService.getIncomingDispatches(localBranch.value, { filterMode: 'all', receptionStatus: ['PENDING'] }),
-      POSService.getIncomingDispatches(localBranch.value, { filterMode: filterMode.value, receptionStatus: ['RECEIVED', 'PROBLEM'] }),
+      POSService.getIncomingDispatches(
+        localBranch.value,
+        filterMode.value === 'date'
+          ? { date: filterDate.value, receptionStatus: ['RECEIVED', 'PROBLEM'] }
+          : { filterMode: filterMode.value, receptionStatus: ['RECEIVED', 'PROBLEM'] }
+      ),
     ]);
 
     internalDispatches.value = pending.flatMap(o =>
@@ -128,29 +127,43 @@ watch(() => props.isOpen, (newVal) => {
   }
 });
 
+const getDStr = (d: Date) => d.toISOString().slice(0, 10);
+const isRestockOrder = (d: any) => d.salesChannel === 'Restock' || d.salesChannel === 'Restock-Bodega';
+
+// ¿El despacho pendiente entra en el día que se está viendo?
+const matchesSelectedDay = (d: any): boolean => {
+  if (!d.deliveryDate) return false;
+  const dDateStr = getDStr(parseECTDate(d.deliveryDate));
+  const today = new Date(getECTTodayString() + 'T12:00:00');
+  const shift = (n: number) => { const x = new Date(today); x.setDate(today.getDate() + n); return getDStr(x); };
+
+  if (filterMode.value === 'date') return dDateStr === filterDate.value;
+  if (filterMode.value === 'yesterday') return dDateStr === shift(-1);
+  if (filterMode.value === 'tomorrow') return dDateStr === shift(1);
+  // Hoy: lo de hoy + la reposición pedida en el cierre de anoche (llega en la
+  // mañana). La de otros días sale en SU fecha (ej. cierres de prueba).
+  return dDateStr === shift(0) || (isRestockOrder(d) && dDateStr === shift(-1));
+};
+
+// Pendientes que no están en el día visible, agrupados por fecha
+const otherPendingDates = computed(() => {
+  const counts = new Map<string, Set<string>>();
+  internalDispatches.value.forEach(d => {
+    if (!d.deliveryDate || matchesSelectedDay(d)) return;
+    const key = getDStr(parseECTDate(d.deliveryDate));
+    if (!counts.has(key)) counts.set(key, new Set());
+    d.dispatch.items.forEach((item: any) => counts.get(key)!.add(item.name));
+  });
+  return Array.from(counts, ([date, names]) => ({ date, count: names.size }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+});
+
 const calculateConsolidated = () => {
   const map = new Map<string, ConsolidatedItem>();
 
-  const todayStr     = getECTTodayString();
-  const today        = new Date(todayStr + 'T12:00:00');
-  const yesterday    = new Date(today); yesterday.setDate(today.getDate() - 1);
-  const tomorrow     = new Date(today); tomorrow.setDate(today.getDate() + 1);
-  const getDStr      = (d: Date) => d.toISOString().split('T')[0];
-  const yesterdayStr = getDStr(yesterday);
-  const tomorrowStr  = getDStr(tomorrow);
-
   internalDispatches.value.forEach(d => {
-    if (!d.deliveryDate) return;
-    const dDateStr = getDStr(parseECTDate(d.deliveryDate));
-    const isRestock = d.salesChannel === 'Restock' || d.salesChannel === 'Restock-Bodega';
-    let dateMatch = false;
-    if      (filterMode.value === 'yesterday' && dDateStr === yesterdayStr) dateMatch = true;
-    else if (filterMode.value === 'today'     && dDateStr === todayStr)     dateMatch = true;
-    else if (filterMode.value === 'tomorrow'  && dDateStr === tomorrowStr)  dateMatch = true;
-    // Restock orders show in the "today" tab regardless of their delivery date
-    // because they need to be received whenever they arrive, not tied to a specific date
-    if (filterMode.value === 'today' && isRestock) dateMatch = true;
-    if (!dateMatch) return;
+    if (!matchesSelectedDay(d)) return;
+    const isRestock = isRestockOrder(d);
 
     const roundLabel = isRestock && d.comments ? (d.comments as string) : null;
 
@@ -381,20 +394,12 @@ watch(() => props.isOpen, (v) => {
         </div>
 
         <!-- Filter tabs -->
-        <div v-else class="filter-tabs">
-          <button :class="{ active: filterMode === 'yesterday' }" @click="filterMode = 'yesterday'">
-            <span class="tab-day">Ayer</span>
-            <span class="tab-date">{{ labelYesterday }}</span>
-          </button>
-          <button :class="{ active: filterMode === 'today' }" @click="filterMode = 'today'">
-            <span class="tab-day">Hoy</span>
-            <span class="tab-date">{{ labelToday }}</span>
-          </button>
-          <button :class="{ active: filterMode === 'tomorrow' }" @click="filterMode = 'tomorrow'">
-            <span class="tab-day">Mañana</span>
-            <span class="tab-date">{{ labelTomorrow }}</span>
-          </button>
-        </div>
+        <ReceptionDayTabs
+          v-else
+          v-model:mode="filterMode"
+          v-model:date="filterDate"
+          :other-dates="otherPendingDates"
+        />
 
         <!-- Empty -->
         <div v-if="!isLoadingData && consolidatedItems.length === 0" class="empty-msg">
@@ -428,6 +433,7 @@ watch(() => props.isOpen, (v) => {
             <i class="fa-solid fa-check-circle"></i>
             <p v-if="filterMode === 'today'">No hay envíos pendientes para <strong>HOY</strong>.</p>
             <p v-else-if="filterMode === 'yesterday'">No hay ítems para <strong>AYER</strong>.</p>
+            <p v-else-if="filterMode === 'date'">No hay ítems para el <strong>{{ selectedDateLabel }}</strong>.</p>
             <p v-else>No hay ítems para <strong>MAÑANA</strong>.</p>
             <div v-if="filterMode === 'today'" class="empty-hint">
               <i class="fa-solid fa-circle-info"></i>
@@ -753,58 +759,6 @@ watch(() => props.isOpen, (v) => {
 }
 
 // ─── Filter tabs ──────────────────────────────────────────────────────────────
-.filter-tabs {
-  flex-shrink: 0;
-  display: flex;
-  flex-wrap: wrap;
-  background: #F1F5F9;
-  padding: 5px;
-  border-radius: 10px;
-  gap: 0.3rem;
-  flex-shrink: 0;
-
-  button {
-    flex: 1 1 auto;
-    border: none;
-    background: transparent;
-    padding: 0.48rem 0.75rem;
-    border-radius: 7px;
-    font-weight: 700;
-    color: $text-light;
-    cursor: pointer;
-    font-size: 0.82rem;
-    transition: all 0.18s;
-    white-space: nowrap;
-
-    &:hover { background: rgba(0, 0, 0, 0.03); }
-    &.active {
-      background: white;
-      color: $NICOLE-PURPLE;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-    }
-  }
-
-  button {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1px;
-  }
-
-  .tab-day {
-    font-size: 0.82rem;
-    font-weight: 700;
-    line-height: 1.2;
-  }
-
-  .tab-date {
-    font-size: 0.68rem;
-    font-weight: 500;
-    opacity: 0.7;
-    line-height: 1.1;
-  }
-
-}
 
 // ─── Items list ───────────────────────────────────────────────────────────────
 .items-list {
