@@ -1,14 +1,16 @@
 <script setup lang="ts">
-defineProps<{
+withDefaults(defineProps<{
   vendido: number | null;
   loading: boolean;
   muted: boolean; // suministros: no se venden en caja
-}>();
+  label?: string;
+  icon?: string;
+}>(), { label: 'Vendido Hoy', icon: 'fa-cash-register' });
 </script>
 
 <template>
   <div class="sold-box" :class="{ muted }">
-    <span class="sold-label"><i class="fa-solid fa-cash-register"></i> Vendido Hoy</span>
+    <span class="sold-label" title="Dato de Contífico"><i class="fa-solid" :class="icon"></i> {{ label }}</span>
     <span v-if="muted" class="sold-value na" title="Los suministros no se venden en caja">—</span>
     <span v-else-if="loading" class="sold-value loading"><i class="fa-solid fa-spinner fa-spin"></i></span>
     <span v-else-if="vendido !== null" class="sold-value">{{ vendido }}</span>

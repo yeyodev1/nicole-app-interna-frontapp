@@ -9,7 +9,8 @@ export interface OpsProduct {
   recibido: number; // total que llegó (confirmado + sin OK)
   recibidoOk: number; // confirmado en Recepción Masiva
   recibidoSinOk: number; // despachado por producción sin el OK de la isla
-  vendido: number | null; // vendido según Contífico
+  vendido: number | null; // todo lo vendido: isla + combo + Casa Mía + Dela Crem
+  ventas?: { isla: number; combo: number; casaMia: number; delaCrem: number };
   bajas: number;
   deberiaQuedar: number | null; // inicial + recibido - vendido - bajas
   quedo: number | null; // lo que contó el cierre

@@ -34,7 +34,9 @@ export interface DailySales {
   date: string;
   available: boolean;
   puntos: string[];
-  products: Record<string, number>;
+  products: Record<string, number>; // venta de la isla
+  // Otras cajas que venden producto de la isla (Casa Mía, Dela Crem en Mall del Sol)
+  channels?: Array<{ key: string; label: string; products: Record<string, number> }>;
 }
 
 export type LossCategory = "Transport" | "Storage" | "Production" | "Other";

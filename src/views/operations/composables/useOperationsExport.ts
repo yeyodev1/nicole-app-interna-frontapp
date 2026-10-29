@@ -17,7 +17,7 @@ export function useOperationsExport() {
     try {
       const wb = XLSX.utils.book_new();
 
-      const HEAD = ['Producto', 'Categoría (Contífico)', 'Stock inicial', 'Recibido', 'Sin OK', 'Vendido (Contífico)', 'Bajas', 'Debería quedar', 'Quedó (isla)', 'Diferencia'];
+      const HEAD = ['Producto', 'Categoría (Contífico)', 'Stock inicial', 'Recibido', 'Sin OK', 'Venta isla', 'Venta combo', 'Venta Casa Mía', 'Venta Dela Cream', 'Vendido total', 'Bajas', 'Debería quedar', 'Quedó (isla)', 'Diferencia'];
       const headStyle = {
         font: { bold: true, color: { rgb: 'FFFFFF' } },
         fill: { fgColor: { rgb: '7C3AED' } },
@@ -33,6 +33,10 @@ export function useOperationsExport() {
             p.inicial ?? '—',
             p.recibido || 0,
             p.recibidoSinOk || 0,
+            p.ventas?.isla ?? 0,
+            p.ventas?.combo ?? 0,
+            p.ventas?.casaMia ?? 0,
+            p.ventas?.delaCrem ?? 0,
             p.vendido ?? '—',
             p.bajas || 0,
             p.deberiaQuedar ?? '—',
@@ -41,7 +45,7 @@ export function useOperationsExport() {
           ]);
         }
         rows.push([]);
-        rows.push(['TOTALES', '', '', '', b.sinOkTotal, b.totals.vendido, b.totals.bajas, '', '', b.totals.descuadre]);
+        rows.push(['TOTALES', '', '', '', b.sinOkTotal, '', '', '', '', b.totals.vendido, b.totals.bajas, '', '', b.totals.descuadre]);
 
         const ws = XLSX.utils.aoa_to_sheet(rows);
         ws['!cols'] = [{ wch: 34 }, { wch: 22 }, { wch: 12 }, { wch: 10 }, { wch: 8 }, { wch: 18 }, { wch: 8 }, { wch: 14 }, { wch: 12 }, { wch: 11 }];

@@ -1,0 +1,41 @@
+// Campos numéricos del cierre de producción (fila de producto y suministro
+// simple). Es un mixin: no emite CSS hasta que un componente lo incluye.
+@mixin restock-fields {
+  .field {
+    display: flex; flex-direction: column;
+
+    label {
+      font-size: 0.72rem; margin-bottom: 5px; color: #64748b; font-weight: 600;
+    }
+
+    &.pedido label {
+      color: #0369a1; font-weight: 800; text-transform: uppercase;
+      font-size: 0.68rem; letter-spacing: 0.4px;
+    }
+
+    .num {
+      width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 8px;
+      font-size: 1.05rem; text-align: center; font-weight: 600; color: #0f172a;
+      transition: all 0.2s;
+
+      &:focus { outline: none; border-color: #64748b; }
+
+      &.bajas-input:not(.readonly) {
+        border-color: #fecaca; color: #b91c1c;
+
+        &:focus { border-color: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.08); }
+      }
+
+      &.readonly {
+        background: #f8fafc; border-style: dashed; color: #64748b; cursor: not-allowed;
+      }
+
+      &.pedido-input {
+        border: 2px solid #0369a1; color: #0369a1; font-weight: 800; background: white;
+
+        &:focus { box-shadow: 0 0 0 3px rgba(3, 105, 161, 0.12); }
+        &.has-value { background: #e0f2fe; }
+      }
+    }
+  }
+}

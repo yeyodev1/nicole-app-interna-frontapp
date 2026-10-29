@@ -63,7 +63,10 @@ const handleExport = () =>
               <th class="t-left">Producto</th>
               <th>Stock inicial</th>
               <th>Recibido</th>
-              <th>Vendido</th>
+              <th title="Contífico, caja de la isla">Venta isla</th>
+              <th title="Lo escribe la isla en el cierre">Venta combo</th>
+              <th title="Contífico, caja Casa Mía">Venta Casa Mía</th>
+              <th title="Contífico, caja Heladería">Venta Dela Cream</th>
               <th>Bajas</th>
               <th>Debería quedar</th>
               <th>Quedó (isla)</th>
@@ -81,7 +84,13 @@ const handleExport = () =>
                 {{ p.recibido || '' }}
                 <span v-if="p.recibidoSinOk > 0" class="sin-ok">⚠ {{ p.recibidoSinOk }} sin OK</span>
               </td>
-              <td>{{ p.vendido ?? '—' }}</td>
+              <template v-if="p.vendido !== null && p.ventas">
+                <td>{{ p.ventas.isla || '' }}</td>
+                <td>{{ p.ventas.combo || '' }}</td>
+                <td>{{ p.ventas.casaMia || '' }}</td>
+                <td>{{ p.ventas.delaCrem || '' }}</td>
+              </template>
+              <td v-else colspan="4">—</td>
               <td :class="{ 'has-bajas': p.bajas > 0 }">{{ p.bajas || '' }}</td>
               <td class="should">{{ p.deberiaQuedar ?? '—' }}</td>
               <td>{{ p.quedo ?? '—' }}</td>
@@ -90,7 +99,7 @@ const handleExport = () =>
               </td>
             </tr>
             <tr v-if="b.products.length === 0">
-              <td colspan="8" class="empty-row">{{ search ? `Nada con «${search}»` : 'Sin movimientos' }}</td>
+              <td colspan="11" class="empty-row">{{ search ? `Nada con «${search}»` : 'Sin movimientos' }}</td>
             </tr>
           </tbody>
         </table>

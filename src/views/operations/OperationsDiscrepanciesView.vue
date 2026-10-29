@@ -41,7 +41,7 @@ const hasNegativeCierre = computed(() =>
       </div>
 
       <div class="legend">
-        La cuenta del día por producto: <strong>empezó + llegó − vendido − bajas = debería quedar</strong>, y se compara con lo que la sucursal contó al cierre.
+        La cuenta del día por producto: <strong>empezó + llegó − vendido (isla, combos, Casa Mía, Dela Cream) − bajas = debería quedar</strong>, y se compara con lo que la sucursal contó al cierre.
         <span class="pill minus">− falta</span> quedó menos de lo que debería (producto perdido o vendido sin factura)
         <span class="pill plus">+ sobra</span> quedó más de lo que debería (recepción sin registrar o error de conteo)
       </div>
@@ -60,7 +60,7 @@ const hasNegativeCierre = computed(() =>
               <th class="t-left">Sucursal</th>
               <th title="Con cuánto empezó el día (cierre anterior)">Stock inicial</th>
               <th title="Despachado por producción + OK de Recepción Masiva">Recibido</th>
-              <th title="Vendido según Contífico">Vendido</th>
+              <th title="Isla + combos + Casa Mía + Dela Cream">Vendido</th>
               <th>Bajas</th>
               <th title="inicial + recibido − vendido − bajas">Debería quedar</th>
               <th title="Stock en isla: lo que contó la sucursal al cierre">Quedó (isla)</th>
@@ -81,7 +81,7 @@ const hasNegativeCierre = computed(() =>
                   ⚠ {{ d.recibidoSinOk }} sin OK
                 </span>
               </td>
-              <td>{{ d.vendido ?? '—' }}</td>
+              <td :title="d.ventas ? `Isla ${d.ventas.isla} · Combo ${d.ventas.combo} · Casa Mía ${d.ventas.casaMia} · Dela Cream ${d.ventas.delaCrem}` : ''">{{ d.vendido ?? '—' }}</td>
               <td>{{ d.bajas || '' }}</td>
               <td class="should">{{ d.deberiaQuedar ?? '—' }}</td>
               <td>{{ d.quedo ?? '—' }}</td>

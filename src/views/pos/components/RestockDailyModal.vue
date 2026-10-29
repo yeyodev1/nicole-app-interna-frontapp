@@ -46,7 +46,7 @@ const {
   isLoading, isSubmitting, formData, formItems, hasExistingEntry,
   sales, salesLoading,
   fetchDailyForm, fetchDailySales,
-  getVendido, getFinalPedido, addQuickItem,
+  getVendido, getChannelSales, getFinalPedido, addQuickItem,
   submittedBy, setSubmittedBy, searchQuery, groupedItems,
   showLossModal, activeProductForLoss, openLossModal, handleSaveLosses,
   overriddenItems, hasExcessiveOverride, confirmMessage, confirmMessageHtml,
@@ -177,6 +177,7 @@ watch(closingDate, () => { if (props.isOpen) loadAll(); });
                   :key="item.productName"
                   :item="item"
                   :vendido="getVendido(item)"
+                  :channels="getChannelSales(item)"
                   :sales-loading="salesLoading"
                   @open-losses="openLossModal(item)"
                 />

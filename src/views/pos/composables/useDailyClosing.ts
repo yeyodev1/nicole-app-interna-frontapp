@@ -17,6 +17,8 @@ export interface ClosingGroup {
   pedidos: number; // cuántos ítems del grupo ya tienen pedido > 0
 }
 
+export interface ChannelSale { key: string; label: string; value: number | null }
+
 export interface RestockItemData {
   productName: string;
   unit: string;
@@ -27,6 +29,7 @@ export interface RestockItemData {
   stockObjectiveTomorrow: number;
   stockObjectiveToday: number;
   bajas: number;
+  ventaCombo: number; // lo escribe la isla: Contífico no desglosa los combos
   excedente: number;
   detailedLosses: DetailedLoss[];
   pedidoOverride: number | null;
@@ -77,6 +80,7 @@ export function useDailyClosing(branch: Ref<string>, closingDate?: Ref<string>) 
           // anterior. El único dato que se muestra es el vendido del día
           // (viene de Contífico, no se teclea).
           bajas: 0,
+          ventaCombo: 0,
           excedente: 0,
           detailedLosses: [],
           pedidoOverride: null,
@@ -106,6 +110,14 @@ export function useDailyClosing(branch: Ref<string>, closingDate?: Ref<string>) 
     if (!sales.value || !sales.value.available) return null;
     return sales.value.products[item.productName] ?? 0;
   };
+
+  // Venta de las otras cajas que toman producto de la isla (Casa Mía, Dela Crem)
+  const getChannelSales = (item: RestockItemData): ChannelSale[] =>
+    (sales.value?.channels || []).map(ch => ({
+      key: ch.key,
+      label: ch.label,
+      value: item.isGeneral ? null : (ch.products[item.productName] ?? 0),
+    }));
 
   // El pedido es exactamente lo que escribe la encargada.
   const getFinalPedido = (item: RestockItemData): number =>
@@ -183,6 +195,7 @@ export function useDailyClosing(branch: Ref<string>, closingDate?: Ref<string>) 
       stockObjectiveTomorrow: 0,
       stockObjectiveToday: 0,
       bajas: 0,
+      ventaCombo: 0,
       excedente: 0,
       detailedLosses: [],
       pedidoOverride: null,
@@ -264,6 +277,7 @@ export function useDailyClosing(branch: Ref<string>, closingDate?: Ref<string>) 
       isGeneral: item.isGeneral,
       category: item.category,
       bajas: item.bajas,
+      ventaCombo: item.ventaCombo,
       stockFinal: item.excedente,
       pedidoFinal: getFinalPedido(item),
       detailedLosses: item.detailedLosses,
@@ -275,7 +289,7 @@ export function useDailyClosing(branch: Ref<string>, closingDate?: Ref<string>) 
     isLoading, isSubmitting, formData, formItems, hasExistingEntry,
     sales, salesLoading,
     fetchDailyForm, fetchDailySales,
-    getVendido, getFinalPedido, hasModalLosses, handleQuickBajas, addQuickItem,
+    getVendido, getChannelSales, getFinalPedido, hasModalLosses, handleQuickBajas, addQuickItem,
     submittedBy, setSubmittedBy, searchQuery, groupedItems,
     showLossModal, activeProductForLoss, openLossModal, handleSaveLosses,
     overriddenItems, hasExcessiveOverride, confirmMessage, confirmMessageHtml,

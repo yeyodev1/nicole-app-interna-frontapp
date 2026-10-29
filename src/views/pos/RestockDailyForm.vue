@@ -30,7 +30,7 @@ const {
   isLoading, isSubmitting, formData, formItems, hasExistingEntry,
   sales, salesLoading,
   fetchDailyForm, fetchDailySales,
-  getVendido,
+  getVendido, getChannelSales,
   submittedBy, setSubmittedBy, searchQuery, groupedItems,
   showLossModal, activeProductForLoss, openLossModal, handleSaveLosses,
   overriddenItems, hasExcessiveOverride, confirmMessage, confirmMessageHtml,
@@ -140,6 +140,7 @@ onMounted(() => {
             :key="item.productName"
             :item="item"
             :vendido="getVendido(item)"
+            :channels="getChannelSales(item)"
             :sales-loading="salesLoading"
             @open-losses="openLossModal(item)"
           />

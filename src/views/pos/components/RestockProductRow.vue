@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { QUICK_LOSS_REASON, type RestockItemData } from '@/views/pos/composables/useDailyClosing';
-import RestockSoldBadge from './RestockSoldBadge.vue';
+import type { RestockItemData, ChannelSale } from '@/views/pos/composables/useDailyClosing';
+import RestockCountFields from './RestockCountFields.vue';
 
 const props = defineProps<{
   item: RestockItemData;
   vendido: number | null;
+  channels: ChannelSale[];
   salesLoading: boolean;
 }>();
 
@@ -12,19 +13,6 @@ const emit = defineEmits(['open-losses']);
 
 const getFinalPedido = (): number =>
   props.item.pedidoOverride !== null && props.item.pedidoOverride >= 0 ? props.item.pedidoOverride : 0;
-
-// Si hay bajas detalladas desde el modal, el número se edita solo ahí para no pisarlas.
-const hasModalLosses = (): boolean =>
-  props.item.detailedLosses.some(l => l.reason !== QUICK_LOSS_REASON);
-
-const handleQuickBajas = (value: string) => {
-  if (hasModalLosses()) return;
-  const qty = value === '' ? 0 : Math.max(0, Number(value));
-  props.item.bajas = qty;
-  props.item.detailedLosses = qty > 0
-    ? [{ quantity: qty, reason: QUICK_LOSS_REASON, category: 'Other' as const }]
-    : [];
-};
 
 const setPedido = (value: string) => {
   props.item.pedidoOverride = value === '' ? null : Number(value);
@@ -76,42 +64,14 @@ const isSimpleSupply = () => props.item.isGeneral && !props.item.requiresMinimum
       </div>
     </div>
 
-    <!-- Producto de catálogo: venta real + conteo + pedido -->
-    <div v-else class="row-grid">
-      <RestockSoldBadge :vendido="vendido" :loading="salesLoading" :muted="item.isGeneral" />
-
-      <div class="field">
-        <label>Bajas</label>
-        <input
-          type="number" min="0" placeholder="0" class="num bajas-input"
-          :class="{ readonly: hasModalLosses() }"
-          :readonly="hasModalLosses()"
-          :title="hasModalLosses() ? 'Hay bajas detalladas: edítalas con el botón Detallar Bajas' : 'Escribe el total de bajas del día'"
-          :value="item.bajas || ''"
-          @input="handleQuickBajas(($event.target as HTMLInputElement).value)"
-        />
-      </div>
-
-      <div class="field">
-        <label>Excedente (Vitrina)</label>
-        <input
-          type="number" min="0" inputmode="numeric" class="num"
-          v-model.number="item.excedente"
-          @focus="($event.target as HTMLInputElement).select()"
-        />
-      </div>
-
-      <div class="field pedido">
-        <label>Pedido a {{ item.category === 'Bodega' ? 'Bodega' : 'Producción' }}</label>
-        <input
-          type="number" min="0" inputmode="numeric" class="num pedido-input"
-          :class="{ 'has-value': getFinalPedido() > 0 }"
-          :value="getFinalPedido()"
-          @focus="($event.target as HTMLInputElement).select()"
-          @input="setPedido(($event.target as HTMLInputElement).value)"
-        />
-      </div>
-    </div>
+    <!-- Producto de catálogo: ventas + conteo + pedido -->
+    <RestockCountFields
+      v-else
+      :item="item"
+      :vendido="vendido"
+      :channels="channels"
+      :sales-loading="salesLoading"
+    />
 
     <div v-if="item.detailedLosses.length > 0" class="losses-summary">
       <div v-for="(loss, idx) in item.detailedLosses" :key="idx" class="loss-tag">
@@ -133,6 +93,8 @@ const isSimpleSupply = () => props.item.isGeneral && !props.item.requiresMinimum
 </template>
 
 <style lang="scss" scoped>
+@include restock-fields;
+
 .product-row {
   background: white;
   border: 1px solid #e2e8f0;
@@ -202,57 +164,6 @@ const isSimpleSupply = () => props.item.isGeneral && !props.item.requiresMinimum
   }
 }
 
-// Solo flex: se acomoda en cualquier ancho sin media queries de columnas.
-.row-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  align-items: flex-end;
-
-  :deep(.sold-box) { flex: 0 0 auto; }
-
-  .field { flex: 1 1 120px; min-width: 105px; }
-  .field.pedido { flex: 1 1 150px; }
-}
-
-.field {
-  display: flex; flex-direction: column;
-
-  label {
-    font-size: 0.72rem; margin-bottom: 5px; color: #64748b; font-weight: 600;
-  }
-
-  &.pedido label {
-    color: #0369a1; font-weight: 800; text-transform: uppercase;
-    font-size: 0.68rem; letter-spacing: 0.4px;
-  }
-
-  .num {
-    width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 8px;
-    font-size: 1.05rem; text-align: center; font-weight: 600; color: #0f172a;
-    transition: all 0.2s;
-
-    &:focus { outline: none; border-color: #64748b; }
-
-    &.bajas-input:not(.readonly) {
-      border-color: #fecaca; color: #b91c1c;
-
-      &:focus { border-color: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.08); }
-    }
-
-    &.readonly {
-      background: #f8fafc; border-style: dashed; color: #64748b; cursor: not-allowed;
-    }
-
-    &.pedido-input {
-      border: 2px solid #0369a1; color: #0369a1; font-weight: 800; background: white;
-
-      &:focus { box-shadow: 0 0 0 3px rgba(3, 105, 161, 0.12); }
-      &.has-value { background: #e0f2fe; }
-    }
-  }
-}
-
 .simple-supply {
   display: flex; align-items: end; gap: 1.25rem;
 
@@ -288,11 +199,6 @@ const isSimpleSupply = () => props.item.isGeneral && !props.item.requiresMinimum
 }
 
 @media (max-width: 560px) {
-  .row-grid {
-    :deep(.sold-box) { flex: 1 1 100%; }
-    .field.pedido { flex: 1 1 100%; }
-  }
-
   .simple-supply { flex-direction: column; align-items: stretch; .field { width: 100%; } }
 }
 </style>
