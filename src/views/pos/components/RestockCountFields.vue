@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { QUICK_LOSS_REASON, type RestockItemData, type ChannelSale } from '@/views/pos/composables/useDailyClosing';
+import { QUICK_LOSS_REASON, type RestockItemData } from '@/views/pos/composables/useDailyClosing';
 import RestockSoldBadge from './RestockSoldBadge.vue';
 
 const props = defineProps<{
   item: RestockItemData;
   vendido: number | null;
-  channels: ChannelSale[];
   salesLoading: boolean;
 }>();
 
@@ -30,6 +29,18 @@ const setPedido = (value: string) => {
 };
 
 const selectAll = (e: FocusEvent) => (e.target as HTMLInputElement).select();
+
+// Ventas que la isla escribe a mano porque el sistema no las trae solas
+type ManualSale = 'ventaCombo' | 'ventaCasaMia' | 'ventaDelaCrem';
+const MANUAL_SALES: Array<{ key: ManualSale; label: string; title: string }> = [
+  { key: 'ventaCombo', label: 'Venta Combo', title: 'Unidades de este producto que salieron dentro de combos' },
+  { key: 'ventaCasaMia', label: 'Venta Casa Mía', title: 'Unidades que vendió Casa Mía con producto de la isla' },
+  { key: 'ventaDelaCrem', label: 'Venta Dela Cream', title: 'Unidades que vendió Dela Cream con producto de la isla' },
+];
+
+const setSale = (key: ManualSale, value: string) => {
+  props.item[key] = Math.max(0, Number(value) || 0);
+};
 </script>
 
 <template>
@@ -37,26 +48,16 @@ const selectAll = (e: FocusEvent) => (e.target as HTMLInputElement).select();
   <div class="row-grid">
     <RestockSoldBadge label="Venta Isla" :vendido="vendido" :loading="salesLoading" :muted="item.isGeneral" />
 
-    <div class="field">
-      <label>Venta Combo</label>
+    <div v-for="sale in MANUAL_SALES" :key="sale.key" class="field">
+      <label>{{ sale.label }}</label>
       <input
         type="number" min="0" inputmode="numeric" placeholder="0" class="num"
-        title="Unidades de este producto que salieron dentro de combos"
-        :value="item.ventaCombo || ''"
+        :title="sale.title"
+        :value="item[sale.key] || ''"
         @focus="selectAll"
-        @input="item.ventaCombo = Math.max(0, Number(($event.target as HTMLInputElement).value) || 0)"
+        @input="setSale(sale.key, ($event.target as HTMLInputElement).value)"
       />
     </div>
-
-    <RestockSoldBadge
-      v-for="ch in channels"
-      :key="ch.key"
-      :label="ch.label"
-      icon="fa-store"
-      :vendido="ch.value"
-      :loading="salesLoading"
-      :muted="item.isGeneral"
-    />
 
     <div class="field">
       <label>Bajas</label>

@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import type { RestockItemData, ChannelSale } from '@/views/pos/composables/useDailyClosing';
+import type { RestockItemData } from '@/views/pos/composables/useDailyClosing';
 import RestockCountFields from './RestockCountFields.vue';
 
 const props = defineProps<{
   item: RestockItemData;
   vendido: number | null;
-  channels: ChannelSale[];
   salesLoading: boolean;
 }>();
 
@@ -69,7 +68,6 @@ const isSimpleSupply = () => props.item.isGeneral && !props.item.requiresMinimum
       v-else
       :item="item"
       :vendido="vendido"
-      :channels="channels"
       :sales-loading="salesLoading"
     />
 

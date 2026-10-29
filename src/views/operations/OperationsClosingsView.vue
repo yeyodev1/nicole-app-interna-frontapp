@@ -65,8 +65,8 @@ const handleExport = () =>
               <th>Recibido</th>
               <th title="Contífico, caja de la isla">Venta isla</th>
               <th title="Lo escribe la isla en el cierre">Venta combo</th>
-              <th title="Contífico, caja Casa Mía">Venta Casa Mía</th>
-              <th title="Contífico, caja Heladería">Venta Dela Cream</th>
+              <th title="Lo escribe la isla en el cierre">Venta Casa Mía</th>
+              <th title="Lo escribe la isla en el cierre">Venta Dela Cream</th>
               <th>Bajas</th>
               <th>Debería quedar</th>
               <th>Quedó (isla)</th>
