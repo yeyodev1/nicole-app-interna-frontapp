@@ -100,7 +100,36 @@ export interface LeftoversReport {
   missing: Array<{ date: string; branch: string }>;
 }
 
+export interface InitialInventoryItem {
+  productName: string
+  unit: string
+  quantity: number
+}
+
+export interface InitialInventory {
+  exists: boolean
+  branch: string
+  date: string
+  items: InitialInventoryItem[]
+  note?: string
+  createdBy?: string
+  updatedBy?: string
+  updatedAt?: string
+  suggestedFromClosing?: boolean
+}
+
 class POSRestockService extends APIBase {
+  /** Inventario inicial de una sucursal y día (si no existe, borrador sugerido). */
+  async getInitialInventory(branch: string, date: string): Promise<InitialInventory> {
+    const { data } = await this.get<InitialInventory>('pos/initial-inventory', undefined, { params: { branch, date } })
+    return data
+  }
+
+  async saveInitialInventory(payload: { branch: string; date: string; items: InitialInventoryItem[]; note?: string }) {
+    const { data } = await this.put<any>('pos/initial-inventory', payload)
+    return data
+  }
+
   /**
    * Get the daily form data for a specific branch.
    */
