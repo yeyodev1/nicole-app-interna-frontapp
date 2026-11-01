@@ -32,6 +32,9 @@ export function connectorUrl(token: string) {
   return `${BASE}/mcp/${token}`
 }
 
+/** URL única del conector (OAuth): Claude manda a cada persona a iniciar sesión aquí. */
+export const CONNECTOR_URL = `${BASE}/mcp`
+
 async function call<T>(method: 'get' | 'post' | 'patch' | 'delete', path: string, data?: unknown): Promise<T> {
   try {
     const token = mcpSession.get()
@@ -61,4 +64,6 @@ export const mcpService = {
   updateUser: (id: string, body: Partial<{ active: boolean; canManage: boolean; password: string; name: string; regenerateConnector: boolean }>) =>
     call<McpUser>('patch', `/users/${id}`, body),
   deleteUser: (id: string) => call<{ deleted: boolean }>('delete', `/users/${id}`),
+  oauthCheck: (query: string) => call<{ clientName: string }>('get', `/oauth/check?${query}`),
+  oauthApprove: (params: Record<string, string>) => call<{ redirectTo: string }>('post', '/oauth/approve', params),
 }
