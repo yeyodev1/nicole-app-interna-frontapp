@@ -48,7 +48,7 @@ async function sendCode() {
         <p>Nicole Pastry Arts · Sucrée</p>
       </div>
 
-      <form v-if="step === 'password'" class="login__form" @submit.prevent="sendPassword">
+      <form v-if="step === 'password'" key="password" class="login__form" @submit.prevent="sendPassword">
         <label>
           <span>Correo</span>
           <input v-model="email" type="email" autocomplete="username" required placeholder="tu@correo.com" />
@@ -58,12 +58,12 @@ async function sendCode() {
           <input v-model="password" type="password" autocomplete="current-password" required />
         </label>
         <p v-if="error" class="login__error"><i class="fa-solid fa-circle-exclamation"></i> {{ error }}</p>
-        <button class="login__btn" :disabled="loading">
+        <button type="submit" class="login__btn" :disabled="loading">
           <i v-if="loading" class="fa-solid fa-spinner fa-spin"></i> Continuar
         </button>
       </form>
 
-      <form v-else class="login__form" @submit.prevent="sendCode">
+      <form v-else key="code" class="login__form" @submit.prevent="sendCode">
         <p class="login__hint">
           Te enviamos un código de 6 dígitos a <strong>{{ email }}</strong>. Revisa también spam.
         </p>
@@ -72,7 +72,7 @@ async function sendCode() {
           <input v-model="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" required class="login__code" placeholder="000000" />
         </label>
         <p v-if="error" class="login__error"><i class="fa-solid fa-circle-exclamation"></i> {{ error }}</p>
-        <button class="login__btn" :disabled="loading">
+        <button type="submit" class="login__btn" :disabled="loading">
           <i v-if="loading" class="fa-solid fa-spinner fa-spin"></i> Entrar
         </button>
         <button type="button" class="login__link" @click="(step = 'password'), (code = ''), (error = '')">
