@@ -5,6 +5,8 @@ import { useToast } from '@/composables/useToast'
 
 export type FilterMode = 'today' | 'yesterday' | 'tomorrow' | 'all' | 'custom' | 'invoiceError' | 'unbilled' | 'returns' | 'webPending' | 'clientLinkPending'
 export type DateType = 'deliveryDate' | 'createdAt'
+/** Marca del pedido (cuenta de Contífico). 'all' = Nicole y Sucrée juntas. */
+export type BrandFilter = 'all' | 'nicole' | 'sucree'
 
 export function useOrderFilters() {
   const { error: showError } = useToast()
@@ -19,6 +21,7 @@ export function useOrderFilters() {
   // Fin del rango de fechas; vacío = filtrar solo el día de customDate
   const customEndDate = ref('')
   const searchQuery = ref('')
+  const brand = ref<BrandFilter>('all')
 
   // Pedidos de la tienda online pendientes de gestionar (badge del filtro)
   const webPendingCount = ref(0)
@@ -54,6 +57,8 @@ export function useOrderFilters() {
       const filters: any = {
         dateType: dateType.value
       }
+      // La marca se combina con cualquier período y con Entrega / Registro.
+      if (brand.value !== 'all') filters.brand = brand.value
 
       // 1. Search filter
       if (searchQuery.value) {
@@ -127,7 +132,7 @@ export function useOrderFilters() {
   }
 
   // Reactivity
-  watch([filterMode, customDate, customEndDate, dateType], () => {
+  watch([filterMode, customDate, customEndDate, dateType, brand], () => {
     // Logic for clearing 'customDate' when switching modes could be here,
     // but typically we might want to persist if the user comes back.
     // However, if switching To 'today', customDate is ignored anyway.
@@ -155,6 +160,7 @@ export function useOrderFilters() {
     customDate,
     customEndDate,
     searchQuery,
+    brand,
     showDatePicker,
     fetchOrders,
     webPendingCount,

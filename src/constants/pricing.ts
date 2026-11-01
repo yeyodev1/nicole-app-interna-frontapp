@@ -23,3 +23,21 @@ export function isPrecioIvaIncluido(item: { contifico_id?: string; id?: string; 
   if (id && PRECIO_IVA_INCLUIDO_IDS.has(id)) return true
   return String(item.name ?? item.nombre ?? '').toLowerCase().includes('delivery')
 }
+
+/**
+ * Descuento (%) de una línea. Decisión de Nicole (30/10/2026): los descuentos se
+ * calculan solo sobre los productos; el delivery se cobra completo siempre. La
+ * cortesía (de la línea o del pedido entero) sigue regalando todo, envío incluido.
+ * Debe coincidir con `lineDiscountPercent` de `src/config/precio-final.config.ts` del backend.
+ */
+export function lineDiscountPercent(
+  item: { name?: string; isCourtesy?: boolean },
+  opts: { globalDiscountPercentage?: number; isGlobalCourtesy?: boolean },
+): number {
+  if (item.isCourtesy || opts.isGlobalCourtesy) return 100
+  const global = Number(opts.globalDiscountPercentage) || 0
+  const name = String(item.name ?? '').toLowerCase()
+  const isShipping = name.includes('delivery') || name.includes('envío') || name.includes('envio')
+  if (global > 0 && !isShipping) return Math.min(global, 100)
+  return 0
+}

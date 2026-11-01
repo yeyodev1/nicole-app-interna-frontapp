@@ -8,7 +8,7 @@ import { useToast } from '@/composables/useToast'
 // Components
 import OrderProductSelector from './components/OrderProductSelector.vue'
 import OrderForm from './components/OrderForm.vue'
-import { isPrecioIvaIncluido } from '@/constants/pricing'
+import { isPrecioIvaIncluido, lineDiscountPercent } from '@/constants/pricing'
 import OrderCart from './components/OrderCart.vue'
 import OrderWhatsAppModal from './components/OrderWhatsAppModal.vue'
 import OrderConfirmationModal from './components/OrderConfirmationModal.vue'
@@ -121,10 +121,8 @@ watch([cart, () => formData.globalDiscountPercentage, () => formData.isGlobalCou
   }
 
   const subtotal = newCart.reduce((sum, item) => {
-    let itemDiscount = item.isCourtesy ? 100 : 0
-    if (discount && discount > 0 && itemDiscount < 100) {
-      itemDiscount = discount
-    }
+    // El descuento global no toca el delivery
+    const itemDiscount = lineDiscountPercent(item, { globalDiscountPercentage: discount })
     const itemTotal = (item.price * item.quantity) * ((100 - itemDiscount) / 100)
     return sum + itemTotal
   }, 0)
@@ -133,10 +131,7 @@ watch([cart, () => formData.globalDiscountPercentage, () => formData.isGlobalCou
     // Delivery y Torta Personalizada ya traen el IVA en el precio tecleado
     if (isPrecioIvaIncluido(item)) return sum
 
-    let itemDiscount = item.isCourtesy ? 100 : 0
-    if (discount && discount > 0 && itemDiscount < 100) {
-      itemDiscount = discount
-    }
+    const itemDiscount = lineDiscountPercent(item, { globalDiscountPercentage: discount })
     const itemTotal = (item.price * item.quantity) * ((100 - itemDiscount) / 100)
     return sum + (itemTotal * 0.15)
   }, 0)
@@ -215,7 +210,10 @@ const onCartSubmit = () => {
     // Regla de anticipación (admin de la web). En edición solo si cambió la fecha.
     // El retiro directo de tienda no pasa por producción: se puede el mismo día.
     if (!formData.skipProduction && (!isEditMode.value || formData.deliveryDate !== originalDeliveryDate.value)) {
-      const scheduleError = schedule.validate(formData.deliveryDate, formData.deliveryTime)
+      const scheduleError = schedule.validate(formData.deliveryDate, formData.deliveryTime, {
+        deliveryType: formData.deliveryType,
+        branch: formData.branch,
+      })
       if (scheduleError) { showError(scheduleError); return; }
     }
   }

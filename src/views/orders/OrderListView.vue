@@ -36,6 +36,7 @@ const {
   customDate,
   customEndDate,
   searchQuery,
+  brand,
   showDatePicker,
   fetchOrders,
   webPendingCount,
@@ -408,6 +409,7 @@ onUnmounted(() => {
       <OrderFilterBar
         v-model:filter-mode="filterMode"
         v-model:date-type="dateType"
+        v-model:brand="brand"
         v-model:custom-date="customDate"
         v-model:custom-end-date="customEndDate"
         v-model:search-query="searchQuery"

@@ -8,7 +8,7 @@ import { useBranches } from '@/composables/useBranches'
 import { useSellers } from '@/composables/useSellers'
 import { useDeliveryLine, isDeliveryLine } from '@/composables/useDeliveryLine'
 import { findSellerForCurrentUser } from '@/composables/useDefaultSeller'
-import { isPrecioIvaIncluido } from '@/constants/pricing'
+import { isPrecioIvaIncluido, lineDiscountPercent } from '@/constants/pricing'
 import type { Product, CartItem, OrderFormData, ClientLinkRequest } from '@/types/order'
 
 import OrderProductSelector from './components/OrderProductSelector.vue'
@@ -103,8 +103,7 @@ watch([cart, () => formData.globalDiscountPercentage, () => formData.isGlobalCou
   let subtotal = 0
   let iva = 0
   for (const item of items) {
-    let itemDiscount = item.isCourtesy ? 100 : 0
-    if (discount && discount > 0 && itemDiscount < 100) itemDiscount = discount
+    const itemDiscount = lineDiscountPercent(item, { globalDiscountPercentage: discount })
     const line = item.price * item.quantity * ((100 - itemDiscount) / 100)
     subtotal += line
     if (!isPrecioIvaIncluido(item)) iva += line * 0.15
@@ -211,7 +210,7 @@ const showNotes = ref(false)
 
 // --- Resumen visible: precio final por línea (con IVA, como lo paga el cliente) ---
 const lineTotal = (item: CartItem) => {
-  const discount = item.isCourtesy ? 100 : formData.globalDiscountPercentage || 0
+  const discount = lineDiscountPercent(item, formData)
   const base = item.price * item.quantity * ((100 - discount) / 100)
   return isPrecioIvaIncluido(item) ? base : base * 1.15
 }

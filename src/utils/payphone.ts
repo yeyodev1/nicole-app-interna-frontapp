@@ -1,4 +1,4 @@
-import { isPrecioIvaIncluido } from '@/constants/pricing'
+import { isPrecioIvaIncluido, lineDiscountPercent } from '@/constants/pricing'
 import type { CartItem } from '@/types/order'
 
 /**
@@ -17,10 +17,7 @@ export function payphoneBreakdown(
   let base = 0
   let finalPrice = 0
   for (const item of cart) {
-    let discount = item.isCourtesy ? 100 : 0
-    if (opts.globalDiscountPercentage && opts.globalDiscountPercentage > 0 && discount < 100) {
-      discount = opts.globalDiscountPercentage
-    }
+    const discount = lineDiscountPercent(item, opts)
     const line = item.price * item.quantity * ((100 - discount) / 100)
     if (isPrecioIvaIncluido(item)) {
       finalPrice += line
