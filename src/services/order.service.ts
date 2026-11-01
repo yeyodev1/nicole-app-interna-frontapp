@@ -52,7 +52,17 @@ class OrderService extends APIBase {
     }
   }
 
-  async getOrders(filters?: { search?: string, startDate?: string, endDate?: string, dateType?: 'deliveryDate' | 'createdAt', dispatchStatus?: string, webPending?: 'true', clientLinkPending?: 'true', salesChannel?: string }): Promise<any[]> {
+  /** Cupo de deliveries por hora de un día (máx. 8, todos los canales). */
+  async getDeliverySlots(date: string): Promise<{ capacity: number; counts: Record<string, number>; full: string[] }> {
+    const response = await this.get<{ capacity: number; counts: Record<string, number>; full: string[] }>(
+      'orders/delivery-slots',
+      undefined,
+      { params: { date } }
+    )
+    return response.data
+  }
+
+  async getOrders(filters?: { search?: string, startDate?: string, endDate?: string, dateType?: 'deliveryDate' | 'createdAt', dispatchStatus?: string, webPending?: 'true', clientLinkPending?: 'true', salesChannel?: string, brand?: 'nicole' | 'sucree' }): Promise<any[]> {
     try {
       const response = await this.get<any[]>('orders', undefined, { params: filters })
       return response.data

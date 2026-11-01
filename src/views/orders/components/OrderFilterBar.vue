@@ -3,10 +3,12 @@ import CustomDateRangePicker from '@/components/ui/CustomDateRangePicker.vue'
 
 export type FilterMode = 'today' | 'yesterday' | 'tomorrow' | 'all' | 'custom' | 'invoiceError' | 'unbilled' | 'returns' | 'webPending' | 'clientLinkPending'
 export type DateType = 'deliveryDate' | 'createdAt'
+export type BrandFilter = 'all' | 'nicole' | 'sucree'
 
 const props = defineProps<{
   filterMode: FilterMode
   dateType: DateType
+  brand: BrandFilter
   customDate: string
   customEndDate: string
   searchQuery: string
@@ -22,6 +24,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:filterMode', value: FilterMode): void
   (e: 'update:dateType', value: DateType): void
+  (e: 'update:brand', value: BrandFilter): void
   (e: 'update:customDate', value: string): void
   (e: 'update:customEndDate', value: string): void
   (e: 'update:searchQuery', value: string): void
@@ -127,6 +130,22 @@ const emit = defineEmits<{
           </button>
           <button class="toggle-btn" :class="{ active: dateType === 'createdAt' }" @click="emit('update:dateType', 'createdAt')">
             Registro
+          </button>
+        </div>
+      </div>
+
+      <!-- Marca -->
+      <div class="nav-section">
+        <span class="section-label">Marca</span>
+        <div class="date-type-toggle">
+          <button class="toggle-btn" :class="{ active: brand === 'nicole' }" @click="emit('update:brand', 'nicole')">
+            Nicole
+          </button>
+          <button class="toggle-btn" :class="{ active: brand === 'sucree' }" @click="emit('update:brand', 'sucree')">
+            Sucrée
+          </button>
+          <button class="toggle-btn" :class="{ active: brand === 'all' }" @click="emit('update:brand', 'all')">
+            Todos
           </button>
         </div>
       </div>

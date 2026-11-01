@@ -7,18 +7,32 @@ import { getECTTodayString } from '@/utils/dateUtils'
  * se configura en el admin de la web (Ajustes → Días de anticipación y horarios).
  *
  * - Nada para el mismo día: la fecha más temprana es hoy + `minLeadDays`.
- * - Solo los horarios configurados (11h00 a 19h00, fijo en la tienda).
+ * - Solo los horarios configurados (09h00 a 19h00, fijo en la tienda), desde la
+ *   primera hora de cada modalidad: delivery 09h00, retiro en San Marino 10h00 y en
+ *   Mall del Sol 11h00 (`earliestSlots`, decisión de Nicole del 30/10/2026).
  *
  * Si la tienda no responde se usan los valores por defecto, para no bloquear la venta.
  */
 
 const DEFAULT_MIN_LEAD_DAYS = 1
-const DEFAULT_SLOTS = ['11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00']
+const DEFAULT_SLOTS = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00']
+const DEFAULT_EARLIEST = {
+  delivery: '09:00',
+  pickup: { 'San Marino': '10:00', 'Mall del Sol': '11:00' } as Record<string, string>,
+  pickupDefault: '11:00',
+}
 
 interface TiendaSettings {
   minLeadDays?: number
   timeSlots?: string[]
   closedWeekdays?: number[]
+  earliestSlots?: typeof DEFAULT_EARLIEST
+}
+
+/** Modalidad del pedido: la primera hora depende de ella. */
+export interface ScheduleContext {
+  deliveryType?: string
+  branch?: string
 }
 
 // Singleton de módulo: la tienda se consulta una sola vez por sesión.
@@ -87,11 +101,21 @@ export function useScheduleRules(options: { allowToday?: boolean } = {}) {
 
   const isToday = (date?: string) => !!date && date === getECTTodayString()
 
+  /** Primera hora de la modalidad ("" = sin modalidad elegida, todas). */
+  const earliestFor = (ctx?: ScheduleContext) => {
+    const e = _settings.value?.earliestSlots || DEFAULT_EARLIEST
+    if (ctx?.deliveryType === 'delivery') return e.delivery
+    if (ctx?.deliveryType === 'retiro') return e.pickup[ctx.branch || ''] || e.pickupDefault
+    return ''
+  }
+
   /** Horarios que todavía se pueden elegir ese día (hoy: solo los que no pasaron). */
-  const slotsFor = (date?: string) => {
-    if (!allowToday || !isToday(date)) return timeSlots.value
+  const slotsFor = (date?: string, ctx?: ScheduleContext) => {
+    const earliest = earliestFor(ctx)
+    const slots = timeSlots.value.filter(t => t >= earliest)
+    if (!allowToday || !isToday(date)) return slots
     const now = nowECTime()
-    return timeSlots.value.filter(t => t > now)
+    return slots.filter(t => t > now)
   }
 
   /** Hoy ya pasó la última hora de entrega: el primer día que se puede elegir es mañana. */
@@ -115,15 +139,20 @@ export function useScheduleRules(options: { allowToday?: boolean } = {}) {
   })
 
   /** Mensaje de error si la fecha/hora elegida rompe la regla, o null. */
-  const validate = (date?: string, time?: string): string | null => {
+  const validate = (date?: string, time?: string, ctx?: ScheduleContext): string | null => {
     if (!date) return null
     if (date < minDate.value) return ruleText.value
     const weekday = new Date(`${date}T12:00:00Z`).getUTCDay()
     if (closedWeekdays.value.includes(weekday)) return 'Ese día no hacemos entregas. Elige otra fecha.'
     if (time && !timeSlots.value.includes(time)) return `Elige un horario entre ${timeSlots.value[0]} y ${timeSlots.value[timeSlots.value.length - 1]}.`
+    const earliest = earliestFor(ctx)
+    if (time && earliest && time < earliest) {
+      const where = ctx?.deliveryType === 'delivery' ? 'El delivery' : `El retiro en ${ctx?.branch || 'tienda'}`
+      return `${where} es desde las ${earliest.replace(':', 'h')}.`
+    }
     if (allowToday && isToday(date) && time && time <= nowECTime()) return 'Esa hora ya pasó. Elige una hora más tarde o mañana.'
     return null
   }
 
-  return { load, minLeadDays, timeSlots, minDate, ruleText, validate, isToday, slotsFor, todayClosed }
+  return { load, minLeadDays, timeSlots, minDate, ruleText, validate, isToday, slotsFor, todayClosed, earliestFor }
 }

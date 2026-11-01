@@ -39,6 +39,8 @@ const linkState = computed(() => clientLinkState(o.value))
 const isDelivery = computed(() => o.value.deliveryType === 'delivery')
 const isVoided = computed(() => !!o.value.voidedAt || o.value.productionStage === 'VOID')
 const isWeb = computed(() => !!o.value.webOrder?.externalId || o.value.salesChannel === 'Tienda Online')
+// Pedidos viejos sin contificoSource son de Nicole (default del esquema).
+const isSucree = computed(() => o.value.contificoSource === 'sucree')
 
 /** "Vie 16 oct · 11h00" en una sola línea. */
 const whenLabel = computed(() => {
@@ -154,6 +156,9 @@ onBeforeUnmount(closeMenu)
 const showInvoiceEdit = computed(
   () => o.value.invoiceStatus !== 'PROCESSED' && paymentKey.value !== 'paid'
 )
+// Pendiente de pago: toda la tarjeta en rojo hasta que quede pagado (los anulados no).
+const isUnpaid = computed(() => !isVoided.value && paymentKey.value !== 'paid')
+
 const canReturn = computed(() => ['SENT', 'PARTIAL', 'PROBLEM'].includes(o.value.dispatchStatus || ''))
 </script>
 
@@ -161,7 +166,7 @@ const canReturn = computed(() => ['SENT', 'PARTIAL', 'PROBLEM'].includes(o.value
   <article
     ref="root"
     class="order-card"
-    :class="[`edge-${status.tone}`, { selected: isSelected, voided: isVoided, 'menu-open': menuOpen }]"
+    :class="[`edge-${status.tone}`, { selected: isSelected, voided: isVoided, unpaid: isUnpaid, 'menu-open': menuOpen }]"
     @click="emit('click')"
   >
     <!-- Selección en lote -->
@@ -188,10 +193,15 @@ const canReturn = computed(() => ['SENT', 'PARTIAL', 'PROBLEM'].includes(o.value
           </span>
         </p>
       </div>
-      <span class="type" :class="isDelivery ? 'delivery' : 'pickup'" :title="isDelivery ? 'Delivery' : 'Retiro'">
-        <i class="fa-solid" :class="isDelivery ? 'fa-truck-fast' : 'fa-store'"></i>
-        {{ isDelivery ? 'Delivery' : 'Retiro' }}
-      </span>
+      <div class="tags">
+        <span class="brand" :class="isSucree ? 'sucree' : 'nicole'" :title="isSucree ? 'Pedido de Sucrée' : 'Pedido de Nicole'">
+          {{ isSucree ? 'Sucrée' : 'Nicole' }}
+        </span>
+        <span class="type" :class="isDelivery ? 'delivery' : 'pickup'" :title="isDelivery ? 'Delivery' : 'Retiro'">
+          <i class="fa-solid" :class="isDelivery ? 'fa-truck-fast' : 'fa-store'"></i>
+          {{ isDelivery ? 'Delivery' : 'Retiro' }}
+        </span>
+      </div>
     </header>
 
     <!-- Estados -->
@@ -345,6 +355,16 @@ $line: #ece7ef;
     opacity: 0.6;
   }
 
+  &.unpaid {
+    background: #fef2f2;
+    border-color: #fca5a5;
+
+    &:hover {
+      border-color: #f87171;
+      box-shadow: 0 8px 24px rgba(220, 38, 38, 0.12);
+    }
+  }
+
   &.menu-open {
     z-index: 20;
   }
@@ -416,6 +436,34 @@ $line: #ece7ef;
 .web-tag {
   color: #490f57;
   font-weight: 600;
+}
+
+.tags {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.3rem;
+}
+
+// Marca del pedido: morado = Nicole, ámbar = Sucrée (igual que en el selector de productos).
+.brand {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  white-space: nowrap;
+
+  &.nicole {
+    background: #490f57;
+    color: white;
+  }
+
+  &.sucree {
+    background: #f59e0b;
+    color: #451a03;
+  }
 }
 
 .type {

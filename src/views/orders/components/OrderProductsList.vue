@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { isPrecioIvaIncluido } from '@/constants/pricing'
+import { isPrecioIvaIncluido, lineDiscountPercent } from '@/constants/pricing'
 
 const props = defineProps<{
   products: any[],
@@ -21,12 +21,7 @@ const ivaTotal = computed(() => {
   return props.products.reduce((sum, p) => {
     if (isPrecioIvaIncluido(p)) return sum
 
-    let discount = p.isCourtesy ? 100 : 0
-    if (props.isGlobalCourtesy) {
-      discount = 100
-    } else if (props.globalDiscountPercentage && props.globalDiscountPercentage > 0 && discount < 100) {
-      discount = props.globalDiscountPercentage
-    }
+    const discount = lineDiscountPercent(p, props)
 
     const itemTotal = (p.price * p.quantity) * (1 - discount / 100)
     return sum + (itemTotal * 0.15)

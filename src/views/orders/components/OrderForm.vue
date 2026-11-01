@@ -147,11 +147,41 @@ const FREE_SLOTS = Array.from({ length: 53 }, (_, i) => {
   return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
 })
 
+// La primera hora depende de la modalidad: delivery 09h00, San Marino 10h00, Mall del Sol 11h00.
+const scheduleCtx = computed(() => ({
+  deliveryType: props.modelValue.deliveryType,
+  branch: props.modelValue.branch,
+}))
+
+// Cupo de 8 deliveries por hora: las horas llenas no se ofrecen para delivery.
+const fullDeliverySlots = ref<string[]>([])
+let fullRequest = 0
+watch(
+  () => [props.modelValue.deliveryDate, props.modelValue.deliveryType] as const,
+  async ([date, type]) => {
+    const req = ++fullRequest
+    fullDeliverySlots.value = []
+    if (!date || type !== 'delivery') return
+    try {
+      const { full } = await orderService.getDeliverySlots(String(date).slice(0, 10))
+      if (req === fullRequest) fullDeliverySlots.value = full || []
+    } catch {
+      // Sin respuesta no se bloquea: el backend vuelve a validar al guardar.
+    }
+  },
+  { immediate: true }
+)
+const isFullHour = (time: string) => fullDeliverySlots.value.includes(`${time.slice(0, 2)}:00`)
+
 const timeError = computed(() => {
   if (!props.modelValue.deliveryDate || isDirectPickup.value) return null
   // En edición se respeta la fecha que ya tenía el pedido.
   if (props.isEditMode && props.modelValue.deliveryDate === props.originalDeliveryDate) return null
-  return schedule.validate(props.modelValue.deliveryDate, props.modelValue.deliveryTime)
+  const time = props.modelValue.deliveryTime
+  if (isDelivery.value && time && isFullHour(time)) {
+    return `Las ${time.slice(0, 2)}h00 ya tienen 8 deliveries. Elige otra hora.`
+  }
+  return schedule.validate(props.modelValue.deliveryDate, time, scheduleCtx.value)
 })
 
 const QUICK_TIMES = [
@@ -160,10 +190,15 @@ const QUICK_TIMES = [
   { label: 'Tarde', time: '16:00' },
   { label: 'Cierre', time: '19:00' }
 ]
-const quickTimes = computed(() => QUICK_TIMES.filter(qt => schedule.slotsFor(props.modelValue.deliveryDate).includes(qt.time)))
+const openSlots = computed(() =>
+  schedule
+    .slotsFor(props.modelValue.deliveryDate, scheduleCtx.value)
+    .filter(t => !isDelivery.value || !isFullHour(t))
+)
+const quickTimes = computed(() => QUICK_TIMES.filter(qt => openSlots.value.includes(qt.time)))
 
 const timeOptions = computed(() => {
-  const slots = isDirectPickup.value ? FREE_SLOTS : schedule.slotsFor(props.modelValue.deliveryDate)
+  const slots = isDirectPickup.value ? FREE_SLOTS : openSlots.value
   // En edición, si el pedido tenía otra hora, se conserva en la lista.
   const current = props.modelValue.deliveryTime
   return current && props.isEditMode && !slots.includes(current) ? [...slots, current].sort() : slots
