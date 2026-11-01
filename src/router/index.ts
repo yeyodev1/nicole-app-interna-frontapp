@@ -89,6 +89,13 @@ const router = createRouter({
       meta: { title: 'Conector Claude', standalone: true }
     },
     {
+      // Claude manda aquí al conectar (OAuth): iniciar sesión y autorizar.
+      path: '/mcp/autorizar',
+      name: 'mcp-authorize',
+      component: () => import('../views/mcp/McpAuthorizeView.vue'),
+      meta: { title: 'Autorizar Claude', standalone: true }
+    },
+    {
       path: '/reset-password',
       name: 'reset-password',
       component: () => import('../views/ResetPasswordView.vue'),
