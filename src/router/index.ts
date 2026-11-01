@@ -256,6 +256,12 @@ const router = createRouter({
       meta: { requiresAuth: true, role: 'OPERATIONS_MANAGER', title: 'Descuadres' }
     },
     {
+      path: '/operations/initial-inventory',
+      name: 'operations-initial-inventory',
+      component: () => import('../views/operations/OperationsInitialInventoryView.vue'),
+      meta: { requiresAuth: true, role: 'OPERATIONS_MANAGER', title: 'Inventario inicial' }
+    },
+    {
       path: '/operations/closings',
       name: 'operations-closings',
       component: () => import('../views/operations/OperationsClosingsView.vue'),
