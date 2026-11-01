@@ -82,6 +82,13 @@ const router = createRouter({
       meta: { title: 'Iniciar Sesión' }
     },
     {
+      // Portal del conector MCP de Claude: sesión propia, sin el menú de la app interna.
+      path: '/mcp',
+      name: 'mcp-portal',
+      component: () => import('../views/mcp/McpPortalView.vue'),
+      meta: { title: 'Conector Claude', standalone: true }
+    },
+    {
       path: '/reset-password',
       name: 'reset-password',
       component: () => import('../views/ResetPasswordView.vue'),
@@ -291,6 +298,12 @@ router.beforeEach((to, from, next) => {
   // Update Document Title
   const appTitle = 'Nicole Pastry Arts'
   document.title = to.meta.title ? `${to.meta.title} | ${appTitle}` : appTitle
+
+  // El portal MCP no depende de la sesión ni del rol de la app interna.
+  if (to.meta.standalone) {
+    next()
+    return
+  }
 
   const isAuthenticated = localStorage.getItem('access_token')
   const userInfoStr = localStorage.getItem('user_info')
