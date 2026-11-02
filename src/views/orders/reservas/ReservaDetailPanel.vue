@@ -4,6 +4,7 @@ import { useReservaActions } from '@/composables/useReservaActions'
 import { STATE_META, discardReasonLabel, formatContactTime, hasPayment, reservaState } from '@/utils/reserva'
 import ReservaActions from './ReservaActions.vue'
 import ReservaDiscardModal from './ReservaDiscardModal.vue'
+import ReservaReminderTag from './ReservaReminderTag.vue'
 
 /** Seguimiento de la reserva dentro del detalle del pedido. */
 const props = defineProps<{ order: any }>()
@@ -31,6 +32,8 @@ async function confirmDiscard(payload: { reason?: string; note?: string }) {
       <h2><i class="fa-regular fa-comments"></i> Seguimiento de la reserva</h2>
       <span class="chip" :class="`t-${meta.tone}`">{{ meta.label }}</span>
     </div>
+
+    <ReservaReminderTag :order="order" />
 
     <p v-if="discard?.at" class="line">
       Descartada por {{ discard.by }}, {{ formatContactTime(discard.at) }}<template v-if="discard.reason"> · {{ discardReasonLabel(discard.reason) }}</template>

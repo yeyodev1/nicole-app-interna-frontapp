@@ -157,6 +157,8 @@ export interface WebOrderInfo {
   contactLog?: Array<{ at: string; by: string; note?: string }>
   /** Reservas: descarte lógico (el cliente no compró). */
   discard?: { at: string; by: string; reason?: string; note?: string }
+  /** Reservas: correos de recordatorio; clickedAt = el cliente entró por el enlace del correo. */
+  reminder?: { sentCount?: number; lastSentAt?: string; clickedAt?: string }
 }
 
 /** Link de gestión de entrega (contrato v8): el asesor cobra y el cliente gestiona su entrega. */

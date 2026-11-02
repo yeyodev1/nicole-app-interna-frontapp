@@ -12,6 +12,7 @@ import {
   waitingLabel
 } from '@/utils/reserva'
 import ReservaActions from './ReservaActions.vue'
+import ReservaReminderTag from './ReservaReminderTag.vue'
 
 const props = defineProps<{
   order: any
@@ -75,6 +76,8 @@ const discardLine = computed(() => {
       <span class="chip" :class="`t-${meta.tone}`"><i class="fa-solid" :class="meta.icon"></i>{{ meta.label }}</span>
       <span class="age" :class="{ late: isLate }">{{ waitingLabel(order.createdAt) }}</span>
     </div>
+
+    <ReservaReminderTag :order="order" />
 
     <p v-if="lastContact" class="log">
       <i class="fa-regular fa-comments"></i>
