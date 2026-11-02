@@ -19,6 +19,7 @@ import OrderDeliveryAssign from './components/OrderDeliveryAssign.vue'
 import OrderAuditTimeline from './components/OrderAuditTimeline.vue'
 import OrderLocationEditModal from './components/OrderLocationEditModal.vue'
 import OrderWebInfo from './components/OrderWebInfo.vue'
+import ReservaDetailPanel from './reservas/ReservaDetailPanel.vue'
 import WebOrderContacts from './components/WebOrderContacts.vue'
 import OrderClientLinkCard from './components/OrderClientLinkCard.vue'
 import { useRouter } from 'vue-router'
@@ -455,6 +456,11 @@ onUnmounted(() => {
             @updated="fetchOrder"
             @edit-address="openLocationModal('deliveryAddress')"
             @edit-maps-link="openLocationModal('googleMapsLink')"
+          />
+          <ReservaDetailPanel
+            v-if="order.webOrder?.paymentMethod === 'Reserva'"
+            :order="order"
+            @updated="fetchOrder"
           />
           <OrderWebInfo
             v-if="order.webOrder?.externalId"
