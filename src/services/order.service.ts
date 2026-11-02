@@ -90,6 +90,42 @@ class OrderService extends APIBase {
     return response.data
   }
 
+  /** Panel de reservas sin pago: lista del estado pedido y contadores de todos. */
+  async getReservas(params: { state: string; brand?: string; search?: string }): Promise<{ orders: any[]; counts: any; limit: number }> {
+    const response = await this.get<any>('orders/reservas', undefined, { params })
+    return response.data
+  }
+
+  /** Registra un contacto con el cliente; repetirlo acumula el seguimiento. */
+  async contactReserva(id: string, note?: string): Promise<any> {
+    const response = await this.post<any>(`orders/${id}/reserva/contact`, note ? { note } : {})
+    return response.data
+  }
+
+  async undoReservaContact(id: string): Promise<any> {
+    const response = await this.post<any>(`orders/${id}/reserva/contact/undo`, {})
+    return response.data
+  }
+
+  async setReservaContactNote(id: string, note: string): Promise<any> {
+    const response = await this.patch<any>(`orders/${id}/reserva/contact/note`, { note })
+    return response.data
+  }
+
+  /** Borrado lógico: pasan a Descartadas. Las que no se pueden descartar vuelven en `skipped`. */
+  async discardReservas(
+    ids: string[],
+    payload: { reason?: string; note?: string }
+  ): Promise<{ discarded: string[]; skipped: Array<{ id: string; customerName?: string; reason: string }> }> {
+    const response = await this.post<any>('orders/reservas/discard', { ids, ...payload })
+    return response.data
+  }
+
+  async restoreReserva(id: string): Promise<any> {
+    const response = await this.post<any>(`orders/${id}/reserva/restore`, {})
+    return response.data
+  }
+
   /** Pedido de la tienda online → status GESTIONADO. */
   async markWebOrderManaged(id: string): Promise<any> {
     try {
