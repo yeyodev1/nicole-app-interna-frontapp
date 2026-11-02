@@ -58,6 +58,10 @@ const emit = defineEmits<{
       <!-- Tienda online -->
       <div class="nav-section">
         <span class="section-label">Tienda online</span>
+        <router-link class="nav-pill pill-web" :to="{ name: 'reservas' }">
+          <i class="fas fa-calendar-check"></i>
+          <span class="pill-text">Reservas sin pago</span>
+        </router-link>
         <button
           class="nav-pill pill-web"
           :class="{ active: filterMode === 'webPending', 'has-pending': (webPendingCount || 0) > 0 }"
@@ -285,6 +289,7 @@ const emit = defineEmits<{
   font-weight: 500;
   cursor: pointer;
   text-align: left;
+  text-decoration: none;
   transition: background 0.15s, color 0.15s;
 
   i {

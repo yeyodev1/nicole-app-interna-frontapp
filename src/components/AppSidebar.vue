@@ -194,6 +194,9 @@ const closePanel = () => { mobileOpen.value = false }
         <router-link to="/orders" active-class="active" @click="closePanel">
           <i class="fa-solid fa-basket-shopping"></i> Lista de Pedidos
         </router-link>
+        <router-link to="/orders/reservas" active-class="active" @click="closePanel">
+          <i class="fa-solid fa-calendar-check"></i> Reservas sin pago
+        </router-link>
         <router-link to="/orders/link/new" active-class="active" class="nav-primary" @click="closePanel">
           <i class="fa-solid fa-link"></i> Venta con link
         </router-link>
