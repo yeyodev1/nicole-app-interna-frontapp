@@ -14,6 +14,7 @@ const {
   search,
   orders,
   counts,
+  reminderStats,
   limit,
   isLoading,
   loadFailed,
@@ -54,6 +55,11 @@ async function confirmDiscard(payload: { reason?: string; note?: string }) {
       <div>
         <h1>Reservas sin pago</h1>
         <p>{{ counts.pending }} por contactar · {{ counts.contacted }} en seguimiento</p>
+        <p v-if="reminderStats.returned > 0" class="recovered">
+          <i class="fa-solid fa-envelope-open-text"></i>
+          {{ reminderStats.returned }} {{ reminderStats.returned === 1 ? 'entró' : 'entraron' }} por correo de recordatorio
+          · ${{ reminderStats.recoveredTotal.toFixed(2) }} en ventas
+        </p>
       </div>
       <button type="button" class="refresh" :disabled="isLoading" aria-label="Actualizar" title="Actualizar" @click="fetchReservas">
         <i class="fa-solid fa-rotate" :class="{ 'fa-spin': isLoading }"></i>
@@ -153,6 +159,11 @@ async function confirmDiscard(payload: { reason?: string; note?: string }) {
     margin: 0.2rem 0 0;
     color: #6b6475;
     font-size: 0.86rem;
+  }
+
+  .recovered {
+    color: $NICOLE-PURPLE;
+    font-weight: 600;
   }
 }
 

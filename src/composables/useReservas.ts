@@ -13,6 +13,7 @@ export function useReservas() {
   const search = shallowRef('')
   const orders = ref<any[]>([])
   const counts = ref<ReservaCounts>({ pending: 0, contacted: 0, managed: 0, discarded: 0, all: 0 })
+  const reminderStats = ref({ returned: 0, recoveredTotal: 0 })
   const limit = shallowRef(0)
   const isLoading = shallowRef(false)
   const loadFailed = shallowRef(false)
@@ -33,6 +34,7 @@ export function useReservas() {
       if (request !== lastRequest) return
       orders.value = data.orders
       counts.value = data.counts
+      reminderStats.value = data.reminders
       limit.value = data.limit
       loadFailed.value = false
       keepVisibleSelection()
@@ -87,6 +89,7 @@ export function useReservas() {
     search,
     orders,
     counts,
+    reminderStats,
     limit,
     isLoading,
     loadFailed,

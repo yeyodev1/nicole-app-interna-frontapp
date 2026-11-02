@@ -91,7 +91,7 @@ class OrderService extends APIBase {
   }
 
   /** Panel de reservas sin pago: lista del estado pedido y contadores de todos. */
-  async getReservas(params: { state: string; brand?: string; search?: string }): Promise<{ orders: any[]; counts: any; limit: number }> {
+  async getReservas(params: { state: string; brand?: string; search?: string }): Promise<{ orders: any[]; counts: any; reminders: { returned: number; recoveredTotal: number }; limit: number }> {
     const response = await this.get<any>('orders/reservas', undefined, { params })
     return response.data
   }
