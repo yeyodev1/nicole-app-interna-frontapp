@@ -51,6 +51,12 @@ const router = createRouter({
       meta: { requiresAuth: true, title: 'Venta con link' }
     },
     {
+      path: '/orders/reservas',
+      name: 'reservas',
+      component: () => import('../views/orders/reservas/ReservasView.vue'),
+      meta: { requiresAuth: true, title: 'Reservas sin pago' }
+    },
+    {
       path: '/orders/:id',
       name: 'order-detail',
       component: () => import('../views/orders/OrderDetailView.vue'),

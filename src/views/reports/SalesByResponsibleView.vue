@@ -290,7 +290,7 @@ onMounted(async () => {
         <div class="topbar-title">
           <h1>Ventas & Comisiones</h1>
           <p v-if="!isLoading && stats.length > 0">
-            {{ stats.length }} vendedores · {{ dateRange.from }} → {{ dateRange.to }}
+            {{ stats.length }} vendedores · {{ dateRange.from }} → {{ dateRange.to }} · solo pedidos con cobro
           </p>
         </div>
         <button @click="fetchStats" class="btn-refresh" :disabled="isLoading" title="Actualizar">

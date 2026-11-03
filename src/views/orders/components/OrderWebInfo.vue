@@ -100,7 +100,7 @@ const formatDateTime = (value?: string) => {
       (revisa productos y datos de factura). Cuando termines, márcalo como gestionado.
     </p>
 
-    <button v-if="isPending" class="btn-managed" :disabled="isSaving" @click="emit('mark-managed')">
+    <button v-if="isPending && webOrder.paymentMethod !== 'Reserva'" class="btn-managed" :disabled="isSaving" @click="emit('mark-managed')">
       <i class="fas" :class="isSaving ? 'fa-spinner fa-spin' : 'fa-check'"></i>
       Marcar como gestionado
     </button>
