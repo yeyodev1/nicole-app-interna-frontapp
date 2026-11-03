@@ -21,6 +21,9 @@ import PaymentModal from './components/PaymentModal.vue'
 import InvoiceEditModal from './components/InvoiceEditModal.vue'
 import SettleInIslandModal from './components/SettleInIslandModal.vue'
 import OrderDeleteModal from './components/OrderDeleteModal.vue'
+import ReservaDiscardModal from './reservas/ReservaDiscardModal.vue'
+import { useReservaActions } from '@/composables/useReservaActions'
+import { canDiscard } from '@/utils/reserva'
 import BatchRetryModal from './components/BatchRetryModal.vue'
 
 const router = useRouter()
@@ -218,9 +221,25 @@ const handleEditOrder = (order: any) => {
     query: { edit: order._id }
   })
 }
+// Una reserva sin pago no se borra: se descarta (pasa a Reservas sin pago → Descartadas).
+const reservaToDiscard = ref<any>(null)
+const { busyId: discardBusyId, discard: discardReservas } = useReservaActions(() => fetchOrders())
 const handleDeleteOrder = (order: any) => {
+  if (order.webOrder?.paymentMethod === 'Reserva') {
+    if (!canDiscard(order)) {
+      showError('Esta reserva ya tiene cobro, comprobante o entró a producción: no se puede eliminar.')
+      return
+    }
+    reservaToDiscard.value = order
+    return
+  }
   orderToDelete.value = order
   showDeleteModal.value = true
+}
+const confirmDiscardReserva = async (payload: { reason?: string; note?: string }) => {
+  if (!reservaToDiscard.value) return
+  const ok = await discardReservas([reservaToDiscard.value._id], payload)
+  if (ok) reservaToDiscard.value = null
 }
 const executeDeleteOrder = async () => {
   if (!orderToDelete.value) return
@@ -629,6 +648,15 @@ onUnmounted(() => {
       :is-loading="isSettling"
       @close="showSettleModal = false"
       @confirm="handleSettleInIsland"
+    />
+
+    <ReservaDiscardModal
+      v-if="reservaToDiscard"
+      :count="1"
+      :customer-name="reservaToDiscard.customerName"
+      :busy="!!discardBusyId"
+      @close="reservaToDiscard = null"
+      @confirm="confirmDiscardReserva"
     />
 
     <OrderDeleteModal
