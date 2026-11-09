@@ -31,11 +31,9 @@ const setPedido = (value: string) => {
 const selectAll = (e: FocusEvent) => (e.target as HTMLInputElement).select();
 
 // Ventas que la isla escribe a mano porque el sistema no las trae solas
-type ManualSale = 'ventaCombo' | 'ventaCasaMia' | 'ventaDelaCrem';
+type ManualSale = 'ventaFueraIsla';
 const MANUAL_SALES: Array<{ key: ManualSale; label: string; title: string }> = [
-  { key: 'ventaCombo', label: 'Venta Combo', title: 'Unidades de este producto que salieron dentro de combos' },
-  { key: 'ventaCasaMia', label: 'Venta Casa Mía', title: 'Unidades que vendió Casa Mía con producto de la isla' },
-  { key: 'ventaDelaCrem', label: 'Venta Dela Cream', title: 'Unidades que vendió Dela Cream con producto de la isla' },
+  { key: 'ventaFueraIsla', label: 'Venta en combo o fuera de isla', title: 'Unidades vendidas en combos o fuera de la caja de la isla' },
 ];
 
 const setSale = (key: ManualSale, value: string) => {
@@ -44,7 +42,7 @@ const setSale = (key: ManualSale, value: string) => {
 </script>
 
 <template>
-  <!-- Orden pedido por Diego: venta isla · combo · Casa Mía · Dela Cream · bajas · excedentes -->
+  <!-- Orden: venta isla · combo o fuera de isla · bajas · excedentes -->
   <div class="row-grid">
     <RestockSoldBadge label="Venta Isla" :vendido="vendido" :loading="salesLoading" :muted="item.isGeneral" />
 

@@ -70,9 +70,7 @@ const handleExport = () =>
               <th title="Pedido en el cierre de la jornada anterior">Pedido</th>
               <th>Recibido</th>
               <th title="Contífico, caja de la isla">Venta isla</th>
-              <th title="Lo escribe la isla en el cierre">Venta combo</th>
-              <th title="Lo escribe la isla en el cierre">Venta Casa Mía</th>
-              <th title="Lo escribe la isla en el cierre">Venta Dela Cream</th>
+              <th title="Lo escribe la isla en el cierre">Venta en combo o fuera de isla</th>
               <th>Bajas</th>
               <th>Debería quedar</th>
               <th>Quedó (isla)</th>
@@ -93,11 +91,9 @@ const handleExport = () =>
               </td>
               <template v-if="p.vendido !== null && p.ventas">
                 <td>{{ p.ventas.isla || '' }}</td>
-                <td>{{ p.ventas.combo || '' }}</td>
-                <td>{{ p.ventas.casaMia || '' }}</td>
-                <td>{{ p.ventas.delaCrem || '' }}</td>
+                <td>{{ p.ventas.fueraIsla || '' }}</td>
               </template>
-              <td v-else colspan="4">—</td>
+              <td v-else colspan="2">—</td>
               <td :class="{ 'has-bajas': p.bajas > 0 }">{{ p.bajas || '' }}</td>
               <td class="should">{{ p.deberiaQuedar ?? '—' }}</td>
               <td>{{ p.quedo ?? '—' }}</td>
@@ -106,7 +102,7 @@ const handleExport = () =>
               </td>
             </tr>
             <tr v-if="b.products.length === 0">
-              <td colspan="12" class="empty-row">{{ search ? `Nada con «${search}»` : 'Sin movimientos' }}</td>
+              <td colspan="10" class="empty-row">{{ search ? `Nada con «${search}»` : 'Sin movimientos' }}</td>
             </tr>
           </tbody>
         </table>

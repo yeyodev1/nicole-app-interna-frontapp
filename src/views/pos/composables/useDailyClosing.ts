@@ -27,9 +27,7 @@ export interface RestockItemData {
   stockObjectiveTomorrow: number;
   stockObjectiveToday: number;
   bajas: number;
-  ventaCombo: number; // lo escribe la isla: Contífico no desglosa los combos
-  ventaCasaMia: number; // ventas de Casa Mía que no caen solas en el sistema
-  ventaDelaCrem: number; // ídem Dela Cream
+  ventaFueraIsla: number; // venta en combo o fuera de isla: la escribe la isla
   excedente: number | null; // null = Sin reporte
   detailedLosses: DetailedLoss[];
   pedidoOverride: number | null;
@@ -82,9 +80,7 @@ export function useDailyClosing(branch: Ref<string>, closingDate?: Ref<string>) 
           // anterior. El único dato que se muestra es el vendido del día
           // (viene de Contífico, no se teclea).
           bajas: 0,
-          ventaCombo: 0,
-          ventaCasaMia: 0,
-          ventaDelaCrem: 0,
+          ventaFueraIsla: 0,
           excedente: null,
           detailedLosses: [],
           pedidoOverride: null,
@@ -191,9 +187,7 @@ export function useDailyClosing(branch: Ref<string>, closingDate?: Ref<string>) 
       stockObjectiveTomorrow: 0,
       stockObjectiveToday: 0,
       bajas: 0,
-      ventaCombo: 0,
-      ventaCasaMia: 0,
-      ventaDelaCrem: 0,
+      ventaFueraIsla: 0,
       excedente: null,
       detailedLosses: [],
       pedidoOverride: null,
@@ -276,9 +270,7 @@ export function useDailyClosing(branch: Ref<string>, closingDate?: Ref<string>) 
       isGeneral: item.isGeneral,
       category: item.category,
       bajas: item.bajas,
-      ventaCombo: item.ventaCombo,
-      ventaCasaMia: item.ventaCasaMia,
-      ventaDelaCrem: item.ventaDelaCrem,
+      ventaFueraIsla: item.ventaFueraIsla,
       stockFinal: typeof item.excedente === 'number' ? item.excedente : null,
       pedidoFinal: getFinalPedido(item),
       detailedLosses: item.detailedLosses,
