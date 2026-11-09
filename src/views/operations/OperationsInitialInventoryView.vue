@@ -68,7 +68,9 @@ async function save() {
     await posRestockService.saveInitialInventory({
       branch: branch.value,
       date: date.value,
-      items: items.value.map((i) => ({ ...i, quantity: Number(i.quantity) || 0 })),
+      items: items.value
+        .filter((i) => i.quantity !== null && (i.quantity as unknown) !== '')
+        .map((i) => ({ ...i, quantity: Number(i.quantity) })),
       note: note.value.trim() || undefined,
     })
     success('Inventario inicial guardado')
@@ -148,7 +150,7 @@ const fmtDate = (iso?: string) =>
         <div v-for="{ item, index } in visible" :key="item.productName" class="inv-row">
           <span class="inv-name">{{ item.productName }}</span>
           <span class="inv-unit">{{ item.unit }}</span>
-          <input v-model.number="item.quantity" type="number" min="0" step="1" inputmode="numeric" class="inv-qty" />
+          <input v-model.number="item.quantity" type="number" min="0" step="1" inputmode="numeric" class="inv-qty" placeholder="Sin reporte" />
           <button class="inv-remove" title="Quitar" @click="removeProduct(index)">
             <i class="fa-solid fa-xmark"></i>
           </button>
