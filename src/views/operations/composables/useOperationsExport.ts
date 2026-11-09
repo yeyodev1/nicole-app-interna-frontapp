@@ -1,7 +1,7 @@
 import { ref } from 'vue';
 // @ts-ignore
 import XLSX from 'xlsx-js-style';
-import type { OpsBranch } from './useOperationsReport';
+import { diferenciasSeparadas, type OpsBranch } from './useOperationsReport';
 
 /**
  * Exporta a Excel el mismo reporte que llega por correo al Jefe de
@@ -47,7 +47,10 @@ export function useOperationsExport() {
           ]);
         }
         rows.push([]);
-        rows.push(['TOTALES', '', '', '', b.sinOkTotal, '', '', '', '', b.totals.vendido, b.totals.bajas, '', '', b.totals.descuadre]);
+        rows.push(['TOTALES', '', '', '', b.sinOkTotal, '', '', '', '', b.totals.vendido, b.totals.bajas]);
+        const totalesDif = diferenciasSeparadas(b.products);
+        rows.push(['TOTAL EXCEDENTES', totalesDif.excedentes]);
+        rows.push(['TOTAL FALTANTES', totalesDif.faltantes ? -totalesDif.faltantes : 0]);
 
         const ws = XLSX.utils.aoa_to_sheet(rows);
         ws['!cols'] = [{ wch: 34 }, { wch: 22 }, { wch: 12 }, { wch: 10 }, { wch: 8 }, { wch: 18 }, { wch: 8 }, { wch: 14 }, { wch: 12 }, { wch: 11 }];

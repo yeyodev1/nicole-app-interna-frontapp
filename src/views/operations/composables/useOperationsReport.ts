@@ -125,16 +125,24 @@ const setRange = (from: string, to: string) => {
   fetchReport();
 };
 
+/** Excedentes y faltantes por separado: productos distintos no se compensan. */
+export const diferenciasSeparadas = (products: Array<{ descuadre: number | null }>) => ({
+  excedentes: products.reduce((s, p) => s + ((p.descuadre ?? 0) > 0 ? p.descuadre! : 0), 0),
+  faltantes: products.reduce((s, p) => s + ((p.descuadre ?? 0) < 0 ? -p.descuadre! : 0), 0),
+});
+
 export function useOperationsReport() {
   const branches = computed<OpsBranch[]>(() => report.value?.branches || []);
 
   const globalTotals = computed(() => {
-    const t = { vendido: 0, ventaCierre: 0, bajas: 0, descuadre: 0 };
+    const t = { vendido: 0, ventaCierre: 0, bajas: 0, excedentes: 0, faltantes: 0 };
     for (const b of branches.value) {
       t.vendido += b.totals.vendido;
       t.ventaCierre += b.totals.ventaCierre;
       t.bajas += b.totals.bajas;
-      t.descuadre += b.totals.descuadre;
+      const d = diferenciasSeparadas(b.products);
+      t.excedentes += d.excedentes;
+      t.faltantes += d.faltantes;
     }
     return t;
   });

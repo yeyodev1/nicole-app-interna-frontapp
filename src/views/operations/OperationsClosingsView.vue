@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { useOperationsReport } from './composables/useOperationsReport';
+import { useOperationsReport, diferenciasSeparadas } from './composables/useOperationsReport';
 import { useOperationsExport } from './composables/useOperationsExport';
 import OperationsShell from './components/OperationsShell.vue';
 
@@ -13,6 +13,7 @@ const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,
 const filteredBranches = computed(() =>
   branches.value.map(b => ({
     ...b,
+    diferencias: diferenciasSeparadas(b.products), // antes del filtro del buscador
     products: b.products.filter(p => !search.value
       || norm(p.name).includes(norm(search.value))
       || norm(p.categoria || '').includes(norm(search.value))),
@@ -53,10 +54,10 @@ const handleExport = () =>
         <span v-if="incompletos(b) > 0" class="chip warn">⚠ {{ incompletos(b) }} incompletos</span>
         <span class="totals">
           vendido <strong>{{ b.totals.vendido }}</strong> · bajas <strong>{{ b.totals.bajas }}</strong> ·
-          diferencia
-          <strong class="diff-chip" :class="b.totals.descuadre < 0 ? 'neg' : 'pos'">
-            {{ b.totals.descuadre > 0 ? `+${b.totals.descuadre}` : b.totals.descuadre }}
-          </strong>
+          excedentes
+          <strong class="diff-chip pos">{{ b.diferencias.excedentes > 0 ? `+${b.diferencias.excedentes}` : 0 }}</strong> ·
+          faltantes
+          <strong class="diff-chip" :class="b.diferencias.faltantes > 0 ? 'neg' : 'pos'">{{ b.diferencias.faltantes > 0 ? `−${b.diferencias.faltantes}` : 0 }}</strong>
         </span>
       </header>
 
