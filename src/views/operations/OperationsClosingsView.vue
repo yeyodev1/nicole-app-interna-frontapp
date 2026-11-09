@@ -30,6 +30,21 @@ const recibidoTexto = (p: OpsProduct) => {
   return p.recibido;
 };
 
+// Orden: Tortas en porciones, Individuales, demás categorías y sin categoría.
+const CATEGORIAS_PRIMERO = ['cakes porcion', 'individual'];
+const rangoCategoria = (categoria: string | null) => {
+  const i = CATEGORIAS_PRIMERO.indexOf(norm(categoria || ''));
+  if (i >= 0) return i;
+  return categoria ? CATEGORIAS_PRIMERO.length : CATEGORIAS_PRIMERO.length + 1;
+};
+const ordenados = <T extends { categoria: string | null; codigo?: string | null }>(products: T[]) =>
+  [...products].sort((a, b) => {
+    const ra = rangoCategoria(a.categoria);
+    const rb = rangoCategoria(b.categoria);
+    if (ra !== rb) return ra - rb;
+    return ra < CATEGORIAS_PRIMERO.length ? (a.codigo || '~').localeCompare(b.codigo || '~') : 0;
+  });
+
 const handleExport = () =>
   exportDay(date.value === dateTo.value ? date.value : `${date.value}_a_${dateTo.value}`, branches.value);
 </script>
@@ -85,7 +100,7 @@ const handleExport = () =>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="p in b.products" :key="p.name" :class="{ issue: (p.descuadre ?? 0) !== 0 || p.motivosIncompleto?.length }">
+            <tr v-for="p in ordenados(b.products)" :key="p.name" :class="{ issue: (p.descuadre ?? 0) !== 0 || p.motivosIncompleto?.length }">
               <td class="t-left pname">
                 {{ p.name }}
                 <span v-if="p.categoria" class="cat-chip">{{ p.categoria }}</span>

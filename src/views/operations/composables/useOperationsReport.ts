@@ -5,6 +5,7 @@ import { getECTTodayString } from '@/utils/dateUtils';
 export interface OpsProduct {
   name: string;
   categoria: string | null; // tal cual Contífico
+  codigo?: string | null; // código de Contífico; un reporte guardado puede no traerlo
   inicial: number | null; // con cuánto empezó el día
   recibido: number; // solo lo confirmado por la isla
   recibidoOk: number; // confirmado en Recepción Masiva
