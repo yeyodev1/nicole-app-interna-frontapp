@@ -6,7 +6,7 @@ export interface OpsProduct {
   name: string;
   categoria: string | null; // tal cual Contífico
   inicial: number | null; // con cuánto empezó el día
-  recibido: number; // total que llegó (confirmado + sin OK)
+  recibido: number; // solo lo confirmado por la isla
   recibidoOk: number; // confirmado en Recepción Masiva
   recibidoSinOk: number; // despachado por producción sin el OK de la isla
   vendido: number | null; // todo lo vendido: isla + combo + Casa Mía + Dela Crem
@@ -17,6 +17,8 @@ export interface OpsProduct {
   descuadre: number | null; // debería quedar ajustado con lo que quedó en isla (negativo = falta, positivo = sobra)
   ventaCierre: number | null;
   pedidoFinal: number;
+  pedidoAnterior?: number | null; // opcional: el reporte guardado en el navegador puede no traerlo
+  motivosIncompleto?: string[];
 }
 
 export interface OpsBranch {

@@ -19,6 +19,9 @@ const filteredBranches = computed(() =>
   }))
 );
 
+const incompletos = (b: { products: Array<{ motivosIncompleto?: string[] }> }) =>
+  b.products.filter(p => p.motivosIncompleto?.length).length;
+
 const handleExport = () =>
   exportDay(date.value === dateTo.value ? date.value : `${date.value}_a_${dateTo.value}`, branches.value);
 </script>
@@ -47,6 +50,7 @@ const handleExport = () =>
         <h3>{{ b.branch }}</h3>
         <span v-if="b.sinOkTotal > 0" class="chip warn">⚠ {{ b.sinOkTotal }} sin OK</span>
         <span v-if="!b.hasClosing" class="chip muted">sin cierre</span>
+        <span v-if="incompletos(b) > 0" class="chip warn">⚠ {{ incompletos(b) }} incompletos</span>
         <span class="totals">
           vendido <strong>{{ b.totals.vendido }}</strong> · bajas <strong>{{ b.totals.bajas }}</strong> ·
           diferencia
@@ -62,6 +66,7 @@ const handleExport = () =>
             <tr>
               <th class="t-left">Producto</th>
               <th>Stock inicial</th>
+              <th title="Pedido en el cierre de la jornada anterior">Pedido</th>
               <th>Recibido</th>
               <th title="Contífico, caja de la isla">Venta isla</th>
               <th title="Lo escribe la isla en el cierre">Venta combo</th>
@@ -74,12 +79,13 @@ const handleExport = () =>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="p in b.products" :key="p.name" :class="{ issue: (p.descuadre ?? 0) !== 0 }">
+            <tr v-for="p in b.products" :key="p.name" :class="{ issue: (p.descuadre ?? 0) !== 0 || p.motivosIncompleto?.length }">
               <td class="t-left pname">
                 {{ p.name }}
                 <span v-if="p.categoria" class="cat-chip">{{ p.categoria }}</span>
               </td>
               <td>{{ p.inicial ?? '—' }}</td>
+              <td>{{ p.pedidoAnterior ?? '—' }}</td>
               <td>
                 {{ p.recibido || '' }}
                 <span v-if="p.recibidoSinOk > 0" class="sin-ok">⚠ {{ p.recibidoSinOk }} sin OK</span>
@@ -95,11 +101,11 @@ const handleExport = () =>
               <td class="should">{{ p.deberiaQuedar ?? '—' }}</td>
               <td>{{ p.quedo ?? '—' }}</td>
               <td class="diff" :class="(p.descuadre ?? 0) < 0 ? 'neg' : 'pos'">
-                {{ p.descuadre === null ? '—' : (p.descuadre > 0 ? `+${p.descuadre}` : p.descuadre) }}
+                {{ p.motivosIncompleto?.length ? p.motivosIncompleto.join(' · ') : (p.descuadre === null ? '—' : (p.descuadre > 0 ? `+${p.descuadre}` : p.descuadre)) }}
               </td>
             </tr>
             <tr v-if="b.products.length === 0">
-              <td colspan="11" class="empty-row">{{ search ? `Nada con «${search}»` : 'Sin movimientos' }}</td>
+              <td colspan="12" class="empty-row">{{ search ? `Nada con «${search}»` : 'Sin movimientos' }}</td>
             </tr>
           </tbody>
         </table>
