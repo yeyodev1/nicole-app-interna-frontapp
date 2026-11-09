@@ -4,8 +4,6 @@ import { posRestockService } from '@/services/pos-restock.service';
 import ProductionSettingsService from '@/services/production-settings.service';
 import { useDailyClosing } from '@/views/pos/composables/useDailyClosing';
 import { useClosingSteps } from '@/views/pos/composables/useClosingSteps';
-// TEMPORAL (pruebas): cierre para otro día
-import RestockDateSelector from './RestockDateSelector.vue';
 import RestockQuickAdd from './RestockQuickAdd.vue';
 import RestockProductRow from './RestockProductRow.vue';
 import RestockClosingBanner from './RestockClosingBanner.vue';
@@ -39,9 +37,6 @@ const fetchBranches = async () => {
   }
 };
 
-// TEMPORAL (pruebas): día del cierre ('' = hoy)
-const closingDate = ref('');
-
 const {
   isLoading, isSubmitting, formData, formItems, hasExistingEntry,
   sales, salesLoading,
@@ -51,7 +46,7 @@ const {
   showLossModal, activeProductForLoss, openLossModal, handleSaveLosses,
   overriddenItems, hasExcessiveOverride, confirmMessage, confirmMessageHtml,
   buildPayload,
-} = useDailyClosing(localBranch, closingDate);
+} = useDailyClosing(localBranch);
 
 // Modal de nombre: se pide al abrir el cierre si aún no hay nombre guardado.
 const showNameModal = ref(false);
@@ -129,8 +124,6 @@ watch(() => props.isOpen, (newVal) => {
 });
 
 watch(localBranch, () => { if (props.isOpen) loadAll(); });
-// TEMPORAL (pruebas): al cambiar el día del cierre se recarga el formulario
-watch(closingDate, () => { if (props.isOpen) loadAll(); });
 </script>
 
 <template>
@@ -151,8 +144,6 @@ watch(closingDate, () => { if (props.isOpen) loadAll(); });
 
           <form v-else @submit.prevent="handleSubmitClick" class="form-grid">
             <RestockCloserChip :name="submittedBy" @change="showNameModal = true" />
-            <!-- TEMPORAL (pruebas): elegir el día del cierre -->
-            <RestockDateSelector v-model="closingDate" />
             <RestockClosingBanner
               :target-date="formData.targetDate"
               :sales="sales"
