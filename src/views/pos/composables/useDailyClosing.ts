@@ -30,7 +30,7 @@ export interface RestockItemData {
   ventaCombo: number; // lo escribe la isla: Contífico no desglosa los combos
   ventaCasaMia: number; // ventas de Casa Mía que no caen solas en el sistema
   ventaDelaCrem: number; // ídem Dela Cream
-  excedente: number;
+  excedente: number | null; // null = Sin reporte
   detailedLosses: DetailedLoss[];
   pedidoOverride: number | null;
 }
@@ -75,7 +75,7 @@ export function useDailyClosing(branch: Ref<string>, closingDate?: Ref<string>) 
           contificoCategory: item.contificoCategory || null,
           stockObjectiveTomorrow: item.stockObjectiveTomorrow,
           stockObjectiveToday: item.stockObjectiveToday,
-          // El formulario SIEMPRE arranca en cero: bajas, excedente y pedido se
+          // Bajas y pedido arrancan en cero; excedente en null (Sin reporte). Se
           // escriben de nuevo en cada envío y nunca se arrastra lo del cierre
           // anterior. El único dato que se muestra es el vendido del día
           // (viene de Contífico, no se teclea).
@@ -83,7 +83,7 @@ export function useDailyClosing(branch: Ref<string>, closingDate?: Ref<string>) 
           ventaCombo: 0,
           ventaCasaMia: 0,
           ventaDelaCrem: 0,
-          excedente: 0,
+          excedente: null,
           detailedLosses: [],
           pedidoOverride: null,
         };
@@ -192,7 +192,7 @@ export function useDailyClosing(branch: Ref<string>, closingDate?: Ref<string>) 
       ventaCombo: 0,
       ventaCasaMia: 0,
       ventaDelaCrem: 0,
-      excedente: 0,
+      excedente: null,
       detailedLosses: [],
       pedidoOverride: null,
     });
@@ -276,7 +276,7 @@ export function useDailyClosing(branch: Ref<string>, closingDate?: Ref<string>) 
       ventaCombo: item.ventaCombo,
       ventaCasaMia: item.ventaCasaMia,
       ventaDelaCrem: item.ventaDelaCrem,
-      stockFinal: item.excedente,
+      stockFinal: typeof item.excedente === 'number' ? item.excedente : null,
       pedidoFinal: getFinalPedido(item),
       detailedLosses: item.detailedLosses,
       deliveryRounds: rounds?.find(r => r.productName === item.productName)?.deliveryRounds || [],

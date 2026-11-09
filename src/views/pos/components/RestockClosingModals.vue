@@ -34,7 +34,7 @@ const onLossSave = (losses: DetailedLoss[]) => emit('loss-save', losses);
     :product-name="activeProduct.productName"
     :initial-losses="activeProduct.detailedLosses"
     :stock-objective-today="activeProduct.stockObjectiveToday"
-    :excedente="activeProduct.excedente"
+    :excedente="activeProduct.excedente ?? 0"
     @close="emit('loss-close')"
     @save="onLossSave"
   />
