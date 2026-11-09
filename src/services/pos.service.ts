@@ -107,29 +107,6 @@ class POSService extends APIBase {
   }
 
   /**
-   * Reposición de la jornada anterior que CDP no registró
-   */
-  async getRestockWithoutDispatch(branch: string): Promise<any[]> {
-    const response = await this.get<any>(`pos/restock/sin-despacho?branch=${encodeURIComponent(branch)}`)
-    return response.data?.data || []
-  }
-
-  /**
-   * Confirma una reposición que CDP no registró
-   */
-  async confirmRestockWithoutDispatch(
-    orderId: string,
-    data: {
-      receivedBy: string;
-      receptionNotes?: string;
-      items: { productId: string; quantityReceived: number; itemStatus: string; itemNote?: string }[]
-    }
-  ): Promise<any> {
-    const response = await this.post(`pos/restock/sin-despacho/${orderId}/confirm`, data)
-    return response.data
-  }
-
-  /**
    * Get pickup orders for a branch
    */
   async getPickupOrders(branch: string, filters: POSFilters = {}): Promise<POSOrder[]> {
