@@ -75,6 +75,7 @@ const setSale = (key: ManualSale, value: string) => {
       <label>Excedentes</label>
       <input
         type="number" min="0" inputmode="numeric" class="num"
+        placeholder="Sin reporte"
         title="Lo que queda en vitrina al cierre"
         v-model.number="item.excedente"
         @focus="selectAll"

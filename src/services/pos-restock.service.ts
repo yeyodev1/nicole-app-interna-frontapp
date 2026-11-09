@@ -53,10 +53,16 @@ export interface RestockEntryItem {
   category?: 'Producción' | 'Bodega';
   bajas: number;
   bajasNote?: string;
-  stockFinal: number; // This is the 'excedente'
+  stockFinal: number | null; // This is the 'excedente' (null = Sin reporte)
   pedidoFinal: number;
   detailedLosses?: DetailedLoss[];
   deliveryRounds?: Array<{ label: string; quantity: number }>;
+}
+
+export interface NotaCreditoCajera {
+  factura: string;
+  monto: number | null;
+  motivo: string;
 }
 
 export interface RestockEntryPayload {
@@ -64,6 +70,7 @@ export interface RestockEntryPayload {
   date: string;
   submittedBy: string;
   items: RestockEntryItem[];
+  notasCreditoCajera?: NotaCreditoCajera[];
 }
 
 export interface WeeklyObjectives {

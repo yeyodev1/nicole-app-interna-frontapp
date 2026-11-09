@@ -17,7 +17,7 @@ export function useOperationsExport() {
     try {
       const wb = XLSX.utils.book_new();
 
-      const HEAD = ['Producto', 'Categoría (Contífico)', 'Stock inicial', 'Recibido', 'Sin OK', 'Venta isla', 'Venta combo', 'Venta Casa Mía', 'Venta Dela Cream', 'Vendido total', 'Bajas', 'Debería quedar', 'Quedó (isla)', 'Diferencia'];
+      const HEAD = ['Producto', 'Categoría (Contífico)', 'Stock inicial', 'Recibido', 'Sin OK', 'Venta isla', 'Venta combo', 'Venta Casa Mía', 'Venta Dela Cream', 'Vendido total', 'Bajas', 'Debería quedar', 'Quedó (isla)', 'Diferencia', 'Pedido (cierre anterior)', 'Información incompleta'];
       const headStyle = {
         font: { bold: true, color: { rgb: 'FFFFFF' } },
         fill: { fgColor: { rgb: '7C3AED' } },
@@ -42,6 +42,8 @@ export function useOperationsExport() {
             p.deberiaQuedar ?? '—',
             p.quedo ?? '—',
             p.descuadre ?? '—',
+            p.pedidoAnterior ?? '—',
+            (p.motivosIncompleto || []).join(' · '),
           ]);
         }
         rows.push([]);

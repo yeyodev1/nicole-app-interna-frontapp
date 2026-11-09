@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { posRestockService } from '@/services/pos-restock.service';
 import { useDailyClosing } from '@/views/pos/composables/useDailyClosing';
 import RestockProductRow from './components/RestockProductRow.vue';
+import RestockCreditNotes from './components/RestockCreditNotes.vue';
 import RestockClosingBanner from './components/RestockClosingBanner.vue';
 import RestockExcessBanner from './components/RestockExcessBanner.vue';
 import RestockClosingStates from './components/RestockClosingStates.vue';
@@ -12,8 +13,6 @@ import RestockSearchBar from './components/RestockSearchBar.vue';
 import RestockCloserChip from './components/RestockCloserChip.vue';
 import RestockPageHeader from './components/RestockPageHeader.vue';
 import RestockClosingModals from './components/RestockClosingModals.vue';
-// TEMPORAL (pruebas): cierre para otro día
-import RestockDateSelector from './components/RestockDateSelector.vue';
 import { useToast } from '@/composables/useToast';
 
 const route = useRoute();
@@ -23,11 +22,8 @@ const branch = ref<string>((route.query.branch as string) || 'San Marino');
 const { success, error: showError } = useToast();
 const showConfirmModal = ref(false);
 
-// TEMPORAL (pruebas): día del cierre ('' = hoy)
-const closingDate = ref('');
-
 const {
-  isLoading, isSubmitting, formData, formItems, hasExistingEntry,
+  isLoading, isSubmitting, formData, formItems, hasExistingEntry, notasCreditoCajera,
   sales, salesLoading,
   fetchDailyForm, fetchDailySales,
   getVendido,
@@ -35,7 +31,7 @@ const {
   showLossModal, activeProductForLoss, openLossModal, handleSaveLosses,
   overriddenItems, hasExcessiveOverride, confirmMessage, confirmMessageHtml,
   buildPayload,
-} = useDailyClosing(branch, closingDate);
+} = useDailyClosing(branch);
 
 // Modal de nombre: se pide al abrir el cierre si aún no hay nombre guardado.
 const showNameModal = ref(false);
@@ -44,12 +40,6 @@ const handleNameSave = (name: string) => {
   setSubmittedBy(name);
   showNameModal.value = false;
 };
-
-// TEMPORAL (pruebas): recargar al cambiar el día del cierre
-watch(closingDate, () => {
-  fetchDailySales();
-  fetchDailyForm().catch(err => console.error('Error fetching daily form:', err));
-});
 
 const goBack = () => {
   router.push({ name: 'pos-shipments' });
@@ -117,8 +107,6 @@ onMounted(() => {
 
       <form v-else @submit.prevent="handleSubmitClick" class="form-grid">
         <RestockCloserChip :name="submittedBy" @change="showNameModal = true" />
-        <!-- TEMPORAL (pruebas): elegir el día del cierre -->
-        <RestockDateSelector v-model="closingDate" />
         <RestockClosingBanner
           :target-date="formData.targetDate"
           :sales="sales"
@@ -148,6 +136,8 @@ onMounted(() => {
         <p v-if="searchQuery && groupedItems.length === 0" class="no-results">
           Sin resultados para «{{ searchQuery }}»
         </p>
+
+        <RestockCreditNotes v-model="notasCreditoCajera" />
 
         <RestockExcessBanner v-if="hasExcessiveOverride" :items="overriddenItems" />
 

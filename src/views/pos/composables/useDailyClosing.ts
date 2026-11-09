@@ -1,5 +1,5 @@
 import { ref, computed, type Ref } from 'vue';
-import { posRestockService, type DailyFormData, type DailySales, type DetailedLoss } from '@/services/pos-restock.service';
+import { posRestockService, type DailyFormData, type DailySales, type DetailedLoss, type NotaCreditoCajera } from '@/services/pos-restock.service';
 
 /** Motivo que se guarda cuando la baja se escribe directo en el número (sin modal). */
 export const QUICK_LOSS_REASON = 'Baja registrada en el cierre';
@@ -30,7 +30,7 @@ export interface RestockItemData {
   ventaCombo: number; // lo escribe la isla: Contífico no desglosa los combos
   ventaCasaMia: number; // ventas de Casa Mía que no caen solas en el sistema
   ventaDelaCrem: number; // ídem Dela Cream
-  excedente: number;
+  excedente: number | null; // null = Sin reporte
   detailedLosses: DetailedLoss[];
   pedidoOverride: number | null;
 }
@@ -46,6 +46,7 @@ export function useDailyClosing(branch: Ref<string>, closingDate?: Ref<string>) 
   const formData = ref<DailyFormData | null>(null);
   const formItems = ref<RestockItemData[]>([]);
   const hasExistingEntry = ref(false);
+  const notasCreditoCajera = ref<NotaCreditoCajera[]>([]);
 
   // Venta del día según Contífico (se carga aparte: tarda unos segundos)
   const sales = ref<DailySales | null>(null);
@@ -56,6 +57,7 @@ export function useDailyClosing(branch: Ref<string>, closingDate?: Ref<string>) 
     formData.value = null;
     formItems.value = [];
     hasExistingEntry.value = false;
+    notasCreditoCajera.value = [];
     try {
       // closingDate vacío = hoy (lo resuelve el backend)
       const data = await posRestockService.getDailyForm(branch.value, closingDate?.value || undefined);
@@ -75,7 +77,7 @@ export function useDailyClosing(branch: Ref<string>, closingDate?: Ref<string>) 
           contificoCategory: item.contificoCategory || null,
           stockObjectiveTomorrow: item.stockObjectiveTomorrow,
           stockObjectiveToday: item.stockObjectiveToday,
-          // El formulario SIEMPRE arranca en cero: bajas, excedente y pedido se
+          // Bajas y pedido arrancan en cero; excedente en null (Sin reporte). Se
           // escriben de nuevo en cada envío y nunca se arrastra lo del cierre
           // anterior. El único dato que se muestra es el vendido del día
           // (viene de Contífico, no se teclea).
@@ -83,7 +85,7 @@ export function useDailyClosing(branch: Ref<string>, closingDate?: Ref<string>) 
           ventaCombo: 0,
           ventaCasaMia: 0,
           ventaDelaCrem: 0,
-          excedente: 0,
+          excedente: null,
           detailedLosses: [],
           pedidoOverride: null,
         };
@@ -192,7 +194,7 @@ export function useDailyClosing(branch: Ref<string>, closingDate?: Ref<string>) 
       ventaCombo: 0,
       ventaCasaMia: 0,
       ventaDelaCrem: 0,
-      excedente: 0,
+      excedente: null,
       detailedLosses: [],
       pedidoOverride: null,
     });
@@ -267,6 +269,7 @@ export function useDailyClosing(branch: Ref<string>, closingDate?: Ref<string>) 
     branch: branch.value,
     date: formData.value!.formDate,
     submittedBy: submittedBy.value || 'POS User',
+    notasCreditoCajera: notasCreditoCajera.value,
     items: formItems.value.map(item => ({
       productName: item.productName,
       unit: item.unit,
@@ -276,7 +279,7 @@ export function useDailyClosing(branch: Ref<string>, closingDate?: Ref<string>) 
       ventaCombo: item.ventaCombo,
       ventaCasaMia: item.ventaCasaMia,
       ventaDelaCrem: item.ventaDelaCrem,
-      stockFinal: item.excedente,
+      stockFinal: typeof item.excedente === 'number' ? item.excedente : null,
       pedidoFinal: getFinalPedido(item),
       detailedLosses: item.detailedLosses,
       deliveryRounds: rounds?.find(r => r.productName === item.productName)?.deliveryRounds || [],
@@ -284,7 +287,7 @@ export function useDailyClosing(branch: Ref<string>, closingDate?: Ref<string>) 
   });
 
   return {
-    isLoading, isSubmitting, formData, formItems, hasExistingEntry,
+    isLoading, isSubmitting, formData, formItems, hasExistingEntry, notasCreditoCajera,
     sales, salesLoading,
     fetchDailyForm, fetchDailySales,
     getVendido, getFinalPedido, hasModalLosses, handleQuickBajas, addQuickItem,

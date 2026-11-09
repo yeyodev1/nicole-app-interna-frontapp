@@ -54,12 +54,13 @@ const branchOptions = computed(() => props.branches.map(b => ({ value: b, label:
 // --- Internal data ---
 const internalDispatches = ref<any[]>([]);  // PENDING + PROBLEM
 const alreadyReceived    = ref<any[]>([]);  // RECEIVED (history)
+const restockSinDespacho = ref<any[]>([]);  // Reposición que CDP no registró
 
 const fetchModalData = async () => {
   isLoadingData.value = true;
   try {
     // Pendiente = solo PENDING. PROBLEM ya se receptó (con novedad): va al historial.
-    const [pending, received] = await Promise.all([
+    const [pending, received, sinDespacho] = await Promise.all([
       POSService.getIncomingDispatches(localBranch.value, { filterMode: 'all', receptionStatus: ['PENDING'] }),
       POSService.getIncomingDispatches(
         localBranch.value,
@@ -67,6 +68,7 @@ const fetchModalData = async () => {
           ? { date: filterDate.value, receptionStatus: ['RECEIVED', 'PROBLEM'] }
           : { filterMode: filterMode.value, receptionStatus: ['RECEIVED', 'PROBLEM'] }
       ),
+      POSService.getRestockWithoutDispatch(localBranch.value),
     ]);
 
     internalDispatches.value = pending.flatMap(o =>
@@ -81,6 +83,7 @@ const fetchModalData = async () => {
         .map((d: any) => ({ ...o, orderId: o._id, dispatch: d }))
     );
 
+    restockSinDespacho.value = sinDespacho;
     calculateConsolidated();
   } catch (e) {
     console.error('Error fetching modal data:', e);
@@ -99,6 +102,7 @@ interface ConsolidatedItem {
   itemNote: string;
   sources: { orderId: string; dispatchId: string; quantitySent: number; productId: string; }[];
   deliveryRounds: string[]; // e.g. ['Primera Entrega', 'Segunda Entrega']
+  sinRegistroCdp?: boolean; // la cantidad sale de lo pedido en el cierre
 }
 
 const consolidatedItems = ref<ConsolidatedItem[]>([]);
@@ -169,6 +173,24 @@ const calculateConsolidated = () => {
     });
   });
 
+  // Pestaña Hoy: reposición de la jornada anterior que CDP no registró.
+  if (filterMode.value === 'today') {
+    restockSinDespacho.value.forEach(o => {
+      o.items.forEach((item: any) => {
+        const key = item.name;
+        if (!map.has(key)) {
+          map.set(key, { productId: item.productId, name: item.name, totalSent: 0, quantityReceived: 0, itemStatus: 'OK', itemNote: '', sources: [], deliveryRounds: [] });
+        }
+        const entry = map.get(key)!;
+        entry.totalSent += item.quantity;
+        entry.quantityReceived += item.quantity;
+        entry.sinRegistroCdp = true;
+        entry.sources.push({ orderId: o.orderId, dispatchId: `SIN_CDP:${o.orderId}`, quantitySent: item.quantity, productId: item.productId });
+        if (o.comments && !entry.deliveryRounds.includes(o.comments)) entry.deliveryRounds.push(o.comments);
+      });
+    });
+  }
+
   consolidatedItems.value = Array.from(map.values());
 };
 
@@ -205,7 +227,7 @@ const handleConfirm = async () => {
 
   consolidatedItems.value.forEach(cItem => {
     let remaining = cItem.quantityReceived;
-    cItem.sources.forEach(source => {
+    cItem.sources.forEach((source, sourceIndex) => {
       if (!dispatchUpdates.has(source.dispatchId)) {
         dispatchUpdates.set(source.dispatchId, { orderId: source.orderId, items: [] });
       }
@@ -214,8 +236,10 @@ const handleConfirm = async () => {
       let status    = cItem.itemStatus as string;
 
       if (remaining >= source.quantitySent) {
-        allocated  = source.quantitySent;
-        remaining -= source.quantitySent;
+        // Sin registro de CDP: si llegó más de lo pedido, se guarda lo contado.
+        const esUltimaSinCdp = source.dispatchId.startsWith('SIN_CDP:') && sourceIndex === cItem.sources.length - 1;
+        allocated  = esUltimaSinCdp ? Number(remaining) : source.quantitySent;
+        remaining -= allocated;
       } else {
         allocated = remaining;
         remaining = 0;
@@ -237,11 +261,16 @@ const handleConfirm = async () => {
   const failed: string[] = [];
   for (const [dispatchId, data] of dispatchUpdates.entries()) {
     try {
-      await POSService.confirmReception(data.orderId, dispatchId, {
+      const receptionData = {
         receivedBy: 'Encargado POS (Masivo)',
         receptionNotes: bulkNotes.value || 'Recepción Masiva General',
         items: data.items
-      });
+      };
+      if (dispatchId.startsWith('SIN_CDP:')) {
+        await POSService.confirmRestockWithoutDispatch(data.orderId, receptionData);
+      } else {
+        await POSService.confirmReception(data.orderId, dispatchId, receptionData);
+      }
       const orderData = internalDispatches.value.find(d => d.orderId === data.orderId);
       // Solo los pedidos de clientes se liquidan en isla. Una reposición interna
       // no se "factura en isla" ni se marca entregada: queda RECIBIDA y ya.
@@ -453,6 +482,10 @@ watch(() => props.isOpen, (v) => {
             <div class="item-main">
               <div class="item-info">
                 <span class="item-name">{{ item.name }}</span>
+                <div v-if="item.sinRegistroCdp" class="diff-badge">
+                  <i class="fa-solid fa-triangle-exclamation"></i>
+                  <span>CDP no registró el despacho: cantidad según lo pedido</span>
+                </div>
                 <div v-if="item.deliveryRounds.length > 0" class="round-badges">
                   <span v-for="round in item.deliveryRounds" :key="round" class="round-badge">
                     <i class="fa-solid fa-truck-ramp-box"></i> {{ round }}
