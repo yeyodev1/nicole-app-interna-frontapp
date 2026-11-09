@@ -59,7 +59,7 @@ export function useOperationsExport() {
         // Diferencias en rojo
         for (let r = 1; r <= b.products.length; r++) {
           const d = b.products[r - 1]?.descuadre;
-          const cell = ws[XLSX.utils.encode_cell({ r, c: 9 })];
+          const cell = ws[XLSX.utils.encode_cell({ r, c: 11 })]; // columna Diferencia
           if (cell && typeof d === 'number' && d !== 0) {
             cell.s = { font: { bold: true, color: { rgb: d < 0 ? 'DC2626' : 'D97706' } } };
           }
