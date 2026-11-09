@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { useOperationsReport, diferenciasSeparadas } from './composables/useOperationsReport';
+import { useOperationsReport, diferenciasSeparadas, type OpsProduct } from './composables/useOperationsReport';
 import { useOperationsExport } from './composables/useOperationsExport';
 import OperationsShell from './components/OperationsShell.vue';
 
@@ -22,6 +22,13 @@ const filteredBranches = computed(() =>
 
 const incompletos = (b: { products: Array<{ motivosIncompleto?: string[] }> }) =>
   b.products.filter(p => p.motivosIncompleto?.length).length;
+
+// "—" si hay Pedido y CDP no registró despacho; con despacho sin OK manda el aviso.
+const recibidoTexto = (p: OpsProduct) => {
+  if (p.recibidoSinOk > 0) return p.recibido || '';
+  if ((p.pedidoAnterior ?? 0) > 0 && p.recibidoOk + p.recibidoSinOk === 0) return '—';
+  return p.recibido;
+};
 
 const handleExport = () =>
   exportDay(date.value === dateTo.value ? date.value : `${date.value}_a_${dateTo.value}`, branches.value);
@@ -86,15 +93,15 @@ const handleExport = () =>
               <td>{{ p.inicial ?? '—' }}</td>
               <td>{{ p.pedidoAnterior ?? '—' }}</td>
               <td>
-                {{ p.recibido || '' }}
+                {{ recibidoTexto(p) }}
                 <span v-if="p.recibidoSinOk > 0" class="sin-ok">⚠ {{ p.recibidoSinOk }} sin OK</span>
               </td>
               <template v-if="p.vendido !== null && p.ventas">
-                <td>{{ p.ventas.isla || '' }}</td>
-                <td>{{ p.ventas.fueraIsla || '' }}</td>
+                <td>{{ b.salesAvailable ? p.ventas.isla : '—' }}</td>
+                <td>{{ b.hasClosing ? (p.ventas.fueraIsla ?? 0) : '—' }}</td>
               </template>
               <td v-else colspan="2">—</td>
-              <td :class="{ 'has-bajas': p.bajas > 0 }">{{ p.bajas || '' }}</td>
+              <td :class="{ 'has-bajas': p.bajas > 0 }">{{ b.hasClosing ? p.bajas : '—' }}</td>
               <td class="should">{{ p.deberiaQuedar ?? '—' }}</td>
               <td>{{ p.quedo ?? '—' }}</td>
               <td class="diff" :class="(p.descuadre ?? 0) < 0 ? 'neg' : 'pos'">
