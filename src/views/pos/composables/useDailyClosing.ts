@@ -1,5 +1,5 @@
 import { ref, computed, type Ref } from 'vue';
-import { posRestockService, type DailyFormData, type DailySales, type DetailedLoss } from '@/services/pos-restock.service';
+import { posRestockService, type DailyFormData, type DailySales, type DetailedLoss, type NotaCreditoCajera } from '@/services/pos-restock.service';
 
 /** Motivo que se guarda cuando la baja se escribe directo en el número (sin modal). */
 export const QUICK_LOSS_REASON = 'Baja registrada en el cierre';
@@ -46,6 +46,7 @@ export function useDailyClosing(branch: Ref<string>, closingDate?: Ref<string>) 
   const formData = ref<DailyFormData | null>(null);
   const formItems = ref<RestockItemData[]>([]);
   const hasExistingEntry = ref(false);
+  const notasCreditoCajera = ref<NotaCreditoCajera[]>([]);
 
   // Venta del día según Contífico (se carga aparte: tarda unos segundos)
   const sales = ref<DailySales | null>(null);
@@ -56,6 +57,7 @@ export function useDailyClosing(branch: Ref<string>, closingDate?: Ref<string>) 
     formData.value = null;
     formItems.value = [];
     hasExistingEntry.value = false;
+    notasCreditoCajera.value = [];
     try {
       // closingDate vacío = hoy (lo resuelve el backend)
       const data = await posRestockService.getDailyForm(branch.value, closingDate?.value || undefined);
@@ -267,6 +269,7 @@ export function useDailyClosing(branch: Ref<string>, closingDate?: Ref<string>) 
     branch: branch.value,
     date: formData.value!.formDate,
     submittedBy: submittedBy.value || 'POS User',
+    notasCreditoCajera: notasCreditoCajera.value,
     items: formItems.value.map(item => ({
       productName: item.productName,
       unit: item.unit,
@@ -284,7 +287,7 @@ export function useDailyClosing(branch: Ref<string>, closingDate?: Ref<string>) 
   });
 
   return {
-    isLoading, isSubmitting, formData, formItems, hasExistingEntry,
+    isLoading, isSubmitting, formData, formItems, hasExistingEntry, notasCreditoCajera,
     sales, salesLoading,
     fetchDailyForm, fetchDailySales,
     getVendido, getFinalPedido, hasModalLosses, handleQuickBajas, addQuickItem,

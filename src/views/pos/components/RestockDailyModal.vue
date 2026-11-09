@@ -6,6 +6,7 @@ import { useDailyClosing } from '@/views/pos/composables/useDailyClosing';
 import { useClosingSteps } from '@/views/pos/composables/useClosingSteps';
 import RestockQuickAdd from './RestockQuickAdd.vue';
 import RestockProductRow from './RestockProductRow.vue';
+import RestockCreditNotes from './RestockCreditNotes.vue';
 import RestockClosingBanner from './RestockClosingBanner.vue';
 import RestockExcessBanner from './RestockExcessBanner.vue';
 import RestockDistributionStep, { type DeliveryRoundResult } from './RestockDistributionStep.vue';
@@ -38,7 +39,7 @@ const fetchBranches = async () => {
 };
 
 const {
-  isLoading, isSubmitting, formData, formItems, hasExistingEntry,
+  isLoading, isSubmitting, formData, formItems, hasExistingEntry, notasCreditoCajera,
   sales, salesLoading,
   fetchDailyForm, fetchDailySales,
   getVendido, getFinalPedido, addQuickItem,
@@ -177,6 +178,8 @@ watch(localBranch, () => { if (props.isOpen) loadAll(); });
                 Sin resultados para «{{ searchQuery }}»
               </p>
             </div>
+
+            <RestockCreditNotes v-model="notasCreditoCajera" />
 
             <RestockExcessBanner v-if="hasExcessiveOverride" :items="overriddenItems" />
 

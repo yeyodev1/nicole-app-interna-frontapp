@@ -110,6 +110,12 @@ const handleExport = () =>
           </tbody>
         </table>
       </div>
+
+      <div v-if="b.notasCredito?.contifico.length || b.notasCredito?.cajera.length" class="credit-notes">
+        <strong>Notas de crédito (no se restan de lo vendido)</strong>
+        <p v-for="n in b.notasCredito?.contifico" :key="`c-${n.numero}`">Contífico · {{ n.fecha }} · {{ n.numero }} · ${{ n.total.toFixed(2) }}<template v-if="n.cliente"> · {{ n.cliente }}</template></p>
+        <p v-for="n in b.notasCredito?.cajera" :key="`m-${n.fecha}-${n.factura}`">Cajera · {{ n.fecha }} · Factura {{ n.factura }} · ${{ n.monto.toFixed(2) }} · {{ n.motivo }}</p>
+      </div>
     </section>
   </OperationsShell>
 </template>
@@ -194,6 +200,7 @@ const handleExport = () =>
 }
 
 .table-wrap { overflow-x: auto; }
+.credit-notes { padding: 0.75rem 1rem; font-size: 0.82rem; color: #334155; p { margin: 0.25rem 0 0; } }
 
 table {
   width: 100%;

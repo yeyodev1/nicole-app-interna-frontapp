@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { posRestockService } from '@/services/pos-restock.service';
 import { useDailyClosing } from '@/views/pos/composables/useDailyClosing';
 import RestockProductRow from './components/RestockProductRow.vue';
+import RestockCreditNotes from './components/RestockCreditNotes.vue';
 import RestockClosingBanner from './components/RestockClosingBanner.vue';
 import RestockExcessBanner from './components/RestockExcessBanner.vue';
 import RestockClosingStates from './components/RestockClosingStates.vue';
@@ -22,7 +23,7 @@ const { success, error: showError } = useToast();
 const showConfirmModal = ref(false);
 
 const {
-  isLoading, isSubmitting, formData, formItems, hasExistingEntry,
+  isLoading, isSubmitting, formData, formItems, hasExistingEntry, notasCreditoCajera,
   sales, salesLoading,
   fetchDailyForm, fetchDailySales,
   getVendido,
@@ -135,6 +136,8 @@ onMounted(() => {
         <p v-if="searchQuery && groupedItems.length === 0" class="no-results">
           Sin resultados para «{{ searchQuery }}»
         </p>
+
+        <RestockCreditNotes v-model="notasCreditoCajera" />
 
         <RestockExcessBanner v-if="hasExcessiveOverride" :items="overriddenItems" />
 

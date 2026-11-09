@@ -59,11 +59,18 @@ export interface RestockEntryItem {
   deliveryRounds?: Array<{ label: string; quantity: number }>;
 }
 
+export interface NotaCreditoCajera {
+  factura: string;
+  monto: number | null;
+  motivo: string;
+}
+
 export interface RestockEntryPayload {
   branch: string;
   date: string;
   submittedBy: string;
   items: RestockEntryItem[];
+  notasCreditoCajera?: NotaCreditoCajera[];
 }
 
 export interface WeeklyObjectives {

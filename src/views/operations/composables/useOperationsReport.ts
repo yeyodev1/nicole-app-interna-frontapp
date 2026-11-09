@@ -29,6 +29,10 @@ export interface OpsBranch {
   totals: { vendido: number; ventaCierre: number; bajas: number; recibido: number; descuadre: number };
   products: OpsProduct[];
   losses: Array<{ productName: string; quantity: number; reason: string; category: string }>;
+  notasCredito?: {
+    contifico: Array<{ fecha: string; numero: string; total: number; cliente: string | null }>;
+    cajera: Array<{ fecha: string; factura: string; monto: number; motivo: string }>;
+  };
 }
 
 // ── Estado compartido entre las vistas de Operaciones (singleton) ──────────
