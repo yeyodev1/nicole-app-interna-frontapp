@@ -90,6 +90,11 @@ const setSale = (key: ManualSale, value: string) => {
         @input="setPedido(($event.target as HTMLInputElement).value)"
       />
     </div>
+
+    <div v-if="item.bajas > 0 && !hasModalLosses()" class="field motivo">
+      <label>Motivo de la baja</label>
+      <input type="text" class="num" placeholder="Escribe el motivo" v-model="item.bajaMotivo" />
+    </div>
   </div>
 </template>
 
@@ -107,6 +112,7 @@ const setSale = (key: ManualSale, value: string) => {
 
   .field { flex: 1 1 110px; min-width: 100px; }
   .field.pedido { flex: 1 1 150px; }
+  .field.motivo { flex: 1 1 100%; input { text-align: left; } }
 }
 
 @media (max-width: 560px) {

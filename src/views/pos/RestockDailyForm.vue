@@ -26,7 +26,7 @@ const {
   isLoading, isSubmitting, formData, formItems, hasExistingEntry, notasCreditoCajera,
   sales, salesLoading,
   fetchDailyForm, fetchDailySales,
-  getVendido,
+  getVendido, bajasSinMotivo,
   submittedBy, setSubmittedBy, searchQuery, groupedItems,
   showLossModal, activeProductForLoss, openLossModal, handleSaveLosses,
   overriddenItems, hasExcessiveOverride, confirmMessage, confirmMessageHtml,
@@ -57,6 +57,10 @@ const loadAll = async () => {
 
 const handleSubmitClick = () => {
   if (!formData.value) return;
+  if (bajasSinMotivo.value.length > 0) {
+    showError(`Escribe el motivo de la baja en: ${bajasSinMotivo.value.map(i => i.productName).join(', ')}`);
+    return;
+  }
   if (!submittedBy.value) {
     showNameModal.value = true;
     return;

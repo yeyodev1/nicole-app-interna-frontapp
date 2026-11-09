@@ -29,6 +29,7 @@ export interface RestockItemData {
   bajas: number;
   ventaFueraIsla: number; // venta en combo o fuera de isla: la escribe la isla
   excedente: number | null; // null = Sin reporte
+  bajaMotivo: string; // obligatorio si la baja se escribe directo
   detailedLosses: DetailedLoss[];
   pedidoOverride: number | null;
 }
@@ -82,6 +83,7 @@ export function useDailyClosing(branch: Ref<string>, closingDate?: Ref<string>) 
           bajas: 0,
           ventaFueraIsla: 0,
           excedente: null,
+          bajaMotivo: '',
           detailedLosses: [],
           pedidoOverride: null,
         };
@@ -118,6 +120,11 @@ export function useDailyClosing(branch: Ref<string>, closingDate?: Ref<string>) 
   // Si hay bajas detalladas desde el modal, el número se edita solo ahí para no pisarlas.
   const hasModalLosses = (item: RestockItemData): boolean =>
     item.detailedLosses.some(l => l.reason !== QUICK_LOSS_REASON);
+
+  // Bajas escritas directo y sin motivo: no dejan enviar el cierre.
+  const bajasSinMotivo = computed(() =>
+    formItems.value.filter(i => i.bajas > 0 && !hasModalLosses(i) && !i.bajaMotivo.trim())
+  );
 
   const handleQuickBajas = (item: RestockItemData, value: string) => {
     if (hasModalLosses(item)) return;
@@ -189,6 +196,7 @@ export function useDailyClosing(branch: Ref<string>, closingDate?: Ref<string>) 
       bajas: 0,
       ventaFueraIsla: 0,
       excedente: null,
+      bajaMotivo: '',
       detailedLosses: [],
       pedidoOverride: null,
     });
@@ -273,7 +281,7 @@ export function useDailyClosing(branch: Ref<string>, closingDate?: Ref<string>) 
       ventaFueraIsla: item.ventaFueraIsla,
       stockFinal: typeof item.excedente === 'number' ? item.excedente : null,
       pedidoFinal: getFinalPedido(item),
-      detailedLosses: item.detailedLosses,
+      detailedLosses: item.detailedLosses.map(l => (l.reason === QUICK_LOSS_REASON ? { ...l, reason: item.bajaMotivo.trim() } : l)),
       deliveryRounds: rounds?.find(r => r.productName === item.productName)?.deliveryRounds || [],
     })),
   });
@@ -282,7 +290,7 @@ export function useDailyClosing(branch: Ref<string>, closingDate?: Ref<string>) 
     isLoading, isSubmitting, formData, formItems, hasExistingEntry, notasCreditoCajera,
     sales, salesLoading,
     fetchDailyForm, fetchDailySales,
-    getVendido, getFinalPedido, hasModalLosses, handleQuickBajas, addQuickItem,
+    getVendido, getFinalPedido, hasModalLosses, handleQuickBajas, addQuickItem, bajasSinMotivo,
     submittedBy, setSubmittedBy, searchQuery, groupedItems,
     showLossModal, activeProductForLoss, openLossModal, handleSaveLosses,
     overriddenItems, hasExcessiveOverride, confirmMessage, confirmMessageHtml,
