@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { useOperationsReport } from './composables/useOperationsReport';
+import { useOperationsReport, diferenciasSeparadas, type OpsProduct } from './composables/useOperationsReport';
 import { useOperationsExport } from './composables/useOperationsExport';
 import OperationsShell from './components/OperationsShell.vue';
 
@@ -13,6 +13,7 @@ const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,
 const filteredBranches = computed(() =>
   branches.value.map(b => ({
     ...b,
+    diferencias: diferenciasSeparadas(b.products), // antes del filtro del buscador
     products: b.products.filter(p => !search.value
       || norm(p.name).includes(norm(search.value))
       || norm(p.categoria || '').includes(norm(search.value))),
@@ -21,6 +22,28 @@ const filteredBranches = computed(() =>
 
 const incompletos = (b: { products: Array<{ motivosIncompleto?: string[] }> }) =>
   b.products.filter(p => p.motivosIncompleto?.length).length;
+
+// "—" si hay Pedido y CDP no registró despacho; con despacho sin OK manda el aviso.
+const recibidoTexto = (p: OpsProduct) => {
+  if (p.recibidoSinOk > 0) return p.recibido || '';
+  if ((p.pedidoAnterior ?? 0) > 0 && p.recibidoOk + p.recibidoSinOk === 0) return '—';
+  return p.recibido;
+};
+
+// Orden: Tortas en porciones, Individuales, demás categorías y sin categoría.
+const CATEGORIAS_PRIMERO = ['cakes porcion', 'individual'];
+const rangoCategoria = (categoria: string | null) => {
+  const i = CATEGORIAS_PRIMERO.indexOf(norm(categoria || ''));
+  if (i >= 0) return i;
+  return categoria ? CATEGORIAS_PRIMERO.length : CATEGORIAS_PRIMERO.length + 1;
+};
+const ordenados = <T extends { categoria: string | null; codigo?: string | null }>(products: T[]) =>
+  [...products].sort((a, b) => {
+    const ra = rangoCategoria(a.categoria);
+    const rb = rangoCategoria(b.categoria);
+    if (ra !== rb) return ra - rb;
+    return ra < CATEGORIAS_PRIMERO.length ? (a.codigo || '~').localeCompare(b.codigo || '~') : 0;
+  });
 
 const handleExport = () =>
   exportDay(date.value === dateTo.value ? date.value : `${date.value}_a_${dateTo.value}`, branches.value);
@@ -53,10 +76,10 @@ const handleExport = () =>
         <span v-if="incompletos(b) > 0" class="chip warn">⚠ {{ incompletos(b) }} incompletos</span>
         <span class="totals">
           vendido <strong>{{ b.totals.vendido }}</strong> · bajas <strong>{{ b.totals.bajas }}</strong> ·
-          diferencia
-          <strong class="diff-chip" :class="b.totals.descuadre < 0 ? 'neg' : 'pos'">
-            {{ b.totals.descuadre > 0 ? `+${b.totals.descuadre}` : b.totals.descuadre }}
-          </strong>
+          excedentes
+          <strong class="diff-chip pos">{{ b.diferencias.excedentes > 0 ? `+${b.diferencias.excedentes}` : 0 }}</strong> ·
+          faltantes
+          <strong class="diff-chip" :class="b.diferencias.faltantes > 0 ? 'neg' : 'pos'">{{ b.diferencias.faltantes > 0 ? `−${b.diferencias.faltantes}` : 0 }}</strong>
         </span>
       </header>
 
@@ -69,9 +92,7 @@ const handleExport = () =>
               <th title="Pedido en el cierre de la jornada anterior">Pedido</th>
               <th>Recibido</th>
               <th title="Contífico, caja de la isla">Venta isla</th>
-              <th title="Lo escribe la isla en el cierre">Venta combo</th>
-              <th title="Lo escribe la isla en el cierre">Venta Casa Mía</th>
-              <th title="Lo escribe la isla en el cierre">Venta Dela Cream</th>
+              <th title="Lo escribe la isla en el cierre">Venta en combo o fuera de isla</th>
               <th>Bajas</th>
               <th>Debería quedar</th>
               <th>Quedó (isla)</th>
@@ -79,7 +100,7 @@ const handleExport = () =>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="p in b.products" :key="p.name" :class="{ issue: (p.descuadre ?? 0) !== 0 || p.motivosIncompleto?.length }">
+            <tr v-for="p in ordenados(b.products)" :key="p.name" :class="{ issue: (p.descuadre ?? 0) !== 0 || p.motivosIncompleto?.length }">
               <td class="t-left pname">
                 {{ p.name }}
                 <span v-if="p.categoria" class="cat-chip">{{ p.categoria }}</span>
@@ -87,17 +108,15 @@ const handleExport = () =>
               <td>{{ p.inicial ?? '—' }}</td>
               <td>{{ p.pedidoAnterior ?? '—' }}</td>
               <td>
-                {{ p.recibido || '' }}
+                {{ recibidoTexto(p) }}
                 <span v-if="p.recibidoSinOk > 0" class="sin-ok">⚠ {{ p.recibidoSinOk }} sin OK</span>
               </td>
               <template v-if="p.vendido !== null && p.ventas">
-                <td>{{ p.ventas.isla || '' }}</td>
-                <td>{{ p.ventas.combo || '' }}</td>
-                <td>{{ p.ventas.casaMia || '' }}</td>
-                <td>{{ p.ventas.delaCrem || '' }}</td>
+                <td>{{ b.salesAvailable ? p.ventas.isla : '—' }}</td>
+                <td>{{ b.hasClosing ? (p.ventas.fueraIsla ?? 0) : '—' }}</td>
               </template>
-              <td v-else colspan="4">—</td>
-              <td :class="{ 'has-bajas': p.bajas > 0 }">{{ p.bajas || '' }}</td>
+              <td v-else colspan="2">—</td>
+              <td :class="{ 'has-bajas': p.bajas > 0 }">{{ b.hasClosing ? p.bajas : '—' }}</td>
               <td class="should">{{ p.deberiaQuedar ?? '—' }}</td>
               <td>{{ p.quedo ?? '—' }}</td>
               <td class="diff" :class="(p.descuadre ?? 0) < 0 ? 'neg' : 'pos'">
@@ -105,7 +124,7 @@ const handleExport = () =>
               </td>
             </tr>
             <tr v-if="b.products.length === 0">
-              <td colspan="12" class="empty-row">{{ search ? `Nada con «${search}»` : 'Sin movimientos' }}</td>
+              <td colspan="10" class="empty-row">{{ search ? `Nada con «${search}»` : 'Sin movimientos' }}</td>
             </tr>
           </tbody>
         </table>

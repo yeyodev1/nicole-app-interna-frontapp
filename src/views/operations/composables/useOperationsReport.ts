@@ -5,12 +5,13 @@ import { getECTTodayString } from '@/utils/dateUtils';
 export interface OpsProduct {
   name: string;
   categoria: string | null; // tal cual Contífico
+  codigo?: string | null; // código de Contífico; un reporte guardado puede no traerlo
   inicial: number | null; // con cuánto empezó el día
   recibido: number; // solo lo confirmado por la isla
   recibidoOk: number; // confirmado en Recepción Masiva
   recibidoSinOk: number; // despachado por producción sin el OK de la isla
-  vendido: number | null; // todo lo vendido: isla + combo + Casa Mía + Dela Crem
-  ventas?: { isla: number; combo: number; casaMia: number; delaCrem: number };
+  vendido: number | null; // todo lo vendido: isla + combo o fuera de isla
+  ventas?: { isla: number; fueraIsla: number };
   bajas: number;
   deberiaQuedar: number | null; // inicial + recibido - vendido - bajas
   quedo: number | null; // lo que contó el cierre
@@ -125,16 +126,24 @@ const setRange = (from: string, to: string) => {
   fetchReport();
 };
 
+/** Excedentes y faltantes por separado: productos distintos no se compensan. */
+export const diferenciasSeparadas = (products: Array<{ descuadre: number | null }>) => ({
+  excedentes: products.reduce((s, p) => s + ((p.descuadre ?? 0) > 0 ? p.descuadre! : 0), 0),
+  faltantes: products.reduce((s, p) => s + ((p.descuadre ?? 0) < 0 ? -p.descuadre! : 0), 0),
+});
+
 export function useOperationsReport() {
   const branches = computed<OpsBranch[]>(() => report.value?.branches || []);
 
   const globalTotals = computed(() => {
-    const t = { vendido: 0, ventaCierre: 0, bajas: 0, descuadre: 0 };
+    const t = { vendido: 0, ventaCierre: 0, bajas: 0, excedentes: 0, faltantes: 0 };
     for (const b of branches.value) {
       t.vendido += b.totals.vendido;
       t.ventaCierre += b.totals.ventaCierre;
       t.bajas += b.totals.bajas;
-      t.descuadre += b.totals.descuadre;
+      const d = diferenciasSeparadas(b.products);
+      t.excedentes += d.excedentes;
+      t.faltantes += d.faltantes;
     }
     return t;
   });

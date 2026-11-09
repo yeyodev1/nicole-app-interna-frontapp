@@ -1,7 +1,7 @@
 import { ref } from 'vue';
 // @ts-ignore
 import XLSX from 'xlsx-js-style';
-import type { OpsBranch } from './useOperationsReport';
+import { diferenciasSeparadas, type OpsBranch } from './useOperationsReport';
 
 /**
  * Exporta a Excel el mismo reporte que llega por correo al Jefe de
@@ -17,7 +17,7 @@ export function useOperationsExport() {
     try {
       const wb = XLSX.utils.book_new();
 
-      const HEAD = ['Producto', 'Categoría (Contífico)', 'Stock inicial', 'Recibido', 'Sin OK', 'Venta isla', 'Venta combo', 'Venta Casa Mía', 'Venta Dela Cream', 'Vendido total', 'Bajas', 'Debería quedar', 'Quedó (isla)', 'Diferencia', 'Pedido (cierre anterior)', 'Información incompleta'];
+      const HEAD = ['Producto', 'Categoría (Contífico)', 'Stock inicial', 'Recibido', 'Sin OK', 'Venta isla', 'Venta en combo o fuera de isla', 'Vendido total', 'Bajas', 'Debería quedar', 'Quedó (isla)', 'Diferencia', 'Pedido (cierre anterior)', 'Información incompleta'];
       const headStyle = {
         font: { bold: true, color: { rgb: 'FFFFFF' } },
         fill: { fgColor: { rgb: '7C3AED' } },
@@ -34,9 +34,7 @@ export function useOperationsExport() {
             p.recibido || 0,
             p.recibidoSinOk || 0,
             p.ventas?.isla ?? 0,
-            p.ventas?.combo ?? 0,
-            p.ventas?.casaMia ?? 0,
-            p.ventas?.delaCrem ?? 0,
+            p.ventas?.fueraIsla ?? 0,
             p.vendido ?? '—',
             p.bajas || 0,
             p.deberiaQuedar ?? '—',
@@ -47,10 +45,13 @@ export function useOperationsExport() {
           ]);
         }
         rows.push([]);
-        rows.push(['TOTALES', '', '', '', b.sinOkTotal, '', '', '', '', b.totals.vendido, b.totals.bajas, '', '', b.totals.descuadre]);
+        rows.push(['TOTALES', '', '', '', b.sinOkTotal, '', '', b.totals.vendido, b.totals.bajas]);
+        const totalesDif = diferenciasSeparadas(b.products);
+        rows.push(['TOTAL EXCEDENTES', totalesDif.excedentes]);
+        rows.push(['TOTAL FALTANTES', totalesDif.faltantes ? -totalesDif.faltantes : 0]);
 
         const ws = XLSX.utils.aoa_to_sheet(rows);
-        ws['!cols'] = [{ wch: 34 }, { wch: 22 }, { wch: 12 }, { wch: 10 }, { wch: 8 }, { wch: 18 }, { wch: 8 }, { wch: 14 }, { wch: 12 }, { wch: 11 }];
+        ws['!cols'] = [{ wch: 34 }, { wch: 22 }, { wch: 12 }, { wch: 10 }, { wch: 8 }, { wch: 18 }, { wch: 28 }, { wch: 11 }];
         for (let c = 0; c < HEAD.length; c++) {
           const cell = ws[XLSX.utils.encode_cell({ r: 0, c })];
           if (cell) cell.s = headStyle;
@@ -58,7 +59,7 @@ export function useOperationsExport() {
         // Diferencias en rojo
         for (let r = 1; r <= b.products.length; r++) {
           const d = b.products[r - 1]?.descuadre;
-          const cell = ws[XLSX.utils.encode_cell({ r, c: 9 })];
+          const cell = ws[XLSX.utils.encode_cell({ r, c: 11 })]; // columna Diferencia
           if (cell && typeof d === 'number' && d !== 0) {
             cell.s = { font: { bold: true, color: { rgb: d < 0 ? 'DC2626' : 'D97706' } } };
           }

@@ -42,7 +42,7 @@ const {
   isLoading, isSubmitting, formData, formItems, hasExistingEntry, notasCreditoCajera,
   sales, salesLoading,
   fetchDailyForm, fetchDailySales,
-  getVendido, getFinalPedido, addQuickItem,
+  getVendido, getFinalPedido, addQuickItem, bajasSinMotivo,
   submittedBy, setSubmittedBy, searchQuery, groupedItems,
   showLossModal, activeProductForLoss, openLossModal, handleSaveLosses,
   overriddenItems, hasExcessiveOverride, confirmMessage, confirmMessageHtml,
@@ -77,6 +77,10 @@ const {
 
 const handleSubmitClick = () => {
   if (!formData.value) return;
+  if (bajasSinMotivo.value.length > 0) {
+    notify(`Escribe el motivo de la baja en: ${bajasSinMotivo.value.map(i => i.productName).join(', ')}`, 'error');
+    return;
+  }
   if (!submittedBy.value) {
     showNameModal.value = true;
     return;

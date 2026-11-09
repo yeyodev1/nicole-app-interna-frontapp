@@ -110,7 +110,7 @@ export interface LeftoversReport {
 export interface InitialInventoryItem {
   productName: string
   unit: string
-  quantity: number
+  quantity: number | null // null = Sin reporte
 }
 
 export interface InitialInventory {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useOperationsReport } from './composables/useOperationsReport';
+import { useOperationsReport, diferenciasSeparadas } from './composables/useOperationsReport';
 import OperationsShell from './components/OperationsShell.vue';
 import OperationsKpiRow from './components/OperationsKpiRow.vue';
 
@@ -18,7 +18,8 @@ const branchIssues = (b: any) => b.products.filter((p: any) => (p.descuadre ?? 0
       :vendido="globalTotals.vendido"
       :venta-cierre="globalTotals.ventaCierre"
       :bajas="globalTotals.bajas"
-      :descuadre="globalTotals.descuadre"
+      :excedentes="globalTotals.excedentes"
+      :faltantes="globalTotals.faltantes"
     />
 
     <div class="quick-links">
@@ -53,8 +54,11 @@ const branchIssues = (b: any) => b.products.filter((p: any) => (p.descuadre ?? 0
           <div><span class="n">{{ b.totals.vendido }}</span><span class="l">vendido</span></div>
           <div><span class="n">{{ b.totals.ventaCierre }}</span><span class="l">cierre</span></div>
           <div><span class="n">{{ b.totals.bajas }}</span><span class="l">bajas</span></div>
-          <div :class="b.totals.descuadre < 0 ? 'neg' : 'pos'">
-            <span class="n">{{ b.totals.descuadre > 0 ? `+${b.totals.descuadre}` : b.totals.descuadre }}</span><span class="l">diferencia</span>
+          <div class="pos">
+            <span class="n">{{ diferenciasSeparadas(b.products).excedentes > 0 ? `+${diferenciasSeparadas(b.products).excedentes}` : 0 }}</span><span class="l">excedentes</span>
+          </div>
+          <div :class="diferenciasSeparadas(b.products).faltantes > 0 ? 'neg' : 'pos'">
+            <span class="n">{{ diferenciasSeparadas(b.products).faltantes > 0 ? `−${diferenciasSeparadas(b.products).faltantes}` : 0 }}</span><span class="l">faltantes</span>
           </div>
         </div>
       </div>
