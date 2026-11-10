@@ -742,6 +742,7 @@ const getDispatchBadge = (status?: string) => {
       :order-id="selectedOrder._id"
       :destination="dispatchDestination"
       :products="selectedOrder.products"
+      :dispatches="selectedOrder.dispatches"
       @close="showDispatchModal = false"
       @confirm="handleDispatchConfirm"
     />

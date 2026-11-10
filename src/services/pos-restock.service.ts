@@ -1,7 +1,25 @@
 import APIBase from './httpBase';
 
+/** Orden 2: comentario que justifica una anomalía del Detalle del Día. */
+export interface AnomalyNote {
+  _id: string;
+  branch: string;
+  branchKey: string;
+  date: string; // AAAA-MM-DD
+  productName: string;
+  productKey: string;
+  codigo?: string | null;
+  descuadre: number;
+  comment: string;
+  createdBy: string;
+  updatedBy: string;
+  updatedAt: string;
+}
+
 export interface RestockItem {
   productName: string;
+  /** Orden 8: nombre de Contífico para mostrar (productName sigue siendo la llave). */
+  contificoName?: string;
   unit: string;
   isGeneral?: boolean;
   requiresMinimum?: boolean;
@@ -194,6 +212,17 @@ class POSRestockService extends APIBase {
       branches: data.branches || [],
       missing: data.missing || [],
     };
+  }
+
+  /** Orden 2: comentarios de anomalías del rango (no van al caché del reporte). */
+  async getAnomalyNotes(from: string, to?: string): Promise<AnomalyNote[]> {
+    const { data } = await this.get<any>('pos/restock/anomaly-notes', undefined, { params: { from, to: to || from } });
+    return data.data || [];
+  }
+
+  async saveAnomalyNote(note: { branch: string; date: string; productName: string; descuadre: number; comment: string }): Promise<AnomalyNote> {
+    const { data } = await this.put<any>('pos/restock/anomaly-notes', note);
+    return data.data;
   }
 
   async deleteObjective(branch: string, productName: string): Promise<void> {

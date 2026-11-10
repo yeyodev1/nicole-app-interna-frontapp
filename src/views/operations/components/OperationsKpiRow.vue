@@ -3,7 +3,6 @@ import { computed } from 'vue';
 
 const props = defineProps<{
   vendido: number;
-  ventaCierre: number;
   bajas: number;
   excedentes: number;
   faltantes: number;
@@ -20,15 +19,6 @@ const hayFaltantes = computed(() => props.faltantes > 0);
         <span class="label">Vendido en Contífico</span>
         <span class="value">{{ vendido }}</span>
         <span class="hint">unidades facturadas</span>
-      </div>
-    </article>
-
-    <article class="kpi cierre">
-      <span class="ico"><i class="fa-solid fa-clipboard-check"></i></span>
-      <div class="body">
-        <span class="label">Venta según cierre</span>
-        <span class="value">{{ ventaCierre }}</span>
-        <span class="hint">lo que salió de vitrina</span>
       </div>
     </article>
 
@@ -137,11 +127,6 @@ const hayFaltantes = computed(() => props.faltantes > 0);
 .vendido {
   &::before { background: #2563eb; }
   .ico { background: #eff6ff; color: #2563eb; }
-}
-
-.cierre {
-  &::before { background: #7c3aed; }
-  .ico { background: #f5f3ff; color: #7c3aed; }
 }
 
 .bajas {

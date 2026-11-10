@@ -3,6 +3,26 @@ import type { Order } from '@/types/order'
 
 export interface ProductionTask extends Order { }
 
+// Orden 7: Ventas a futuro
+export interface FutureSalesDay {
+  date: string
+  units: number
+  orders: number
+  delivery: number
+  pickup: number
+  percentOfMax: number
+  level: 'LIBRE' | 'BAJO' | 'MEDIO' | 'ALTO' | 'MAS_COMPROMETIDO'
+}
+export interface FutureSales {
+  from: string
+  to: string
+  days: FutureSalesDay[]
+  products: { name: string; total: number; perDay: Record<string, number> }[]
+  totals: { units: number; orders: number; delivery: number; pickup: number }
+  maxDay: string | null
+  unpaid: { date: string; customer: string; pending: number }[]
+}
+
 class ProductionService extends APIBase {
   async getTasks(): Promise<ProductionTask[]> {
     try {
@@ -12,6 +32,13 @@ class ProductionService extends APIBase {
       console.error('Error fetching production tasks:', error)
       throw error
     }
+  }
+
+  async getFutureSales(window = 0, source?: 'nicole' | 'sucree'): Promise<FutureSales> {
+    const params = new URLSearchParams({ window: String(window) })
+    if (source) params.set('source', source)
+    const response = await this.get<{ data: FutureSales }>(`production/future-sales?${params.toString()}`)
+    return response.data.data
   }
 
   async getAllOrders(date?: string, source?: 'nicole' | 'sucree'): Promise<ProductionTask[]> {

@@ -135,6 +135,9 @@ const closePanel = () => { mobileOpen.value = false }
         <router-link to="/production/orders" active-class="active" @click="closePanel">
           <i class="fa-solid fa-list-check"></i> Órdenes
         </router-link>
+        <router-link to="/production/future-sales" active-class="active" @click="closePanel">
+          <i class="fa-solid fa-calendar-days"></i> Ventas a futuro
+        </router-link>
       </template>
 
       <!-- Supply Chain -->

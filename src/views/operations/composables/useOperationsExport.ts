@@ -2,6 +2,7 @@ import { ref } from 'vue';
 // @ts-ignore
 import XLSX from 'xlsx-js-style';
 import { diferenciasSeparadas, type OpsBranch } from './useOperationsReport';
+import type { AnomalyNote } from '@/services/pos-restock.service';
 
 /**
  * Exporta a Excel el mismo reporte que llega por correo al Jefe de
@@ -12,7 +13,7 @@ import { diferenciasSeparadas, type OpsBranch } from './useOperationsReport';
 export function useOperationsExport() {
   const isExporting = ref(false);
 
-  const exportDay = (date: string, branches: OpsBranch[]) => {
+  const exportDay = (date: string, branches: OpsBranch[], notes: AnomalyNote[] = []) => {
     isExporting.value = true;
     try {
       const wb = XLSX.utils.book_new();
@@ -83,6 +84,22 @@ export function useOperationsExport() {
           if (cell) cell.s = { ...headStyle, fill: { fgColor: { rgb: 'D97706' } } };
         }
         XLSX.utils.book_append_sheet(wb, wsB, 'Bajas');
+      }
+
+      // Orden 2: hoja nueva al final, una fila por comentario
+      if (notes.length) {
+        const fecha = (s: string) => s.split('-').reverse().join('/');
+        const nRows: any[][] = [['Fecha', 'Sucursal', 'Producto', 'Diferencia al comentar', 'Comentario', 'Registrado por', 'Última edición']];
+        for (const n of [...notes].sort((a, b) => a.date.localeCompare(b.date) || a.branch.localeCompare(b.branch) || a.productName.localeCompare(b.productName))) {
+          nRows.push([fecha(n.date), n.branch, n.productName, n.descuadre, n.comment, n.createdBy, `${n.updatedBy} · ${new Date(n.updatedAt).toLocaleString('es-EC')}`]);
+        }
+        const wsN = XLSX.utils.aoa_to_sheet(nRows);
+        wsN['!cols'] = [{ wch: 12 }, { wch: 16 }, { wch: 34 }, { wch: 12 }, { wch: 60 }, { wch: 18 }, { wch: 30 }];
+        for (let c = 0; c < 7; c++) {
+          const cell = wsN[XLSX.utils.encode_cell({ r: 0, c })];
+          if (cell) cell.s = headStyle;
+        }
+        XLSX.utils.book_append_sheet(wb, wsN, 'Comentarios de anomalías');
       }
 
       XLSX.writeFile(wb, `Reporte-Operaciones-${date}.xlsx`);

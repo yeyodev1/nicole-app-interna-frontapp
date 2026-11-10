@@ -19,6 +19,7 @@ export interface ClosingGroup {
 
 export interface RestockItemData {
   productName: string;
+  contificoName?: string; // Orden 8: nombre que se muestra
   unit: string;
   isGeneral: boolean;
   requiresMinimum: boolean;
@@ -69,6 +70,7 @@ export function useDailyClosing(branch: Ref<string>, closingDate?: Ref<string>) 
 
         return {
           productName: item.productName,
+          contificoName: item.contificoName,
           unit: item.unit,
           isGeneral: item.isGeneral || false,
           requiresMinimum: item.requiresMinimum || false,
@@ -154,7 +156,7 @@ export function useDailyClosing(branch: Ref<string>, closingDate?: Ref<string>) 
   const groupedItems = computed<ClosingGroup[]>(() => {
     const q = norm(searchQuery.value);
     const filtered = q
-      ? formItems.value.filter(i => norm(i.productName).includes(q))
+      ? formItems.value.filter(i => norm(i.productName).includes(q) || norm(i.contificoName || "").includes(q))
       : formItems.value;
 
     // Secciones con la categoría tal cual Contífico; los suministros manuales

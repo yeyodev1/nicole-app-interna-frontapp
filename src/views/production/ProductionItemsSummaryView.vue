@@ -9,6 +9,7 @@ import ProductionBatchBar from './components/ProductionBatchBar.vue'
 import { useProductionSummary } from '@/composables/useProductionSummary'
 import { useOrderExport } from '@/composables/useOrderExport'
 import { useToast } from '@/composables/useToast'
+import { getECTNow, parseECTDate } from '@/utils/dateUtils'
 
 const {
   isLoading,
@@ -60,6 +61,40 @@ const toggleHistoryPanel = () => {
     fetchSummary()
   }
 }
+
+// Orden 5: aviso de pedidos atrasados de los últimos 7 días (sin enviar o parciales).
+// Los de hace más de 7 días no se cuentan. Respeta el filtro Todas / Nicole / Sucree.
+const showDelayed = ref(false)
+const delayedOrders = computed(() => {
+  const today = getECTNow()
+  today.setHours(0, 0, 0, 0)
+  const from = new Date(today)
+  from.setDate(from.getDate() - 7)
+  return rawOrders.value
+    .filter(o => {
+      if (o.productionStage === 'VOID' || !o.deliveryDate) return false
+      if (o.dispatchStatus && !['NOT_SENT', 'PARTIAL'].includes(o.dispatchStatus)) return false
+      if (sourceFilter.value !== 'all' && o.contificoSource !== sourceFilter.value) return false
+      const d = parseECTDate(o.deliveryDate)
+      return d >= from && d < today
+    })
+    .map(o => {
+      const sent = new Map<string, number>()
+      for (const d of o.dispatches || []) for (const it of d.items || []) sent.set(String(it.productId), (sent.get(String(it.productId)) || 0) + (Number(it.quantitySent) || 0))
+      const missing = (o.products || [])
+        .map((p: any) => ({ name: p.name, qty: Math.max(0, (p.quantity || 0) - (sent.get(String(p._id)) || 0)) }))
+        .filter((p: any) => p.qty > 0)
+      return {
+        id: o._id,
+        date: String(o.deliveryDate).slice(0, 10).split('-').reverse().join('/'),
+        sortKey: String(o.deliveryDate),
+        who: o.customerName || o.branch || 'Sin nombre',
+        status: o.dispatchStatus === 'PARTIAL' ? 'Parcial' : 'Sin enviar',
+        missing,
+      }
+    })
+    .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
+})
 
 // Abre el modal de producción con las cantidades precargadas (todo lo pendiente)
 const openBatchConfirm = () => {
@@ -184,6 +219,20 @@ onMounted(() => {
 
     <!-- MAIN: Destination Grid -->
     <div v-else class="content-wrapper">
+      <div v-if="delayedOrders.length > 0" class="delayed-alert">
+        <button type="button" class="delayed-band" :aria-expanded="showDelayed" @click="showDelayed = !showDelayed">
+          ⚠ {{ delayedOrders.length }} pedido{{ delayedOrders.length === 1 ? '' : 's' }} atrasado{{ delayedOrders.length === 1 ? '' : 's' }} sin enviar (últimos 7 días)
+          <i class="fas" :class="showDelayed ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+        </button>
+        <ul v-if="showDelayed" class="delayed-list">
+          <li v-for="o in delayedOrders" :key="o.id">
+            <span class="d-date">{{ o.date }}</span>
+            <span class="d-who">{{ o.who }}</span>
+            <span class="d-status" :class="o.status === 'Parcial' ? 'partial' : 'none'">{{ o.status }}</span>
+            <span class="d-missing">{{ o.missing.map((p: any) => `${p.qty} ${p.name}`).join(' · ') || '—' }}</span>
+          </li>
+        </ul>
+      </div>
       <div class="destination-grid" v-if="Object.keys(rawStatsByDestRoundCategory).length > 0">
         <ProductionDestinationCard
           v-for="(rounds, destination) in rawStatsByDestRoundCategory"
@@ -204,9 +253,6 @@ onMounted(() => {
           <template v-if="sourceFilter !== 'all'"> de <strong>{{ sourceFilter === 'nicole' ? 'Nicole' : 'Sucree' }}</strong></template>
           en este periodo
         </p>
-        <button v-if="sourceFilter !== 'all' || rawBucketFilter !== 'all'" class="btn-see-all" @click="sourceFilter = 'all'; rawBucketFilter = 'all'">
-          Ver todos los pedidos
-        </button>
       </div>
     </div>
 
@@ -256,6 +302,23 @@ $font-stack-system: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helve
 }
 
 .content-wrapper { max-width: 1200px; margin: 0 auto; padding: 0 1rem; }
+
+.delayed-alert { margin-bottom: 1rem; border-radius: 12px; overflow: hidden; border: 1px solid #fecaca; background: white; }
+.delayed-band {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  background: #dc2626; color: white; border: none; padding: 0.75rem 1rem; font-weight: 800; font-size: 0.95rem; cursor: pointer; text-align: left;
+  &:hover, &:focus-visible { background: #b91c1c; }
+}
+.delayed-list {
+  list-style: none; margin: 0; padding: 0.4rem 1rem 0.7rem;
+  li { display: flex; flex-wrap: wrap; gap: 0.3rem 0.9rem; padding: 0.45rem 0; border-bottom: 1px solid #fef2f2; font-size: 0.86rem; color: #334155; }
+  li:last-child { border-bottom: none; }
+  .d-date { font-weight: 800; color: #64748b; font-variant-numeric: tabular-nums; }
+  .d-who { font-weight: 700; }
+  .d-status { font-size: 0.72rem; font-weight: 800; padding: 1px 8px; border-radius: 10px; align-self: center;
+    &.none { background: #fee2e2; color: #b91c1c; } &.partial { background: #fef3c7; color: #92400e; } }
+  .d-missing { flex: 1 1 100%; color: #475569; }
+}
 
 .destination-grid {
   display: grid;
