@@ -6,6 +6,7 @@ interface Product {
   name: string
   quantity: number
   produced: number
+  max: number // Orden 6: producido − ya enviado
   quantitySent: number // Form state
 }
 
@@ -14,6 +15,7 @@ const props = defineProps<{
   orderId: string
   destination: string
   products: { _id: string, name: string, quantity: number, produced?: number }[]
+  dispatches?: { items: { productId: string, quantitySent: number }[] }[]
 }>()
 
 const emit = defineEmits(['close', 'confirm'])
@@ -24,13 +26,19 @@ const notes = ref('')
 // Initialize items when modal opens with products data
 watch(() => props.isOpen, (val) => {
   if (val) {
-    items.value = props.products.map(p => ({
-      _id: p._id,
-      name: p.name,
-      quantity: p.quantity,
-      produced: p.produced || 0,
-      quantitySent: p.produced || 0 // Default to what is physically produced
-    }))
+    const sent = new Map<string, number>()
+    for (const d of props.dispatches || []) for (const it of d.items || []) sent.set(String(it.productId), (sent.get(String(it.productId)) || 0) + (Number(it.quantitySent) || 0))
+    items.value = props.products.map(p => {
+      const max = Math.max(0, (p.produced || 0) - (sent.get(String(p._id)) || 0))
+      return {
+        _id: p._id,
+        name: p.name,
+        quantity: p.quantity,
+        produced: p.produced || 0,
+        max,
+        quantitySent: max // Default: lo producido que falta enviar
+      }
+    })
     notes.value = ''
   }
 }, { immediate: true })
@@ -43,17 +51,17 @@ const totalStatus = computed(() => {
   items.value.forEach(i => {
     if (i.quantitySent > i.quantity) excess = true
     if (i.quantitySent < i.quantity) partial = true
-    if (i.quantitySent > i.produced) producedSync = false
+    if (i.quantitySent > i.max) producedSync = false
   })
 
-  if (!producedSync) return { label: 'AVISO: ENVIANDO MÁS DE LO PRODUCIDO', class: 'status-excess' }
+  if (!producedSync) return { label: 'NO SE PUEDE ENVIAR MÁS DE LO PRODUCIDO', class: 'status-excess' }
   if (excess) return { label: 'EXCESO DETECTADO (VS PEDIDO)', class: 'status-excess' }
   if (partial) return { label: 'ENVÍO PARCIAL', class: 'status-partial' }
   return { label: 'ENVÍO COMPLETO SEGÚN PRODUCCIÓN', class: 'status-ok' }
 })
 
 const canConfirm = computed(() => {
-  return items.value.some(i => i.quantitySent > 0)
+  return items.value.some(i => i.quantitySent > 0) && items.value.every(i => !(i.quantitySent > i.max))
 })
 
 const handleConfirm = () => {
@@ -103,9 +111,10 @@ const handleConfirm = () => {
               type="number" 
               v-model.number="item.quantitySent" 
               min="0"
+              :max="item.max"
               :class="{
-                'input-excess': item.quantitySent > item.produced,
-                'input-partial': item.quantitySent < item.produced && item.quantitySent > 0
+                'input-excess': item.quantitySent > item.max,
+                'input-partial': item.quantitySent < item.max && item.quantitySent > 0
               }"
             />
           </div>

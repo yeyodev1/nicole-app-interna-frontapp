@@ -22,7 +22,6 @@ const isLoading = ref(false)
 const rawOrders = ref<any[]>([])
 const items = ref<{ name: string; pending: number; unproduced: number; toSend: number }[]>([])
 const filterMode = ref<'today' | 'tomorrow' | 'all'>('today')
-const showUnproducedConfirm = ref(false)
 
 const destinations = ref<ProductionDestination[]>([])
 const toast = useToast()
@@ -157,7 +156,6 @@ const errorMessage = ref('')
 
 const totalUnproduced = computed(() => items.value.reduce((acc, i) => acc + i.unproduced, 0))
 const hasPendingProduction = computed(() => totalUnproduced.value > 0)
-const sendingUnproduced = computed(() => items.value.some(i => i.toSend > i.pending))
 
 const goToProduction = () => {
   emit('close')
@@ -174,14 +172,6 @@ const handleConfirm = async () => {
     errorMessage.value = 'Ingresa una cantidad a enviar.'
     return
   }
-
-  // If sending unproduced items, ask for confirmation first
-  if (sendingUnproduced.value && !showUnproducedConfirm.value) {
-    showUnproducedConfirm.value = true
-    return
-  }
-
-  showUnproducedConfirm.value = false
 
   try {
     isLoading.value = true
@@ -201,7 +191,6 @@ const reset = () => {
   selectedDestination.value = ''
   items.value = []
   errorMessage.value = ''
-  showUnproducedConfirm.value = false
 }
 
 const fetchDestinations = async () => {
@@ -417,23 +406,6 @@ watch(() => props.isOpen, (newVal) => {
 
         <div v-if="isLoading" class="loading">Cargando...</div>
 
-        <div v-else-if="showUnproducedConfirm" class="unproduced-confirm">
-          <div class="confirm-icon"><i class="fas fa-exclamation-triangle"></i></div>
-          <h3>¿Enviar sin marcar producción?</h3>
-          <p>
-            Estás a punto de registrar ítems que <strong>no han sido marcados como producidos</strong>.
-            Esto omitirá el registro de producción y podría causar inconsistencias en el inventario.
-          </p>
-          <div class="confirm-actions">
-            <button class="btn-cancel-confirm" @click="showUnproducedConfirm = false">
-              <i class="fas fa-arrow-left"></i> Volver y revisar
-            </button>
-            <button class="btn-force-send" @click="handleConfirm">
-              <i class="fas fa-paper-plane"></i> Sí, enviar de todas formas
-            </button>
-          </div>
-        </div>
-
         <div v-else class="items-list">
           <!-- Alert: items pending production -->
           <div v-if="hasPendingProduction" class="production-alert">
@@ -444,7 +416,7 @@ watch(() => props.isOpen, (newVal) => {
               </span>
             </div>
             <div class="alert-actions">
-              <small>Puedes ir a producción a marcarlas primero, o incluirlas de todas formas al enviar.</small>
+              <small>Solo se puede enviar lo producido: márcalas en producción para poder enviarlas.</small>
               <button class="btn-go-production" @click="goToProduction">
                 <i class="fas fa-industry"></i> Ir a Producción
               </button>
@@ -480,12 +452,9 @@ watch(() => props.isOpen, (newVal) => {
                 type="number"
                 v-model.number="item.toSend"
                 min="0"
-                :max="item.pending + item.unproduced"
+                :max="item.pending"
                 :class="{ 'input-over': item.toSend > item.pending }"
               >
-              <button @click="item.toSend = item.pending + item.unproduced" class="btn-max" title="Enviar Todo (incluye sin producir)">
-                <i class="fas fa-check-double"></i>
-              </button>
             </div>
           </div>
 
@@ -494,8 +463,8 @@ watch(() => props.isOpen, (newVal) => {
           </div>
         </div>
 
-        <div class="actions" v-if="!showUnproducedConfirm">
-          <button class="btn-confirm" @click="handleConfirm" :disabled="items.length === 0 || items.every(i => i.toSend === 0)">
+        <div class="actions">
+          <button class="btn-confirm" @click="handleConfirm" :disabled="items.length === 0 || items.every(i => i.toSend === 0) || items.some(i => i.toSend > i.pending)">
             <i class="fas fa-paper-plane"></i> Registrar Envío
           </button>
         </div>
