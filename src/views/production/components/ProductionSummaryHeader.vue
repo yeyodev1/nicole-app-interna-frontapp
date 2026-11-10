@@ -15,11 +15,9 @@ defineProps<{
 const emit = defineEmits(['toggle-history', 'refresh', 'set-source', 'set-bucket', 'export']);
 
 const buckets = [
-  { key: 'delayed', label: 'Atrasados', icon: 'fa-clock' },
   { key: 'today', label: 'Hoy', icon: 'fa-calendar-day' },
   { key: 'tomorrow', label: 'Mañana', icon: 'fa-sun' },
   { key: 'future', label: 'Futuro', icon: 'fa-calendar-alt' },
-  { key: 'all', label: 'Todos', icon: 'fa-layer-group' },
 ];
 
 const sources = [
