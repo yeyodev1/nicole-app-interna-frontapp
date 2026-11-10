@@ -3,11 +3,40 @@ import { ref, computed } from 'vue';
 import { useOperationsReport, diferenciasSeparadas, type OpsProduct } from './composables/useOperationsReport';
 import { useOperationsExport } from './composables/useOperationsExport';
 import OperationsShell from './components/OperationsShell.vue';
+import { useAnomalyNotes } from './composables/useAnomalyNotes';
 
 const { date, dateTo, branches } = useOperationsReport();
 const { isExporting, exportDay } = useOperationsExport();
 
 const search = ref('');
+
+// Orden 2: comentario por anomalía (Diferencia ≠ 0). Con Periodo solo se leen.
+const { notes, isRange, notesOf, save } = useAnomalyNotes();
+const esAnomalia = (p: OpsProduct) => (p.descuadre ?? 0) !== 0 && !p.motivosIncompleto?.length;
+const showNote = (branch: string, p: OpsProduct) =>
+  notesOf(branch, p).length > 0 || (!isRange.value && esAnomalia(p));
+const noteText = (branch: string, p: OpsProduct) =>
+  notesOf(branch, p).map(n => `${isRange.value ? n.date.split('-').reverse().join('/') + ': ' : ''}${n.comment} (${n.updatedBy})`).join('\n');
+const editing = ref<{ branch: string; name: string; text: string; saving: boolean; error: string } | null>(null);
+const openNote = (branch: string, p: OpsProduct) => {
+  if (isRange.value) return;
+  editing.value = { branch, name: p.name, text: notesOf(branch, p)[0]?.comment || '', saving: false, error: '' };
+};
+const isEditing = (branch: string, p: OpsProduct) => editing.value?.branch === branch && editing.value?.name === p.name;
+const saveNote = async (p: OpsProduct) => {
+  const e = editing.value;
+  if (!e || !e.text.trim()) return;
+  e.saving = true;
+  e.error = '';
+  try {
+    await save(e.branch, p, e.text.trim());
+    editing.value = null;
+  } catch (err: any) {
+    e.error = err?.response?.data?.message || 'No se pudo guardar.';
+  } finally {
+    e.saving = false;
+  }
+};
 const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
 const filteredBranches = computed(() =>
@@ -46,7 +75,7 @@ const ordenados = <T extends { categoria: string | null; codigo?: string | null 
   });
 
 const handleExport = () =>
-  exportDay(date.value === dateTo.value ? date.value : `${date.value}_a_${dateTo.value}`, branches.value);
+  exportDay(date.value === dateTo.value ? date.value : `${date.value}_a_${dateTo.value}`, branches.value, notes.value);
 </script>
 
 <template>
@@ -122,6 +151,28 @@ const handleExport = () =>
               <td>{{ p.quedo ?? '—' }}</td>
               <td class="diff" :class="(p.descuadre ?? 0) < 0 ? 'neg' : 'pos'">
                 {{ p.motivosIncompleto?.length ? p.motivosIncompleto.join(' · ') : (p.descuadre === null ? '—' : (p.descuadre > 0 ? `+${p.descuadre}` : p.descuadre)) }}
+                <button
+                  v-if="showNote(b.branch, p)"
+                  type="button"
+                  class="note-btn"
+                  :class="{ filled: notesOf(b.branch, p).length > 0, readonly: isRange }"
+                  :title="noteText(b.branch, p) || 'Agregar comentario'"
+                  :aria-label="notesOf(b.branch, p).length ? `Comentario: ${noteText(b.branch, p)}` : `Comentar la diferencia de ${p.name}`"
+                  @click="openNote(b.branch, p)"
+                >
+                  <i :class="notesOf(b.branch, p).length ? 'fa-solid fa-comment-dots' : 'fa-regular fa-comment'"></i>
+                </button>
+                <div v-if="isEditing(b.branch, p) && editing" class="note-pop" @keydown.esc="editing = null">
+                  <textarea v-model="editing.text" maxlength="500" rows="3" placeholder="¿Por qué hay esta diferencia?" aria-label="Comentario de la anomalía"></textarea>
+                  <p v-if="editing.error" class="note-err">{{ editing.error }}</p>
+                  <div class="note-actions">
+                    <span>{{ editing.text.length }}/500</span>
+                    <button type="button" class="ghost" @click="editing = null">Cancelar</button>
+                    <button type="button" class="primary" :disabled="editing.saving || !editing.text.trim()" @click="saveNote(p)">
+                      {{ editing.saving ? 'Guardando…' : 'Guardar' }}
+                    </button>
+                  </div>
+                </div>
               </td>
             </tr>
             <tr v-if="b.products.length === 0">
@@ -262,6 +313,31 @@ table {
   }
 
   .empty-row { padding: 1.4rem; color: #94a3b8; }
+
+  .note-btn {
+    margin-left: 0.35rem; border: none; background: transparent; cursor: pointer;
+    color: #94a3b8; font-size: 0.85rem; padding: 2px 4px; border-radius: 6px; vertical-align: middle;
+    &:hover, &:focus-visible { color: #7c3aed; background: #f5f3ff; }
+    &.filled { color: #7c3aed; }
+    &.readonly { cursor: help; }
+  }
+
+  .note-pop {
+    // dentro de la celda: la tabla tiene scroll y un recuadro flotante se cortaría
+    margin: 0.4rem 0 0 auto; width: 260px;
+    background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 0.6rem;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.15); text-align: left; font-size: 0.82rem; font-weight: 400;
+    textarea { width: 100%; box-sizing: border-box; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 0.45rem; font: inherit; resize: vertical; color: #1e293b; }
+    textarea:focus { outline: none; border-color: #7c3aed; }
+    .note-err { margin: 0.3rem 0 0; color: #dc2626; font-size: 0.75rem; }
+    .note-actions { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.45rem;
+      span { margin-right: auto; color: #94a3b8; font-size: 0.7rem; }
+      button { border-radius: 8px; padding: 0.35rem 0.75rem; font-weight: 700; font-size: 0.78rem; cursor: pointer; border: 1px solid #e2e8f0; }
+      .ghost { background: white; color: #475569; }
+      .primary { background: #7c3aed; border-color: #7c3aed; color: white; }
+      .primary:disabled { background: #cbd5e1; border-color: #cbd5e1; cursor: not-allowed; }
+    }
+  }
 }
 
 .diff-chip {
