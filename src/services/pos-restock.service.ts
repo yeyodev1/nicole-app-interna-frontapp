@@ -2,6 +2,8 @@ import APIBase from './httpBase';
 
 export interface RestockItem {
   productName: string;
+  /** Orden 8: nombre de Contífico para mostrar (productName sigue siendo la llave). */
+  contificoName?: string;
   unit: string;
   isGeneral?: boolean;
   requiresMinimum?: boolean;

@@ -104,6 +104,7 @@ const handleExport = () =>
               <td class="t-left pname">
                 {{ p.name }}
                 <span v-if="p.categoria" class="cat-chip">{{ p.categoria }}</span>
+                <span v-if="p.codigo === null && p.vendido !== null" class="cat-chip nocode">Sin código Contífico</span>
               </td>
               <td>{{ p.inicial ?? '—' }}</td>
               <td>{{ p.pedidoAnterior ?? '—' }}</td>
@@ -246,6 +247,8 @@ table {
     font-size: 0.6rem; font-weight: 800; text-transform: uppercase;
     padding: 1px 6px; border-radius: 8px; vertical-align: middle;
   }
+
+  .cat-chip.nocode { background: #fff7ed; border-color: #fed7aa; color: #c2410c; }
 
   .sin-ok { display: block; font-size: 0.6rem; font-weight: 800; color: #d97706; white-space: nowrap; }
 

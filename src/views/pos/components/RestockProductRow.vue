@@ -24,7 +24,7 @@ const isSimpleSupply = () => props.item.isGeneral && !props.item.requiresMinimum
   <div class="product-row" :class="{ 'zero-order': !item.isGeneral && getFinalPedido() === 0, 'is-general': item.isGeneral }">
     <div class="row-header">
       <div class="name-wrap">
-        <span class="product-name">{{ item.productName }}</span>
+        <span class="product-name">{{ item.contificoName || item.productName }}</span>
         <span class="unit-badge">{{ item.unit }}</span>
         <span v-if="item.isGeneral" class="tag general">SUMINISTRO</span>
         <span class="tag dest" :class="item.category.toLowerCase()">{{ item.category }}</span>
