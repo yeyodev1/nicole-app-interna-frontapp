@@ -16,7 +16,6 @@ const branchIssues = (b: any) => b.products.filter((p: any) => (p.descuadre ?? 0
   >
     <OperationsKpiRow
       :vendido="globalTotals.vendido"
-      :venta-cierre="globalTotals.ventaCierre"
       :bajas="globalTotals.bajas"
       :excedentes="globalTotals.excedentes"
       :faltantes="globalTotals.faltantes"
@@ -52,7 +51,6 @@ const branchIssues = (b: any) => b.products.filter((p: any) => (p.descuadre ?? 0
         </div>
         <div class="mini-stats">
           <div><span class="n">{{ b.totals.vendido }}</span><span class="l">vendido</span></div>
-          <div><span class="n">{{ b.totals.ventaCierre }}</span><span class="l">cierre</span></div>
           <div><span class="n">{{ b.totals.bajas }}</span><span class="l">bajas</span></div>
           <div class="pos">
             <span class="n">{{ diferenciasSeparadas(b.products).excedentes > 0 ? `+${diferenciasSeparadas(b.products).excedentes}` : 0 }}</span><span class="l">excedentes</span>
