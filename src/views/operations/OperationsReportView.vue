@@ -2,6 +2,7 @@
 import { useOperationsReport, diferenciasSeparadas } from './composables/useOperationsReport';
 import OperationsShell from './components/OperationsShell.vue';
 import OperationsKpiRow from './components/OperationsKpiRow.vue';
+import AnomalyNotesSummary from './components/AnomalyNotesSummary.vue';
 
 const { branches, globalTotals, allLosses, discrepancies } = useOperationsReport();
 
@@ -61,6 +62,8 @@ const branchIssues = (b: any) => b.products.filter((p: any) => (p.descuadre ?? 0
         </div>
       </div>
     </div>
+
+    <AnomalyNotesSummary />
   </OperationsShell>
 </template>
 
