@@ -18,10 +18,10 @@ const loadFailed = ref(false)
 const busyKey = ref<string | null>(null)
 const brand = ref<'todas' | 'nicole' | 'sucree'>('todas')
 
-const SECTIONS: { group: SalesGroup; title: string; hint: string; color: string }[] = [
-  { group: 'CALIENTE', title: '🔥 Clientes calientes', hint: 'Ya decidieron, solo falta confirmar o pagar', color: '#c2410c' },
-  { group: 'TIBIO', title: '🥱 Clientes tibios', hint: 'Mostraron interés pero no han decidido', color: '#b7791f' },
-  { group: 'TAREA', title: '🚨 Tareas pendientes', hint: 'Clientes de los que esperamos algo', color: '#1d4ed8' }
+const SECTIONS: { group: SalesGroup; title: string; icon: string; hint: string; color: string }[] = [
+  { group: 'CALIENTE', title: 'Clientes calientes', icon: 'fa-fire', hint: 'Ya decidieron, solo falta confirmar o pagar', color: '#c2410c' },
+  { group: 'TIBIO', title: 'Clientes tibios', icon: 'fa-temperature-half', hint: 'Mostraron interés pero no han decidido', color: '#b7791f' },
+  { group: 'TAREA', title: 'Tareas pendientes', icon: 'fa-list-check', hint: 'Clientes de los que esperamos algo', color: '#1d4ed8' }
 ]
 
 const visibleItems = computed(() =>
@@ -162,7 +162,8 @@ onMounted(() => {
       <label for="sa-history">Historial</label>
       <select id="sa-history" v-model="selectedId" @change="selectAnalysis(selectedId)">
         <option v-for="h in history" :key="h._id" :value="h._id">
-          {{ fmt(h.createdAt) }} · {{ h.by?.name }} · 🔥{{ h.counts.CALIENTE || 0 }} 🥱{{ h.counts.TIBIO || 0 }} 🚨{{ h.counts.TAREA || 0 }}
+          {{ fmt(h.createdAt) }} · {{ h.by?.name }} ·
+          <span v-for="s in SECTIONS" :key="s.group" class="count" :style="{ color: s.color }"><i class="fa-solid" :class="s.icon"></i> {{ h.counts[s.group] || 0 }}</span>
         </option>
       </select>
       <span v-if="!isLatest" class="meta">Estás viendo un análisis anterior.</span>
@@ -180,7 +181,7 @@ onMounted(() => {
     <template v-else-if="analysis">
       <div class="stats">
         <div v-for="s in SECTIONS" :key="s.group" class="stat">
-          <small>{{ s.title }}</small>
+          <small :style="{ color: s.color }"><i class="fa-solid" :class="s.icon"></i> {{ s.title }}</small>
           <b :style="{ color: s.color }">{{ byGroup(s.group).length }}</b>
           <small>{{ pendingCount(s.group) }} sin gestionar</small>
         </div>
@@ -188,7 +189,7 @@ onMounted(() => {
 
       <section v-for="s in SECTIONS" :key="s.group" class="section">
         <div class="section-head">
-          <h2>{{ s.title }}</h2>
+          <h2 :style="{ color: s.color }"><i class="fa-solid" :class="s.icon"></i> {{ s.title }}</h2>
           <p>{{ s.hint }}</p>
         </div>
         <SalesAssistantTable
@@ -416,5 +417,9 @@ onMounted(() => {
 
   i { color: #9a92a3; font-size: 1.4rem; }
   p { margin: 0; font-size: 0.92rem; }
+}
+.count {
+  margin-left: 6px;
+  font-weight: 600;
 }
 </style>

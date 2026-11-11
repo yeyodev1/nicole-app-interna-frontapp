@@ -12,7 +12,11 @@ const emit = defineEmits<{
   mark: [item: SalesItem, mark: { read: boolean; status: MarkStatus }]
 }>()
 
-const EMOJI: Record<SalesGroup, string> = { CALIENTE: '🔥', TIBIO: '🥱', TAREA: '🚨' }
+const ICON: Record<SalesGroup, { icon: string; color: string }> = {
+  CALIENTE: { icon: 'fa-fire', color: '#c2410c' },
+  TIBIO: { icon: 'fa-temperature-half', color: '#b7791f' },
+  TAREA: { icon: 'fa-list-check', color: '#1d4ed8' },
+}
 
 const read = (item: SalesItem) => !!item.mark?.read
 const status = (item: SalesItem) => item.mark?.status ?? null
@@ -51,7 +55,7 @@ const brandLabel = (marca: SalesItem['marca']) => (marca === 'sucree' ? 'Sucrée
           :class="{ done: status(item) === 'GESTIONADO', skipped: status(item) === 'NO_GESTIONAR' }"
         >
           <td>
-            <div class="client">{{ EMOJI[item.group] }} {{ item.cliente }}</div>
+            <div class="client"><i class="fa-solid" :class="ICON[item.group].icon" :style="{ color: ICON[item.group].color }"></i> {{ item.cliente }}</div>
             <div class="meta">
               <span v-if="item.telefono">{{ item.telefono }}</span>
               <span v-if="item.recibido"> · {{ item.recibido }}</span>
@@ -78,7 +82,7 @@ const brandLabel = (marca: SalesItem['marca']) => (marca === 'sucree' ? 'Sucrée
           <td class="status-cell">
             <label>
               <input type="checkbox" :checked="read(item)" :disabled="props.busyKey === item.key" @change="toggleRead(item)" />
-              👀 Leído
+              <i class="fa-solid fa-eye" style="color: #475569"></i> Leído
             </label>
             <label>
               <input
@@ -87,7 +91,7 @@ const brandLabel = (marca: SalesItem['marca']) => (marca === 'sucree' ? 'Sucrée
                 :disabled="props.busyKey === item.key"
                 @change="toggleStatus(item, 'GESTIONADO')"
               />
-              ✅ Gestionado
+              <i class="fa-solid fa-circle-check" style="color: #15803d"></i> Gestionado
             </label>
             <label>
               <input
@@ -96,7 +100,7 @@ const brandLabel = (marca: SalesItem['marca']) => (marca === 'sucree' ? 'Sucrée
                 :disabled="props.busyKey === item.key"
                 @change="toggleStatus(item, 'NO_GESTIONAR')"
               />
-              ⛔ No se gestiona a propósito
+              <i class="fa-solid fa-ban" style="color: #b91c1c"></i> No se gestiona a propósito
             </label>
             <div v-if="item.mark?.by" class="meta">{{ item.mark.by }}</div>
           </td>
