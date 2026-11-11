@@ -160,7 +160,7 @@ const handleExportConfirm = async (opts: { responsibleName: string; destination:
 
     if (exportMode.value === 'dispatch') {
       const label = opts.destination === 'all' ? 'Todas las sucursales' : opts.destination
-      await exportDispatchOrder(ordersToExport, label)
+      await exportDispatchOrder(ordersToExport, label, contificoCatByName.value)
       success('Orden de Entrega exportada (Excel descargado).')
     } else {
       // Excel con las categorías tal cual Contífico
