@@ -1,6 +1,6 @@
 import APIBase from './httpBase'
 
-export type SalesGroup = 'CALIENTE' | 'TIBIO' | 'TAREA'
+export type SalesGroup = 'CALIENTE' | 'TIBIO' | 'REBOTO' | 'FRIO' | 'POSTVENTA' | 'TAREA'
 export type MarkStatus = 'GESTIONADO' | 'NO_GESTIONAR' | null
 
 export interface SalesMark {
@@ -22,6 +22,11 @@ export interface SalesItem {
   recibido?: string
   motivo: string
   puntaje?: number
+  prioridad?: 'ALTA' | 'MEDIA' | 'BAJA'
+  paso?: string
+  senales?: string[]
+  falta?: string
+  seguimiento?: string
   tarea?: string
   detalle?: string
   mensaje: string

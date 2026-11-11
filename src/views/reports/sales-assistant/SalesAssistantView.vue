@@ -21,7 +21,10 @@ const brand = ref<'todas' | 'nicole' | 'sucree'>('todas')
 const SECTIONS: { group: SalesGroup; title: string; icon: string; hint: string; color: string }[] = [
   { group: 'CALIENTE', title: 'Clientes calientes', icon: 'fa-fire', hint: 'Ya decidieron, solo falta confirmar o pagar', color: '#c2410c' },
   { group: 'TIBIO', title: 'Clientes tibios', icon: 'fa-temperature-half', hint: 'Mostraron interés pero no han decidido', color: '#b7791f' },
-  { group: 'TAREA', title: 'Tareas pendientes', icon: 'fa-list-check', hint: 'Clientes de los que esperamos algo', color: '#1d4ed8' }
+  { group: 'REBOTO', title: 'Rebotaron', icon: 'fa-rotate-left', hint: 'Mostraron interés y llevan 2 h o más sin contestar (máximo 2 intentos)', color: '#7c3aed' },
+  { group: 'POSTVENTA', title: 'Postventa', icon: 'fa-receipt', hint: 'Ya pagaron: falta factura, datos, hora o un reclamo', color: '#0f766e' },
+  { group: 'TAREA', title: 'Tareas pendientes', icon: 'fa-list-check', hint: 'Links de entrega sin completar, reservas sin pago y, mientras la IA está pendiente, chats que esperan respuesta', color: '#1d4ed8' },
+  { group: 'FRIO', title: 'Fríos', icon: 'fa-snowflake', hint: 'Solo saludo o anuncio: un mensaje con otro ángulo y no insistir', color: '#64748b' },
 ]
 
 const visibleItems = computed(() =>
