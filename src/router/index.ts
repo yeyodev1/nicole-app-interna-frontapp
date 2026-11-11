@@ -76,6 +76,12 @@ const router = createRouter({
       meta: { requiresAuth: true, title: 'Reporte de Ventas' }
     },
     {
+      path: '/reports/asistente-ventas',
+      name: 'sales-assistant',
+      component: () => import('../views/reports/sales-assistant/SalesAssistantView.vue'),
+      meta: { requiresAuth: true, title: 'Asistente de ventas' }
+    },
+    {
       path: '/reports/delivery',
       name: 'delivery-report',
       component: () => import('../views/reports/DeliveryReportView.vue'),
