@@ -187,6 +187,9 @@ const closePanel = () => { mobileOpen.value = false }
         <router-link to="/admin/dashboard" active-class="active" @click="closePanel">
           <i class="fa-solid fa-gauge-high"></i> Panel de Control
         </router-link>
+        <router-link to="/reports/asistente-ventas" active-class="active" @click="closePanel">
+          <i class="fa-solid fa-wand-magic-sparkles"></i> Asistente de ventas
+        </router-link>
         <router-link to="/reports/sales-by-responsible" active-class="active" @click="closePanel">
           <i class="fa-solid fa-chart-line"></i> Ventas &amp; Comisiones
         </router-link>
@@ -216,6 +219,11 @@ const closePanel = () => { mobileOpen.value = false }
         </router-link>
         <router-link to="/orders/new" exact-active-class="active" @click="closePanel">
           <i class="fa-solid fa-plus"></i> Pedido manual
+        </router-link>
+
+        <span class="nav-group-label">Ventas</span>
+        <router-link to="/reports/asistente-ventas" active-class="active" @click="closePanel">
+          <i class="fa-solid fa-wand-magic-sparkles"></i> Asistente de ventas
         </router-link>
 
         <span class="nav-group-label">Reportes</span>
