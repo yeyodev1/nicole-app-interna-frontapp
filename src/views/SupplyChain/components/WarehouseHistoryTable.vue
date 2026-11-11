@@ -5,6 +5,7 @@ import type { RawMaterial, Movement } from '@/types/warehouse'
 import WarehouseService from '@/services/warehouse.service'
 import { useToast } from '@/composables/useToast'
 import * as XLSX from 'xlsx-js-style'
+import { styleSimpleTable } from '@/utils/excelTheme'
 
 interface AggEntry {
   _id: { type: string; receptionPoint: string }
@@ -120,16 +121,8 @@ const exportToExcel = async () => {
 
     const ws = XLSX.utils.json_to_sheet(rows)
 
-    const range = XLSX.utils.decode_range(ws['!ref'] || '')
-    for (let C = range.s.c; C <= range.e.c; ++C) {
-      const address = XLSX.utils.encode_col(C) + '1'
-      if (!ws[address]) continue
-      ws[address].s = {
-        font: { bold: true, color: { rgb: "FFFFFF" } },
-        fill: { fgColor: { rgb: "5A21B6" } },
-        alignment: { horizontal: 'center' }
-      }
-    }
+    // Formato común de los Excel de la app
+    styleSimpleTable(ws, { numericCols: [4, 6, 7] })
 
     // Auto-size columns roughly based on header lengths vs typical content
     ws['!cols'] = [

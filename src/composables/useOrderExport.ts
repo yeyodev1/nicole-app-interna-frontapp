@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import XLSX from 'xlsx-js-style'
 import { formatECT } from '@/utils/dateUtils'
 import type { DailyFormData } from '@/services/pos-restock.service'
+import { XL, xlBox, xlStyle } from '@/utils/excelTheme'
 
 export function useOrderExport() {
   const isExporting = ref(false)
@@ -25,14 +26,7 @@ export function useOrderExport() {
     isExporting.value = true
     try {
       // ── Colors ─────────────────────────────────────────────────────
-      const C_TITLE_BG   = 'BF8B00'  // dark amber — title row
-      const C_HEADER_BG  = 'FFC107'  // amber — column header row
-      const C_CAT_BG     = 'FFF3E0'  // light amber — category rows
-      const C_TOTAL_BG   = 'E65100'  // deep orange — totals row
-      const C_EVEN       = 'FFFFFF'
-      const C_ODD        = 'FAFAFA'
-      const C_BORDER     = 'DDDDDD'
-      const C_CAT_BORDER = 'FFA726'
+      // Colores: formato común de la app (src/utils/excelTheme.ts)
 
       // ── 1. Category mapping ─────────────────────────────────────────
       const mapCategory = (productName: string, rawCategory?: string): string => {
@@ -133,25 +127,19 @@ export function useOrderExport() {
       const totalCols = 2 + sortedCols.length + 1  // category + product + dest cols + TOTAL
       const lastCol = totalCols - 1
 
-      const border = (color = C_BORDER, weight = 'thin') => ({
-        top: { style: weight, color: { rgb: color } },
-        bottom: { style: weight, color: { rgb: color } },
-        left: { style: weight, color: { rgb: color } },
-        right: { style: weight, color: { rgb: color } }
-      })
 
       // Row 0: Title
       wsData.push([`ORDEN DE PRODUCCIÓN — ${today}`, ...Array(totalCols - 1).fill('')])
       wsMerges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: totalCols - 1 } })
       for (let c = 0; c < totalCols; c++) {
-        S(0, c, { font: { bold: true, sz: 14, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: C_TITLE_BG } }, alignment: { horizontal: c === 0 ? 'left' : 'center', vertical: 'center' } })
+        S(0, c, xlStyle.title())
       }
 
       // Row 1: Responsible
       wsData.push([`RESPONSABLE: ${responsibleName.toUpperCase()}`, ...Array(totalCols - 1).fill('')])
       wsMerges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: totalCols - 1 } })
       for (let c = 0; c < totalCols; c++) {
-        S(1, c, { font: { sz: 10, italic: true, color: { rgb: '5D4037' } }, fill: { fgColor: { rgb: 'FFF8E1' } } })
+        S(1, c, xlStyle.subtitle())
       }
 
       // Row 2: Column headers
@@ -161,7 +149,7 @@ export function useOrderExport() {
         'TOTAL'
       ])
       for (let c = 0; c < totalCols; c++) {
-        S(2, c, { font: { bold: true, sz: 10, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: C_HEADER_BG } }, alignment: { horizontal: 'center', vertical: 'center', wrapText: true }, border: border('000000', c === 0 || c === 1 ? 'medium' : 'thin') })
+        S(2, c, xlStyle.header(c <= 1 ? 'left' : 'center'))
       }
 
       let currentRow = 3
@@ -175,11 +163,11 @@ export function useOrderExport() {
         wsData.push([cat, ...Array(totalCols - 1).fill('')])
         wsMerges.push({ s: { r: currentRow, c: 0 }, e: { r: currentRow, c: totalCols - 1 } })
         for (let c = 0; c < totalCols; c++) {
-          S(currentRow, c, { font: { bold: true, sz: 11, color: { rgb: '4E342E' } }, fill: { fgColor: { rgb: C_CAT_BG } }, alignment: { horizontal: 'left', vertical: 'center' }, border: border(C_CAT_BORDER) })
+          S(currentRow, c, xlStyle.category('left'))
         }
         currentRow++
 
-        products.forEach((productName, pIdx) => {
+        products.forEach((productName) => {
           const destQty = pivot[productName]?.destQty
           if (!destQty) return
           let rowTotal = 0
@@ -190,15 +178,9 @@ export function useOrderExport() {
           })
           wsData.push(['', productName, ...qtyValues, rowTotal > 0 ? rowTotal : ''])
 
-          const rowBg = pIdx % 2 === 0 ? C_EVEN : C_ODD
           for (let c = 0; c < totalCols; c++) {
             const isLast = c === lastCol
-            S(currentRow, c, {
-              font: isLast ? { bold: true } : {},
-              fill: { fgColor: { rgb: isLast ? 'FFF8E1' : rowBg } },
-              alignment: { horizontal: c <= 1 ? 'left' : 'center', vertical: 'center' },
-              border: border(C_BORDER)
-            })
+            S(currentRow, c, xlStyle.cell(c <= 1 ? 'left' : 'center', isLast ? { bold: true, fill: XL.TOTAL_SOFT } : {}))
           }
           currentRow++
         })
@@ -216,7 +198,7 @@ export function useOrderExport() {
       totalsRow.push(grandTotal > 0 ? grandTotal : '')
       wsData.push(totalsRow)
       for (let c = 0; c < totalCols; c++) {
-        S(currentRow, c, { font: { bold: true, sz: 11, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: C_TOTAL_BG } }, alignment: { horizontal: c <= 1 ? 'left' : 'center', vertical: 'center' }, border: border('000000', 'medium') })
+        S(currentRow, c, xlStyle.total(c <= 1 ? 'left' : 'center'))
       }
 
       // ── 6. Build workbook ───────────────────────────────────────────
@@ -253,8 +235,7 @@ export function useOrderExport() {
     isExporting.value = true
     try {
       // ── Colores ──
-      const PURPLE = '6D28D9', PURPLE_SOFT = 'F3E8FF', INK = '1E293B', MUTED = '64748B', LINE = 'D9DEE7'
-      const TOTAL_SOFT = 'EEF2F7'
+      const { PURPLE, PURPLE_SOFT, INK, MUTED, TOTAL_SOFT } = XL
       const BRANCH_COLORS: Array<{ bg: string; fg: string; soft: string }> = [
         { bg: '1D4ED8', fg: 'FFFFFF', soft: 'DBEAFE' }, // San Marino: azul
         { bg: 'FACC15', fg: '422006', soft: 'FEF9C3' }, // Mall del Sol: amarillo
@@ -264,8 +245,7 @@ export function useOrderExport() {
       ]
       const PLANT_COLOR = { bg: '15803D', fg: 'FFFFFF', soft: 'DCFCE7' }
 
-      const thin = { style: 'thin', color: { rgb: LINE } }
-      const box = { top: thin, bottom: thin, left: thin, right: thin }
+      const box = xlBox
 
       // ── 1. Destino de cada pedido ──
       type Kind = 'CLI' | 'R1' | 'R2' | 'DELIVERY' | 'PLANTA'
@@ -538,20 +518,14 @@ export function useOrderExport() {
         wsStyle[XLSX.utils.encode_cell({ r: row, c: col })] = style
       }
 
-      const PURPLE = '812A73'
-      const PURPLE_LIGHT = 'F5EBF3'
-      const GRAY_HEADER = '2C3E50'
-      const CAT_PROD = 'E8F5E9'  // green tint for Producción
-      const CAT_BOD  = 'E3F2FD'  // blue tint for Bodega
+      // Colores: formato común de la app (src/utils/excelTheme.ts)
+      const CAT_PROD = 'Producción'
+      const CAT_BOD  = 'Bodega'
 
       // ── Row 0: Title ──────────────────────────────────────
       wsData.push([`ORDEN DE PRODUCCIÓN — ${branch.toUpperCase()}`, '', '', '', '', ''])
       for (let c = 0; c <= 5; c++) {
-        setStyle(0, c, {
-          font: { bold: true, sz: 14, color: { rgb: 'FFFFFF' } },
-          fill: { fgColor: { rgb: PURPLE } },
-          alignment: { horizontal: c === 0 ? 'left' : 'center', vertical: 'center' }
-        })
+        setStyle(0, c, xlStyle.title())
       }
 
       // ── Row 1: Meta info ──────────────────────────────────
@@ -564,10 +538,7 @@ export function useOrderExport() {
         '', '', ''
       ])
       for (let c = 0; c <= 5; c++) {
-        setStyle(1, c, {
-          font: { italic: true, sz: 10, color: { rgb: '64748B' } },
-          fill: { fgColor: { rgb: PURPLE_LIGHT } }
-        })
+        setStyle(1, c, xlStyle.subtitle())
       }
 
       // ── Row 2: Empty spacer ───────────────────────────────
@@ -577,12 +548,7 @@ export function useOrderExport() {
       const headers = ['PRODUCTO', 'UNIDAD', 'CANT. PEDIDA', 'STOCK HOY', 'OBJ. MAÑANA', '✓ ENTREGADO']
       wsData.push(headers)
       for (let c = 0; c < headers.length; c++) {
-        setStyle(3, c, {
-          font: { bold: true, sz: 11, color: { rgb: 'FFFFFF' } },
-          fill: { fgColor: { rgb: GRAY_HEADER } },
-          alignment: { horizontal: 'center', vertical: 'center' },
-          border: { bottom: { style: 'thin', color: { rgb: '000000' } } }
-        })
+        setStyle(3, c, xlStyle.header(c === 0 ? 'left' : 'center'))
       }
 
       // ── Items grouped by category ─────────────────────────
@@ -592,17 +558,13 @@ export function useOrderExport() {
 
       let currentRow = 4
 
-      const addCategoryBlock = (label: string, items: typeof itemsWithPedido, bgColor: string) => {
+      const addCategoryBlock = (label: string, items: typeof itemsWithPedido, _group: string) => {
         if (items.length === 0) return
 
         // Category header
         wsData.push([label.toUpperCase(), '', '', '', '', ''])
         for (let c = 0; c <= 5; c++) {
-          setStyle(currentRow, c, {
-            font: { bold: true, sz: 11 },
-            fill: { fgColor: { rgb: bgColor === CAT_PROD ? 'A5D6A7' : '90CAF9' } },
-            alignment: { horizontal: 'left' }
-          })
+          setStyle(currentRow, c, xlStyle.category('left'))
         }
         currentRow++
 
@@ -614,17 +576,7 @@ export function useOrderExport() {
           wsData.push([item.productName, item.unit, pedido, stockHoy, objMañana, ''])
 
           for (let c = 0; c <= 5; c++) {
-            setStyle(currentRow, c, {
-              fill: { fgColor: { rgb: bgColor === CAT_PROD ? CAT_PROD.replace('#','') : CAT_BOD.replace('#','') } },
-              border: {
-                top:    { style: 'thin', color: { rgb: 'DDDDDD' } },
-                bottom: { style: 'thin', color: { rgb: 'DDDDDD' } },
-                left:   { style: 'thin', color: { rgb: 'DDDDDD' } },
-                right:  { style: 'thin', color: { rgb: 'DDDDDD' } }
-              },
-              alignment: { horizontal: c === 0 ? 'left' : 'center', vertical: 'center' },
-              ...(c === 2 ? { font: { bold: true, sz: 12 } } : {})
-            })
+            setStyle(currentRow, c, xlStyle.cell(c === 0 ? 'left' : 'center', c === 2 ? { bold: true, fill: XL.TOTAL_SOFT } : {}))
           }
           currentRow++
         })
@@ -639,7 +591,7 @@ export function useOrderExport() {
 
       if (itemsWithPedido.length === 0) {
         wsData.push(['Sin pedidos para mañana', '', '', '', '', ''])
-        setStyle(currentRow, 0, { font: { italic: true, color: { rgb: '94A3B8' } } })
+        setStyle(currentRow, 0, xlStyle.subtitle())
       }
 
       // ── Build workbook ────────────────────────────────────
@@ -648,6 +600,12 @@ export function useOrderExport() {
 
       ws['!cols'] = [{ wch: 42 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 14 }]
       ws['!rows'] = [{ hpt: 28 }, { hpt: 18 }]
+      // Título y datos del cierre ocupan todo el ancho (formato común)
+      ws['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 5 } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: 1 } },
+        { s: { r: 1, c: 2 }, e: { r: 1, c: 5 } },
+      ]
 
       Object.keys(wsStyle).forEach(ref => {
         if (ws[ref]) ws[ref].s = wsStyle[ref]
