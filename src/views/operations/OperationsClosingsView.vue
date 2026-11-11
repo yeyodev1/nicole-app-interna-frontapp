@@ -112,18 +112,24 @@ const handleExport = () =>
         </span>
       </header>
 
+      <p class="f-legend">
+        <span class="f-swatch"></span>
+        Columnas resaltadas: entran en la cuenta de <strong>Debería quedar</strong> =
+        Stock inicial + Recibido − Venta isla − Venta combo o fuera de isla − Bajas.
+        Pedido es solo informativo.
+      </p>
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
               <th class="t-left">Producto</th>
-              <th>Stock inicial</th>
-              <th title="Pedido en el cierre de la jornada anterior">Pedido</th>
-              <th>Recibido</th>
-              <th title="Contífico, caja de la isla">Venta isla</th>
-              <th title="Lo escribe la isla en el cierre">Venta en combo o fuera de isla</th>
-              <th>Bajas</th>
-              <th>Debería quedar</th>
+              <th class="f-in" title="Suma en Debería quedar"><span class="f-sign plus">+</span>Stock inicial</th>
+              <th title="Pedido en el cierre de la jornada anterior. Informativo: no entra en la cuenta">Pedido</th>
+              <th class="f-in" title="Suma en Debería quedar"><span class="f-sign plus">+</span>Recibido</th>
+              <th class="f-in" title="Contífico, caja de la isla. Resta en Debería quedar"><span class="f-sign minus">−</span>Venta isla</th>
+              <th class="f-in" title="Lo escribe la isla en el cierre. Resta en Debería quedar"><span class="f-sign minus">−</span>Venta en combo o fuera de isla</th>
+              <th class="f-in" title="Resta en Debería quedar"><span class="f-sign minus">−</span>Bajas</th>
+              <th class="should" title="Stock inicial + Recibido − Venta isla − Venta combo o fuera de isla − Bajas"><span class="f-sign eq">=</span>Debería quedar</th>
               <th>Quedó (isla)</th>
               <th>Diferencia</th>
             </tr>
@@ -135,18 +141,18 @@ const handleExport = () =>
                 <span v-if="p.categoria" class="cat-chip">{{ p.categoria }}</span>
                 <span v-if="p.codigo === null && p.vendido !== null" class="cat-chip nocode">Sin código Contífico</span>
               </td>
-              <td>{{ p.inicial ?? '—' }}</td>
+              <td class="f-in">{{ p.inicial ?? '—' }}</td>
               <td>{{ p.pedidoAnterior ?? '—' }}</td>
-              <td>
+              <td class="f-in">
                 {{ recibidoTexto(p) }}
                 <span v-if="p.recibidoSinOk > 0" class="sin-ok">⚠ {{ p.recibidoSinOk }} sin OK</span>
               </td>
               <template v-if="p.vendido !== null && p.ventas">
-                <td>{{ b.salesAvailable ? p.ventas.isla : '—' }}</td>
-                <td>{{ b.hasClosing ? (p.ventas.fueraIsla ?? 0) : '—' }}</td>
+                <td class="f-in">{{ b.salesAvailable ? p.ventas.isla : '—' }}</td>
+                <td class="f-in">{{ b.hasClosing ? (p.ventas.fueraIsla ?? 0) : '—' }}</td>
               </template>
-              <td v-else colspan="2">—</td>
-              <td :class="{ 'has-bajas': p.bajas > 0 }">{{ b.hasClosing ? p.bajas : '—' }}</td>
+              <td v-else colspan="2" class="f-in">—</td>
+              <td class="f-in" :class="{ 'has-bajas': p.bajas > 0 }">{{ b.hasClosing ? p.bajas : '—' }}</td>
               <td class="should">{{ p.deberiaQuedar ?? '—' }}</td>
               <td>{{ p.quedo ?? '—' }}</td>
               <td class="diff" :class="(p.descuadre ?? 0) < 0 ? 'neg' : 'pos'">
@@ -271,6 +277,12 @@ const handleExport = () =>
 }
 
 .table-wrap { overflow-x: auto; }
+.f-legend {
+  display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;
+  margin: 0; padding: 0.5rem 1rem; font-size: 0.78rem; color: #64748b;
+  strong { color: #475569; }
+}
+.f-swatch { width: 14px; height: 14px; border-radius: 3px; background: #f5f3ff; border: 1px solid #ddd6fe; flex-shrink: 0; }
 .credit-notes { padding: 0.75rem 1rem; font-size: 0.82rem; color: #334155; p { margin: 0.25rem 0 0; } }
 
 table {
@@ -291,6 +303,15 @@ table {
   .pname { font-weight: 600; color: #1e293b; }
   .has-bajas { color: #b45309; font-weight: 700; }
   .should { font-weight: 700; color: #475569; background: #f8fafc; }
+  // Columnas que entran en la fórmula de Debería quedar
+  .f-in { background: #f5f3ff; }
+  th.f-in { color: #5b21b6; }
+  .f-sign {
+    display: inline-block; margin-right: 0.2rem; font-weight: 800;
+    &.plus { color: #15803d; }
+    &.minus { color: #b91c1c; }
+    &.eq { color: #475569; }
+  }
 
   .cat-chip {
     display: inline-block; margin-left: 0.35rem;
