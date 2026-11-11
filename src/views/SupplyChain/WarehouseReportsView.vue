@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 // @ts-ignore
 import XLSX from 'xlsx-js-style'
+import { XL, xlStyle } from '@/utils/excelTheme'
 import WarehouseService from '@/services/warehouse.service'
 import { posRestockService, type LeftoverRow } from '@/services/pos-restock.service'
 import { useBranches } from '@/composables/useBranches'
@@ -65,12 +66,11 @@ const fetchLeftovers = async () => {
 }
 
 // ── Estilos del export (misma paleta de la vista) ─────────────────────
-const XL_PURPLE = '7C3AED'
-const XL_PURPLE_SOFT = 'EDE9FE'
-const XL_AMBER = 'B45309'
+// Formato común de los Excel de la app (src/utils/excelTheme.ts)
+const XL_PURPLE = XL.PURPLE
+const XL_AMBER = XL.AMBER
 const XL_AMBER_SOFT = 'FEF3C7'
-const XL_HEADER_BG = 'F9FAFB'
-const XL_LINE = 'E5E7EB'
+const XL_LINE = XL.LINE
 
 const xlBorder = {
   top: { style: 'thin', color: { rgb: XL_LINE } },
@@ -162,21 +162,12 @@ const exportLeftovers = () => {
       fill: { fgColor: { rgb: XL_PURPLE } },
       alignment: { vertical: 'center', indent: 1 },
     })
-    styleCell(1, c, {
-      font: { sz: 9, color: { rgb: '4C1D95' } },
-      fill: { fgColor: { rgb: XL_PURPLE_SOFT } },
-      alignment: { vertical: 'center', indent: 1 },
-    })
+    styleCell(1, c, xlStyle.subtitle())
   }
 
   // Encabezados
   for (let c = 0; c < LEFTOVER_HEADERS.length; c++) {
-    styleCell(HEADER_ROW, c, {
-      font: { bold: true, sz: 10, color: { rgb: '374151' } },
-      fill: { fgColor: { rgb: XL_HEADER_BG } },
-      border: xlBorder,
-      alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
-    })
+    styleCell(HEADER_ROW, c, xlStyle.header('center'))
   }
 
   // Cuerpo
@@ -205,12 +196,7 @@ const exportLeftovers = () => {
 
   // Totales
   for (let c = 0; c < LEFTOVER_HEADERS.length; c++) {
-    styleCell(TOTAL_ROW, c, {
-      font: { bold: true, sz: 10, color: { rgb: 'FFFFFF' } },
-      fill: { fgColor: { rgb: XL_PURPLE } },
-      border: xlBorder,
-      alignment: { horizontal: LEFTOVER_NUM_COLS.has(c) ? 'right' : 'left' },
-    })
+    styleCell(TOTAL_ROW, c, xlStyle.total(LEFTOVER_NUM_COLS.has(c) ? 'right' : 'left'))
   }
 
   XLSX.utils.book_append_sheet(wb, ws, 'Sobrantes POS')
@@ -242,16 +228,8 @@ const exportLeftovers = () => {
   }
 
   for (let c = 0; c < 3; c++) {
-    styleCell2(0, c, {
-      font: { bold: true, sz: 12, color: { rgb: 'FFFFFF' } },
-      fill: { fgColor: { rgb: XL_AMBER } },
-      alignment: { vertical: 'center', indent: 1 },
-    })
-    styleCell2(2, c, {
-      font: { bold: true, sz: 10, color: { rgb: '374151' } },
-      fill: { fgColor: { rgb: XL_HEADER_BG } },
-      border: xlBorder,
-    })
+    styleCell2(0, c, xlStyle.title())
+    styleCell2(2, c, xlStyle.header('left'))
   }
   for (let r = 3; r < missingAoa.length; r++) {
     for (let c = 0; c < 3; c++) {

@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import XLSX from 'xlsx-js-style';
 import { diferenciasSeparadas, type OpsBranch } from './useOperationsReport';
 import type { AnomalyNote } from '@/services/pos-restock.service';
+import { XL, styleSimpleTable } from '@/utils/excelTheme';
 
 /**
  * Exporta a Excel el mismo reporte que llega por correo al Jefe de
@@ -19,11 +20,6 @@ export function useOperationsExport() {
       const wb = XLSX.utils.book_new();
 
       const HEAD = ['Producto', 'Categoría (Contífico)', 'Stock inicial', 'Recibido', 'Sin OK', 'Venta isla', 'Venta en combo o fuera de isla', 'Vendido total', 'Bajas', 'Debería quedar', 'Quedó (isla)', 'Diferencia', 'Pedido (cierre anterior)', 'Información incompleta'];
-      const headStyle = {
-        font: { bold: true, color: { rgb: 'FFFFFF' } },
-        fill: { fgColor: { rgb: '7C3AED' } },
-        alignment: { horizontal: 'center' },
-      };
 
       for (const b of branches) {
         const rows: any[][] = [HEAD];
@@ -53,16 +49,24 @@ export function useOperationsExport() {
 
         const ws = XLSX.utils.aoa_to_sheet(rows);
         ws['!cols'] = [{ wch: 34 }, { wch: 22 }, { wch: 12 }, { wch: 10 }, { wch: 8 }, { wch: 18 }, { wch: 28 }, { wch: 11 }];
+        // Formato común: encabezado oscuro, bordes y filas de totales
+        const lastProduct = b.products.length;
+        styleSimpleTable(ws, {
+          numericCols: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          boldCols: [11],
+          totalRows: [lastProduct + 2, lastProduct + 3, lastProduct + 4],
+        });
+        // La fila vacía antes de los totales queda sin bordes
         for (let c = 0; c < HEAD.length; c++) {
-          const cell = ws[XLSX.utils.encode_cell({ r: 0, c })];
-          if (cell) cell.s = headStyle;
+          const cell = ws[XLSX.utils.encode_cell({ r: lastProduct + 1, c })];
+          if (cell) cell.s = {};
         }
-        // Diferencias en rojo
+        // Diferencias en rojo (faltante) o ámbar (sobrante)
         for (let r = 1; r <= b.products.length; r++) {
           const d = b.products[r - 1]?.descuadre;
           const cell = ws[XLSX.utils.encode_cell({ r, c: 11 })]; // columna Diferencia
           if (cell && typeof d === 'number' && d !== 0) {
-            cell.s = { font: { bold: true, color: { rgb: d < 0 ? 'DC2626' : 'D97706' } } };
+            cell.s = { ...cell.s, font: { sz: 10, bold: true, color: { rgb: d < 0 ? XL.RED : XL.AMBER } } };
           }
         }
         // Nombre de hoja máx 31 chars
@@ -79,10 +83,7 @@ export function useOperationsExport() {
       if (bajasRows.length > 1) {
         const wsB = XLSX.utils.aoa_to_sheet(bajasRows);
         wsB['!cols'] = [{ wch: 16 }, { wch: 34 }, { wch: 22 }, { wch: 10 }, { wch: 36 }, { wch: 12 }];
-        for (let c = 0; c < 6; c++) {
-          const cell = wsB[XLSX.utils.encode_cell({ r: 0, c })];
-          if (cell) cell.s = { ...headStyle, fill: { fgColor: { rgb: 'D97706' } } };
-        }
+        styleSimpleTable(wsB, { numericCols: [3] });
         XLSX.utils.book_append_sheet(wb, wsB, 'Bajas');
       }
 
@@ -95,10 +96,7 @@ export function useOperationsExport() {
         }
         const wsN = XLSX.utils.aoa_to_sheet(nRows);
         wsN['!cols'] = [{ wch: 12 }, { wch: 16 }, { wch: 34 }, { wch: 12 }, { wch: 60 }, { wch: 18 }, { wch: 30 }];
-        for (let c = 0; c < 7; c++) {
-          const cell = wsN[XLSX.utils.encode_cell({ r: 0, c })];
-          if (cell) cell.s = headStyle;
-        }
+        styleSimpleTable(wsN, { numericCols: [3] });
         XLSX.utils.book_append_sheet(wb, wsN, 'Comentarios de anomalías');
       }
 

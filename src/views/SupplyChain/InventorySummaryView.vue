@@ -7,6 +7,7 @@ import SupplierOrderModal from '@/components/SupplyChain/SupplierOrderModal.vue'
 
 // @ts-ignore
 import XLSX from 'xlsx-js-style'
+import { styleSimpleTable } from '@/utils/excelTheme'
 
 const { error: showError, success } = useToast()
 
@@ -138,30 +139,15 @@ const exportToExcel = () => {
   })
 
   const ws = XLSX.utils.json_to_sheet(data)
-  const headerStyle = {
-    font: { bold: true, color: { rgb: "FFFFFF" } },
-    fill: { fgColor: { rgb: "4338CA" } },
-    alignment: { horizontal: "center", vertical: "center" },
-    border: { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } }
-  }
-  const bodyStyle = {
-    font: { name: "Arial", sz: 10 },
-    alignment: { vertical: "center" },
-    border: { bottom: { style: "thin", color: { rgb: "E2E8F0" } } }
-  }
   const range = XLSX.utils.decode_range(ws['!ref']!)
-  for (let R = range.s.r; R <= range.e.r; ++R) {
-    for (let C = range.s.c; C <= range.e.c; ++C) {
+  for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+    for (const C of [5, 7, 8]) {
       const cell_ref = XLSX.utils.encode_cell({ c: C, r: R })
-      if (!ws[cell_ref]) continue
-      if (R === 0) {
-        ws[cell_ref].s = headerStyle
-      } else {
-        ws[cell_ref].s = bodyStyle
-        if (C === 5 || C === 7 || C === 8) ws[cell_ref].z = '#,##0.00'
-      }
+      if (ws[cell_ref]) ws[cell_ref].z = '#,##0.00'
     }
   }
+  // Formato común de los Excel de la app
+  styleSimpleTable(ws, { numericCols: [5, 7, 8], boldCols: [8] })
   ws['!cols'] = [
     { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 35 },
     { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 15 }, { wch: 15 }
