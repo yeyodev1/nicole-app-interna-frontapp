@@ -128,7 +128,7 @@ const closePanel = () => { mobileOpen.value = false }
 
       <!-- Production -->
       <template v-else-if="isProduction">
-        <span class="nav-group-label">Producción</span>
+        <span class="nav-group-label">Despacho</span>
         <router-link to="/production/summary" active-class="active" @click="closePanel">
           <i class="fa-solid fa-chart-pie"></i> Resumen
         </router-link>
@@ -137,6 +137,10 @@ const closePanel = () => { mobileOpen.value = false }
         </router-link>
         <router-link to="/production/future-sales" active-class="active" @click="closePanel">
           <i class="fa-solid fa-calendar-days"></i> Ventas a futuro
+        </router-link>
+        <span class="nav-group-label">Producción</span>
+        <router-link to="/production/entry" active-class="active" @click="closePanel">
+          <i class="fa-solid fa-plus"></i> Ingreso de producción
         </router-link>
       </template>
 
