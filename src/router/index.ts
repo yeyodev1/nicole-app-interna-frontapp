@@ -279,6 +279,24 @@ const router = createRouter({
       component: () => import('../views/operations/OperationsClosingsView.vue'),
       meta: { requiresAuth: true, role: 'OPERATIONS_MANAGER', title: 'Detalle del Día' }
     },
+    {
+      path: '/operations/production-history',
+      name: 'operations-production-history',
+      component: () => import('../views/operations/OperationsProductionHistoryView.vue'),
+      meta: { requiresAuth: true, role: 'OPERATIONS_MANAGER', title: 'Histórico de Producción' }
+    },
+    {
+      path: '/operations/production-history/:id',
+      name: 'operations-production-operator',
+      component: () => import('../views/operations/OperationsProductionOperatorView.vue'),
+      meta: { requiresAuth: true, role: 'OPERATIONS_MANAGER', title: 'Ficha del Operario' }
+    },
+    {
+      path: '/operations/operators',
+      name: 'operations-operators',
+      component: () => import('../views/operations/OperationsOperatorsView.vue'),
+      meta: { requiresAuth: true, role: 'OPERATIONS_MANAGER', title: 'Operarios' }
+    },
     // POS / RetailManager Routes
     {
       path: '/pos/shipments',
