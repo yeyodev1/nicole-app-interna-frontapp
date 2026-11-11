@@ -79,9 +79,9 @@ class SalesAssistantService extends APIBase {
     return response.data
   }
 
-  /** Lee el CRM y llama a la IA: puede tardar cerca de un minuto. */
+  /** Lee el CRM y llama a la IA: puede tardar uno o dos minutos. */
   async analyze(): Promise<AnalysisResponse> {
-    const response = await this.post<AnalysisResponse>('sales-assistant/analyze', {}, undefined, { timeout: 90000 })
+    const response = await this.post<AnalysisResponse>('sales-assistant/analyze', {}, undefined, { timeout: 300000 })
     return response.data
   }
 

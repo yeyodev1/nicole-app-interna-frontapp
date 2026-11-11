@@ -119,9 +119,19 @@ async function setMark(item: SalesItem, mark: { read: boolean; status: MarkStatu
   }
 }
 
-onMounted(() => {
-  loadLatest()
+/** Al abrir: si el último análisis es viejo (más de 15 min) o se hizo sin IA, se corre uno nuevo solo. */
+const STALE_MS = 15 * 60 * 1000
+const needsFreshAnalysis = () => {
+  const a = analysis.value
+  if (!a) return true
+  const madeWithoutAi = (a.warnings || []).some((w) => /IA pendiente/i.test(w))
+  return madeWithoutAi || Date.now() - new Date(a.createdAt).getTime() > STALE_MS
+}
+
+onMounted(async () => {
   loadHistory()
+  await loadLatest()
+  if (!loadFailed.value && aiConfigured.value && !runningBy.value && needsFreshAnalysis()) analyzeNow()
 })
 </script>
 
@@ -147,7 +157,7 @@ onMounted(() => {
         </span>
         <button type="button" class="primary" :disabled="isAnalyzing" @click="analyzeNow">
           <i class="fa-solid" :class="isAnalyzing ? 'fa-spinner fa-spin' : 'fa-wand-magic-sparkles'"></i>
-          {{ isAnalyzing ? 'Analizando… (hasta 1 min)' : 'Analizar ahora' }}
+          {{ isAnalyzing ? 'Analizando… (1 a 2 min)' : 'Analizar ahora' }}
         </button>
       </div>
     </header>
