@@ -142,15 +142,15 @@ onMounted(() => {
         <span v-if="analysis" class="last">
           Último análisis: <b>{{ fmt(analysis.createdAt) }}</b> · por {{ analysis.by?.name }}
         </span>
-        <button type="button" class="primary" :disabled="isAnalyzing || !aiConfigured" @click="analyzeNow">
+        <button type="button" class="primary" :disabled="isAnalyzing" @click="analyzeNow">
           <i class="fa-solid" :class="isAnalyzing ? 'fa-spinner fa-spin' : 'fa-wand-magic-sparkles'"></i>
           {{ isAnalyzing ? 'Analizando… (hasta 1 min)' : 'Analizar ahora' }}
         </button>
       </div>
     </header>
 
-    <div v-if="!aiConfigured" class="notice error" role="alert">
-      Falta configurar la IA en el servidor (ANTHROPIC_API_KEY). Avísale a Diego.
+    <div v-if="!aiConfigured" class="notice">
+      IA pendiente: por ahora se leen el CRM y los pedidos, y las conversaciones que esperan respuesta salen en Tareas sin clasificar ni mensaje propuesto.
     </div>
     <div v-if="runningBy && !isAnalyzing" class="notice">{{ runningBy }} está corriendo un análisis. Actualiza en un momento.</div>
     <div v-if="loadFailed" class="notice error" role="alert">
