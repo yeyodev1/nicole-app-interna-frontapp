@@ -71,7 +71,7 @@ const brandLabel = (marca: SalesItem['marca']) => (marca === 'sucree' ? 'Sucrée
           <td v-if="props.group !== 'TAREA'" class="score" :class="props.group.toLowerCase()">{{ item.puntaje ?? '—' }}</td>
           <td>
             <div class="message">{{ item.mensaje }}</div>
-            <button type="button" class="copy" @click="emit('copy', item)">
+            <button v-if="item.mensaje" type="button" class="copy" @click="emit('copy', item)">
               <i class="fa-regular fa-copy"></i> Copiar mensaje
             </button>
           </td>
