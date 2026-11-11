@@ -12,7 +12,24 @@ const emit = defineEmits<{
   mark: [item: SalesItem, mark: { read: boolean; status: MarkStatus }]
 }>()
 
-const EMOJI: Record<SalesGroup, string> = { CALIENTE: '🔥', TIBIO: '🥱', TAREA: '🚨' }
+const ICON: Record<SalesGroup, { icon: string; color: string }> = {
+  CALIENTE: { icon: 'fa-fire', color: '#c2410c' },
+  TIBIO: { icon: 'fa-temperature-half', color: '#b7791f' },
+  REBOTO: { icon: 'fa-rotate-left', color: '#7c3aed' },
+  POSTVENTA: { icon: 'fa-receipt', color: '#0f766e' },
+  TAREA: { icon: 'fa-list-check', color: '#1d4ed8' },
+  FRIO: { icon: 'fa-snowflake', color: '#64748b' },
+}
+
+const WHY: Record<SalesGroup, string> = {
+  CALIENTE: 'Por qué está caliente',
+  TIBIO: 'Qué le frena',
+  REBOTO: 'Dónde se fue',
+  POSTVENTA: 'Qué falta',
+  TAREA: 'Detalle',
+  FRIO: 'Por qué está frío',
+}
+const isTask = () => props.group === 'TAREA' || props.group === 'POSTVENTA'
 
 const read = (item: SalesItem) => !!item.mark?.read
 const status = (item: SalesItem) => item.mark?.status ?? null
@@ -36,10 +53,10 @@ const brandLabel = (marca: SalesItem['marca']) => (marca === 'sucree' ? 'Sucrée
         <tr>
           <th>Cliente</th>
           <th>Marca</th>
-          <th v-if="props.group === 'TAREA'">Tarea</th>
+          <th v-if="isTask()">Tarea</th>
           <th v-else>Último mensaje</th>
-          <th>{{ props.group === 'TIBIO' ? 'Qué le frena' : props.group === 'TAREA' ? 'Detalle' : 'Por qué está caliente' }}</th>
-          <th v-if="props.group !== 'TAREA'">Puntaje</th>
+          <th>{{ WHY[props.group] }}</th>
+          <th v-if="!isTask()">Puntaje</th>
           <th>Mensaje propuesto</th>
           <th>Estado<span class="only">Solo para comerciales</span></th>
         </tr>
@@ -51,7 +68,8 @@ const brandLabel = (marca: SalesItem['marca']) => (marca === 'sucree' ? 'Sucrée
           :class="{ done: status(item) === 'GESTIONADO', skipped: status(item) === 'NO_GESTIONAR' }"
         >
           <td>
-            <div class="client">{{ EMOJI[item.group] }} {{ item.cliente }}</div>
+            <div class="client"><i class="fa-solid" :class="ICON[item.group].icon" :style="{ color: ICON[item.group].color }"></i> {{ item.cliente }}</div>
+            <span v-if="item.prioridad === 'ALTA'" class="prio"><i class="fa-solid fa-bolt"></i> Prioridad alta</span>
             <div class="meta">
               <span v-if="item.telefono">{{ item.telefono }}</span>
               <span v-if="item.recibido"> · {{ item.recibido }}</span>
@@ -59,26 +77,30 @@ const brandLabel = (marca: SalesItem['marca']) => (marca === 'sucree' ? 'Sucrée
             <router-link v-if="item.orderId" :to="`/orders/${item.orderId}`" class="order-link">Ver pedido</router-link>
           </td>
           <td><span class="brand" :class="item.marca">{{ brandLabel(item.marca) }}</span></td>
-          <td v-if="props.group === 'TAREA'"><span class="task">{{ item.tarea }}</span></td>
+          <td v-if="isTask()"><span class="task">{{ item.tarea }}</span></td>
           <td v-else class="quote">
             <span v-if="item.ultimoMensaje">“{{ item.ultimoMensaje }}”</span>
             <span v-if="item.ultimoMensajeDe === 'equipo'" class="meta"> (último mensaje del equipo)</span>
           </td>
           <td class="why">
             {{ item.motivo }}
-            <div v-if="props.group === 'TAREA' && item.detalle" class="meta">{{ item.detalle }}</div>
+            <div v-if="item.detalle" class="meta"><i class="fa-solid fa-tag"></i> {{ item.detalle }}</div>
+            <div v-if="item.paso" class="meta"><i class="fa-solid fa-signs-post"></i> Paso: {{ item.paso }}</div>
+            <div v-if="item.falta && props.group !== 'POSTVENTA'" class="meta"><i class="fa-solid fa-circle-exclamation"></i> Falta: {{ item.falta }}</div>
+            <div v-for="(s, i) in item.senales || []" :key="i" class="meta signal">“{{ s }}”</div>
           </td>
-          <td v-if="props.group !== 'TAREA'" class="score" :class="props.group.toLowerCase()">{{ item.puntaje ?? '—' }}</td>
+          <td v-if="!isTask()" class="score" :class="props.group.toLowerCase()">{{ item.puntaje ?? '—' }}</td>
           <td>
             <div class="message">{{ item.mensaje }}</div>
             <button v-if="item.mensaje" type="button" class="copy" @click="emit('copy', item)">
               <i class="fa-regular fa-copy"></i> Copiar mensaje
             </button>
+            <div v-if="item.seguimiento" class="meta"><i class="fa-regular fa-clock"></i> {{ item.seguimiento }}</div>
           </td>
           <td class="status-cell">
             <label>
               <input type="checkbox" :checked="read(item)" :disabled="props.busyKey === item.key" @change="toggleRead(item)" />
-              👀 Leído
+              <i class="fa-solid fa-eye" style="color: #475569"></i> Leído
             </label>
             <label>
               <input
@@ -87,7 +109,7 @@ const brandLabel = (marca: SalesItem['marca']) => (marca === 'sucree' ? 'Sucrée
                 :disabled="props.busyKey === item.key"
                 @change="toggleStatus(item, 'GESTIONADO')"
               />
-              ✅ Gestionado
+              <i class="fa-solid fa-circle-check" style="color: #15803d"></i> Gestionado
             </label>
             <label>
               <input
@@ -96,7 +118,7 @@ const brandLabel = (marca: SalesItem['marca']) => (marca === 'sucree' ? 'Sucrée
                 :disabled="props.busyKey === item.key"
                 @change="toggleStatus(item, 'NO_GESTIONAR')"
               />
-              ⛔ No se gestiona a propósito
+              <i class="fa-solid fa-ban" style="color: #b91c1c"></i> No se gestiona a propósito
             </label>
             <div v-if="item.mark?.by" class="meta">{{ item.mark.by }}</div>
           </td>
@@ -233,5 +255,18 @@ tr.skipped td:not(.status-cell) { opacity: 0.45; }
     accent-color: $NICOLE-PURPLE;
     cursor: pointer;
   }
+}
+.prio {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.signal {
+  font-style: italic;
 }
 </style>
