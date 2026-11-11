@@ -511,14 +511,14 @@ export function useOrderExport() {
       const wb = XLSX.utils.book_new()
       const ws = XLSX.utils.aoa_to_sheet(wsData)
       ws['!merges'] = merges
-      ws['!rows'] = rowHeights
+      ws['!rows'] = wsData.map((_, i) => rowHeights[i] ?? {})
       ws['!cols'] = Array.from({ length: totalCols }, (_, c) => ({ wch: c === 0 ? 38 : c === 1 ? 12 : spacers.has(c) ? 2.5 : 11 }))
       Object.keys(styles).forEach(ref => {
         if (!ws[ref]) ws[ref] = { t: 's', v: '' }
         ws[ref].s = styles[ref]
       })
       XLSX.utils.book_append_sheet(wb, ws, 'Despacho')
-      saveExcelFile(wb, `Orden_Despacho_${formatECT(new Date().toISOString(), false)}`)
+      saveExcelFile(wb, `Orden_Despacho_${dateLabel}`)
     } catch (error) {
       console.error('Export dispatch error:', error)
       throw error
