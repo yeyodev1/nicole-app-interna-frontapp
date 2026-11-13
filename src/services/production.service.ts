@@ -95,9 +95,10 @@ class ProductionService extends APIBase {
     }
   }
 
-  async registerDispatchProgress(destination: string, items: { name: string; quantity: number }[]): Promise<any> {
+  /** Despacho de reposición por local desde Resumen. date = día de entrega de la reposición (YYYY-MM-DD). */
+  async registerDispatchProgress(destination: string, items: { name: string; quantity: number }[], date?: string): Promise<any> {
     try {
-      const response = await this.post('production/dispatch/progress', { destination, items })
+      const response = await this.post('production/dispatch/progress', { destination, items, date })
       return response.data
     } catch (error) {
       console.error('Error in dispatch progress:', error)

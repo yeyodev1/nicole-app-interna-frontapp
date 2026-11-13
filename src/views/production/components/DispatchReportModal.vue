@@ -5,11 +5,12 @@ interface Product {
   _id: string
   name: string
   quantity: number
-  produced: number
-  max: number // Orden 6: producido − ya enviado
+  alreadySent: number
   quantitySent: number // Form state
 }
 
+// El destino es el que registró el comercial en el pedido (sucursal o Delivery):
+// se muestra con candado y no se puede cambiar. Ya no se exige "producido".
 const props = defineProps<{
   isOpen: boolean
   orderId: string
@@ -23,57 +24,48 @@ const emit = defineEmits(['close', 'confirm'])
 const items = ref<Product[]>([])
 const notes = ref('')
 
-// Initialize items when modal opens with products data
+// Al abrir: cantidades ya llenas con lo pendiente de cada producto
 watch(() => props.isOpen, (val) => {
   if (val) {
     const sent = new Map<string, number>()
     for (const d of props.dispatches || []) for (const it of d.items || []) sent.set(String(it.productId), (sent.get(String(it.productId)) || 0) + (Number(it.quantitySent) || 0))
     items.value = props.products.map(p => {
-      const max = Math.max(0, (p.produced || 0) - (sent.get(String(p._id)) || 0))
+      const alreadySent = sent.get(String(p._id)) || 0
       return {
         _id: p._id,
         name: p.name,
         quantity: p.quantity,
-        produced: p.produced || 0,
-        max,
-        quantitySent: max // Default: lo producido que falta enviar
+        alreadySent,
+        quantitySent: Math.max(0, p.quantity - alreadySent),
       }
     })
     notes.value = ''
   }
 }, { immediate: true })
 
+const pendingOf = (i: Product) => Math.max(0, i.quantity - i.alreadySent)
+const excessOf = (i: Product) => i.alreadySent + (Number(i.quantitySent) || 0) - i.quantity
+
 const totalStatus = computed(() => {
-  let excess = false
-  let partial = false
-  let producedSync = true
-
-  items.value.forEach(i => {
-    if (i.quantitySent > i.quantity) excess = true
-    if (i.quantitySent < i.quantity) partial = true
-    if (i.quantitySent > i.max) producedSync = false
-  })
-
-  if (!producedSync) return { label: 'NO SE PUEDE ENVIAR MÁS DE LO PRODUCIDO', class: 'status-excess' }
-  if (excess) return { label: 'EXCESO DETECTADO (VS PEDIDO)', class: 'status-excess' }
-  if (partial) return { label: 'ENVÍO PARCIAL', class: 'status-partial' }
-  return { label: 'ENVÍO COMPLETO SEGÚN PRODUCCIÓN', class: 'status-ok' }
+  if (items.value.some(i => (Number(i.quantitySent) || 0) > 0 && excessOf(i) > 0)) return { label: 'ENVÍO CON PRODUCTO DE MÁS', class: 'status-excess' }
+  if (items.value.some(i => excessOf(i) < 0)) return { label: 'ENVÍO PARCIAL', class: 'status-partial' }
+  return { label: 'ENVÍO COMPLETO', class: 'status-ok' }
 })
 
-const canConfirm = computed(() => {
-  return items.value.some(i => i.quantitySent > 0) && items.value.every(i => !(i.quantitySent > i.max))
-})
+const canConfirm = computed(() =>
+  items.value.some(i => (Number(i.quantitySent) || 0) > 0) && items.value.every(i => (Number(i.quantitySent) || 0) >= 0)
+)
 
 const handleConfirm = () => {
   if (!canConfirm.value) return
 
   const payload = {
     items: items.value
-      .filter(i => i.quantitySent > 0)
+      .filter(i => (Number(i.quantitySent) || 0) > 0)
       .map(i => ({
         productId: i._id,
         name: i.name,
-        quantitySent: i.quantitySent
+        quantitySent: Math.round(Number(i.quantitySent))
       })),
     notes: notes.value,
     destination: props.destination
@@ -87,8 +79,16 @@ const handleConfirm = () => {
     <div class="modal-content" @click.stop>
       <header>
         <h2>Reportar Envío</h2>
-        <span class="destination-badge">{{ destination }}</span>
       </header>
+
+      <div class="dest-fixed">
+        <div>
+          <span class="df-label">Destino (lo registró el comercial)</span>
+          <b>{{ destination }}</b>
+          <small>Si el cliente cambió de local, el comercial corrige la sucursal del pedido antes del despacho.</small>
+        </div>
+        <i class="fas fa-lock" aria-label="No se puede cambiar"></i>
+      </div>
 
       <div class="status-bar" :class="totalStatus.class">
         {{ totalStatus.label }}
@@ -100,21 +100,20 @@ const handleConfirm = () => {
             <span class="name">{{ item.name }}</span>
             <div class="metrics">
                 <span class="req">Pedido: {{ item.quantity }}</span>
-                <span class="produced" :class="{ 'warning': item.produced < item.quantity }">
-                    Producido: {{ item.produced }}
-                </span>
+                <span class="produced">Enviado: {{ item.alreadySent }}</span>
             </div>
+            <span v-if="(Number(item.quantitySent) || 0) > 0 && excessOf(item) > 0" class="row-note over">+{{ excessOf(item) }} de más de lo pedido</span>
+            <span v-else-if="(Number(item.quantitySent) || 0) > 0 && excessOf(item) < 0" class="row-note partial">quedan {{ -excessOf(item) }} por enviar</span>
           </div>
           <div class="item-input">
             <label>A Enviar:</label>
-            <input 
-              type="number" 
-              v-model.number="item.quantitySent" 
+            <input
+              type="number"
+              v-model.number="item.quantitySent"
               min="0"
-              :max="item.max"
               :class="{
-                'input-excess': item.quantitySent > item.max,
-                'input-partial': item.quantitySent < item.max && item.quantitySent > 0
+                'input-excess': excessOf(item) > 0 && (Number(item.quantitySent) || 0) > 0,
+                'input-partial': (Number(item.quantitySent) || 0) < pendingOf(item) && (Number(item.quantitySent) || 0) > 0
               }"
             />
           </div>
@@ -185,6 +184,31 @@ header {
     font-weight: 700;
     text-transform: uppercase;
   }
+}
+
+.dest-fixed {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 12px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+
+  b { display: block; font-size: 15px; color: #1e293b; }
+  small { display: block; color: #94a3b8; font-size: 12px; font-weight: 600; margin-top: 2px; }
+  .df-label { display: block; font-size: 10px; font-weight: 800; letter-spacing: .06em; color: #94a3b8; text-transform: uppercase; }
+  > i { margin-left: auto; font-size: 18px; color: #64748b; }
+}
+
+.row-note {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  margin-top: 3px;
+  &.over { color: #7e22ce; }
+  &.partial { color: #92400e; }
 }
 
 .status-bar {
