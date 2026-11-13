@@ -5,8 +5,6 @@ import ProductionService from '@/services/production.service'
 import ProductionSettingsService, { type ProductionDestination } from '@/services/production-settings.service'
 import { parseECTDate, getECTNow, getECTTodayString, isSameDayECT } from '@/utils/dateUtils'
 import DispatchReportModal from './components/DispatchReportModal.vue'
-import DispatchByDestinationModal from './components/DispatchByDestinationModal.vue'
-import HoldToConfirmModal from './components/HoldToConfirmModal.vue'
 import ProductionOrderBreakdown from './components/ProductionOrderBreakdown.vue'
 import ProductionDateFilter from './components/ProductionDateFilter.vue'
 import { useToast } from '@/composables/useToast'
@@ -59,15 +57,11 @@ const isSentExpanded = ref(true)
 
 // Modal State
 const showDispatchModal = ref(false)
-const showGlobalBatchModal = ref(false)
-const showBatchConfirmModal = ref(false)
 const selectedOrder = ref<Order | null>(null)
 const dispatchDestination = ref('')
 
 const { success, error: showError } = useToast()
 
-// Batch Selection
-const selectedIds = ref<string[]>([])
 const expandedOrders = ref<string[]>([])
 
 const toggleProducts = (id: string) => {
@@ -75,22 +69,6 @@ const toggleProducts = (id: string) => {
     expandedOrders.value = expandedOrders.value.filter(i => i !== id)
   } else {
     expandedOrders.value.push(id)
-  }
-}
-
-const toggleSelection = (id: string) => {
-  if (selectedIds.value.includes(id)) {
-    selectedIds.value = selectedIds.value.filter(i => i !== id)
-  } else {
-    selectedIds.value.push(id)
-  }
-}
-
-const toggleSelectAll = () => {
-  if (selectedIds.value.length === filteredOrders.value.length) {
-    selectedIds.value = []
-  } else {
-    selectedIds.value = filteredOrders.value.map(o => o._id)
   }
 }
 
@@ -133,7 +111,9 @@ const fetchOrders = async () => {
       ProductionService.getAllOrders(dateParam),
       fetchDynamicDestinations()
     ])
-    orders.value = ordersRes as any
+    // Órdenes queda solo para pedidos de clientes: las reposiciones (Restock) se
+    // despachan y se siguen en Resumen de Producción.
+    orders.value = (ordersRes as any[]).filter(o => o.salesChannel !== 'Restock') as any
   } catch (err) {
     console.error(err)
     error.value = 'No se pudieron cargar las órdenes.'
@@ -143,37 +123,9 @@ const fetchOrders = async () => {
 }
 
 watch([filterMode, filterDate], () => {
-  selectedIds.value = []
   filterBranch.value = null
   fetchOrders()
 })
-
-const handleBatchDispatch = () => {
-  if (selectedIds.value.length === 0) return
-  showBatchConfirmModal.value = true
-}
-
-const executeBatchDispatch = async () => {
-  showBatchConfirmModal.value = false
-  try {
-    isLoading.value = true
-    await ProductionService.registerBatchDispatch(selectedIds.value)
-    selectedIds.value = [] // clear selection
-    await fetchOrders()
-    // Using Toast instead of alert
-    success('Envíos masivos registrados correctamente.')
-  } catch (err) {
-    console.error(err)
-    showError('Hubo un error al procesar los envíos masivos.')
-  } finally {
-    isLoading.value = false
-  }
-}
-
-const handleGlobalBatchSuccess = async () => {
-  await fetchOrders()
-  success('¡Envío masivo registrado con éxito!')
-}
 
 const openDispatchModal = (order: Order) => {
   selectedOrder.value = order
@@ -207,8 +159,8 @@ const handleDispatchConfirm = async (payload: any) => {
   }
 }
 
-const goToRawSummary = () => {
-  router.push({ name: 'production-summary', query: { mode: 'raw' } })
+const goToSummary = () => {
+  router.push({ name: 'production-summary' })
 }
 
 // Actions
@@ -412,24 +364,31 @@ const getDestination = (order: Order) => {
   }
 }
 
-const getStatusBadge = (stage: string) => {
-  const map: Record<string, any> = {
-    'PENDING': { label: 'PENDIENTE', class: 'status-pending' },
-    'IN_PROCESS': { label: 'EN PROCESO', class: 'status-process' },
-    'FINISHED': { label: 'TERMINADO', class: 'status-finished' },
-    'DELAYED': { label: 'ATRASADO', class: 'status-delayed' }
-  }
-  return map[stage] || { label: stage, class: '' }
-}
-
 const getDispatchBadge = (status?: string) => {
   const map: Record<string, any> = {
-    'NOT_SENT': { label: 'NO ENVIADO', class: 'disp-none' },
-    'PARTIAL': { label: 'PARCIAL', class: 'disp-partial' },
-    'SENT': { label: 'ENVIADO', class: 'disp-sent' },
-    'PROBLEM': { label: 'EXCESO / ERROR', class: 'disp-problem' }
+    'NOT_SENT': { label: 'Sin enviar', class: 'disp-none' },
+    'PARTIAL': { label: 'Envío parcial', class: 'disp-partial' },
+    'SENT': { label: 'Enviado', class: 'disp-sent' },
+    'PROBLEM': { label: 'Enviado (de más)', class: 'disp-problem' }
   }
   return map[status || 'NOT_SENT'] || map['NOT_SENT']
+}
+
+// Recepción en el local (solo San Marino y Mall del Sol confirman lo que llega).
+const isPosBranch = (order: Order) =>
+  order.deliveryType !== 'delivery' && /(marino|mall|sol)/i.test(order.branch || '')
+
+const getReceptionBadge = (order: Order) => {
+  if (!isPosBranch(order)) return null
+  const ds = (order.dispatches || []) as any[]
+  if (ds.length === 0) return null
+  if (ds.some(d => !d.receptionStatus || d.receptionStatus === 'PENDING')) {
+    return { label: 'Por confirmar recepción', class: 'rcv-wait' }
+  }
+  let diff = 0
+  for (const d of ds) for (const it of d.items || []) diff += (Number(it.quantityReceived ?? it.quantitySent) || 0) - (Number(it.quantitySent) || 0)
+  if (diff !== 0) return { label: `Llegó con diferencia ${diff > 0 ? '+' : '−'}${Math.abs(diff)}`, class: 'rcv-diff' }
+  return { label: '✓ Recibido en local', class: 'rcv-ok' }
 }
 </script>
 
@@ -438,14 +397,11 @@ const getDispatchBadge = (status?: string) => {
     <div class="header">
       <div class="title-box">
         <h1>Órdenes de Producción</h1>
-        <p>Listado general - Ventas WhatsApp y Local</p>
+        <p>Pedidos de clientes · Ventas WhatsApp, web y local. Las reposiciones se despachan y se siguen en Resumen.</p>
       </div>
       <div class="actions-header">
-        <button class="btn-raw" @click="goToRawSummary">
-          <i class="fas fa-eye"></i> Ver Resumen Crudo
-        </button>
-        <button class="btn-primary" @click="showGlobalBatchModal = true">
-          <i class="fas fa-shipping-fast"></i> Nuevo Envío Masivo
+        <button class="btn-primary" @click="goToSummary">
+          <i class="fas fa-shipping-fast"></i> Despachar reposiciones (Resumen)
         </button>
         <button @click="fetchOrders" class="btn-refresh" :disabled="isLoading">
           <i class="fas fa-sync-alt" :class="{ 'fa-spin': isLoading }"></i>
@@ -501,11 +457,6 @@ const getDispatchBadge = (status?: string) => {
             <h3>Pedidos por enviar</h3>
             <span class="badge pending">{{ pendingDispatchOrders.length }}</span>
           </div>
-          <div class="header-actions" v-if="isPendingExpanded && selectedIds.length > 0">
-            <button class="btn-bulk" @click.stop="handleBatchDispatch">
-              <i class="fas fa-shipping-fast"></i> Reportar {{ selectedIds.length }} Envíos
-            </button>
-          </div>
         </div>
         
         <div class="section-content" v-show="isPendingExpanded">
@@ -513,13 +464,6 @@ const getDispatchBadge = (status?: string) => {
             <table class="orders-table">
               <thead>
                 <tr>
-                  <th class="col-check">
-                    <input 
-                      type="checkbox" 
-                      :checked="selectedIds.length === pendingDispatchOrders.length && pendingDispatchOrders.length > 0"
-                      @change="toggleSelectAll"
-                    >
-                  </th>
                   <th>Cliente</th>
                   <th>Canal</th>
                   <th>Destino / Entrega</th>
@@ -528,14 +472,7 @@ const getDispatchBadge = (status?: string) => {
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="order in pendingDispatchOrders" :key="order._id" :class="{ selected: selectedIds.includes(order._id) }">
-                  <td class="col-check">
-                     <input 
-                      type="checkbox" 
-                      :checked="selectedIds.includes(order._id)"
-                      @change="toggleSelection(order._id)"
-                    >
-                  </td>
+                <tr v-for="order in pendingDispatchOrders" :key="order._id">
                   <td class="col-client">
                     <span class="name">{{ order.customerName }}</span>
                     <span class="phone" v-if="order.customerPhone"><i class="fas fa-phone-alt"></i> {{ order.customerPhone }}</span>
@@ -578,7 +515,7 @@ const getDispatchBadge = (status?: string) => {
                         <span v-if="order.products.length > 1" class="more-count">
                           +{{ order.products.length - 1 }} más
                         </span>
-                        <span class="see-detail">ver qué se hizo</span>
+                        <span class="see-detail">ver detalle</span>
                         <i class="fas fa-chevron-down toggle-icon"></i>
                       </div>
                       
@@ -590,15 +527,11 @@ const getDispatchBadge = (status?: string) => {
                   <td>
                     <div class="status-action-row">
                       <div class="status-col">
-                        <span class="status-pill" :class="getStatusBadge(order.productionStage).class">
-                          {{ getStatusBadge(order.productionStage).label }}
-                        </span>
-                        <span 
-                          class="dispatch-badge" 
-                          :class="getDispatchBadge(order.dispatchStatus).class"
-                          v-if="order.dispatchStatus && order.dispatchStatus !== 'NOT_SENT'"
-                        >
+                        <span class="dispatch-badge" :class="getDispatchBadge(order.dispatchStatus).class">
                           <i class="fas fa-truck"></i> {{ getDispatchBadge(order.dispatchStatus).label }}
+                        </span>
+                        <span v-if="getReceptionBadge(order)" class="reception-badge" :class="getReceptionBadge(order)!.class">
+                          {{ getReceptionBadge(order)!.label }}
                         </span>
                       </div>
                       <div class="action-col">
@@ -610,7 +543,7 @@ const getDispatchBadge = (status?: string) => {
                   </td>
                 </tr>
                 <tr v-if="pendingDispatchOrders.length === 0">
-                  <td colspan="6" class="empty-row">No hay pedidos pendientes por enviar</td>
+                  <td colspan="5" class="empty-row">No hay pedidos pendientes por enviar</td>
                 </tr>
               </tbody>
             </table>
@@ -684,7 +617,7 @@ const getDispatchBadge = (status?: string) => {
                         <span v-if="order.products.length > 1" class="more-count">
                           +{{ order.products.length - 1 }} más
                         </span>
-                        <span class="see-detail">ver qué se hizo</span>
+                        <span class="see-detail">ver detalle</span>
                         <i class="fas fa-chevron-down toggle-icon"></i>
                       </div>
                       
@@ -696,14 +629,11 @@ const getDispatchBadge = (status?: string) => {
                   <td>
                     <div class="status-action-row">
                       <div class="status-col">
-                        <span class="status-pill" :class="getStatusBadge(order.productionStage).class">
-                          {{ getStatusBadge(order.productionStage).label }}
-                        </span>
-                        <span 
-                          class="dispatch-badge" 
-                          :class="getDispatchBadge(order.dispatchStatus).class"
-                        >
+                        <span class="dispatch-badge" :class="getDispatchBadge(order.dispatchStatus).class">
                           <i class="fas fa-truck-loading"></i> {{ getDispatchBadge(order.dispatchStatus).label }}
+                        </span>
+                        <span v-if="getReceptionBadge(order)" class="reception-badge" :class="getReceptionBadge(order)!.class">
+                          {{ getReceptionBadge(order)!.label }}
                         </span>
                       </div>
                       <div class="action-col">
@@ -747,23 +677,6 @@ const getDispatchBadge = (status?: string) => {
       @confirm="handleDispatchConfirm"
     />
 
-    <DispatchByDestinationModal 
-      :is-open="showGlobalBatchModal"
-      @close="showGlobalBatchModal = false"
-      @success="handleGlobalBatchSuccess"
-      @settings-updated="fetchOrders"
-    />
-
-    <HoldToConfirmModal
-      :is-open="showBatchConfirmModal"
-      title="Confirmar Envío Masivo"
-      :message="`¿Estás seguro de marcar ${selectedIds.length} órdenes como ENVIADAS? Esta acción no se puede deshacer fácilmente.`"
-      confirm-text="ENVIAR ÓRDENES"
-      @close="showBatchConfirmModal = false"
-      @confirm="executeBatchDispatch"
-    />
-
-
   </div>
 </template>
 
@@ -778,7 +691,7 @@ $color-danger: #e74c3c;
 
 .orders-view {
   padding: 1.5rem;
-  background-color: #f8f9fa;
+  background-color: #ffffff;
   min-height: 100vh;
   font-family: $font-stack;
 }
@@ -1456,14 +1369,31 @@ $color-danger: #e74c3c;
   }
 
   &.disp-problem {
-    color: $color-danger;
-    background: rgba($color-danger, 0.1);
+    color: #7e22ce;
+    background: #f3e8ff;
+  }
+
+  &.disp-partial {
+    color: #92400e;
+    background: #fef3c7;
   }
 
   &.disp-none {
-    color: #95a5a6;
-    background: #f1f2f6;
+    color: #b91c1c;
+    background: #fee2e2;
   }
+}
+
+.reception-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+
+  &.rcv-wait { background: #e0f2fe; color: #075985; }
+  &.rcv-ok { background: #dcfce7; color: #16a34a; }
+  &.rcv-diff { background: #fee2e2; color: #b91c1c; }
 }
 
 .btn-dispatch {

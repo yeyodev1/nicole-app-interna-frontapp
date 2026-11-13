@@ -360,6 +360,9 @@ export function useProductionSummary() {
   }
 
   return {
+    destOf,
+    categoryOf,
+    CATEGORY_ORDER,
     isLoading,
     isBackgroundLoading,
     error,
