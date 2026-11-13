@@ -3,70 +3,54 @@ import { computed, type Ref } from 'vue';
 export interface BreakdownLine {
   name: string;
   pedido: number;
-  hecho: number;
   enviado: number;
-  cerrado: boolean; // resto eliminado: la fila se cerró produciendo menos
   estado: { label: string; class: string };
 }
 
 /**
- * Cuadre de una orden de producción: lo pedido, lo que realmente se hizo y lo
- * que ya salió, para confirmar antes (y después) de marcar enviado.
+ * Detalle de un pedido en Órdenes: por producto, lo pedido y lo enviado.
+ * Verde = completo, amarillo = parcial, morado = de más.
  */
 export function useOrderBreakdown(order: Ref<any>) {
-  const sentByProduct = computed<Map<string, number>>(() => {
-    const map = new Map<string, number>();
+  // Por productId (como el servidor); si un despacho viejo no lo trae, por nombre.
+  const sentOf = (p: any): number => {
+    let sent = 0;
     for (const d of order.value?.dispatches || []) {
       for (const item of d.items || []) {
-        const key = String(item.name || '');
-        map.set(key, (map.get(key) || 0) + (item.quantitySent || 0));
+        const match = item.productId ? String(item.productId) === String(p._id) : String(item.name || '') === String(p.name);
+        if (match) sent += Number(item.quantitySent) || 0;
       }
     }
-    return map;
-  });
+    return sent;
+  };
 
+  // Ya no se exige "marcar producido": el detalle compara lo pedido con lo enviado.
   const lines = computed<BreakdownLine[]>(() =>
     (order.value?.products || []).map((p: any) => {
       const pedido = p.quantity || 0;
-      const hecho = p.produced || 0;
-      const enviado = sentByProduct.value.get(String(p.name)) || 0;
-      const cerrado = p.productionStatus === 'COMPLETED' && hecho < pedido;
+      const enviado = sentOf(p);
 
-      // Si la fila se cerró con menos, lo exigible es lo que se hizo.
-      const exigible = cerrado ? hecho : pedido;
+      let estado = { label: 'Sin enviar', class: 'none' };
+      if (enviado > pedido) estado = { label: `+${enviado - pedido} de más`, class: 'over' };
+      else if (enviado >= pedido) estado = { label: 'Completo', class: 'ok' };
+      else if (enviado > 0) estado = { label: `Faltan ${pedido - enviado}`, class: 'partial' };
 
-      let estado = { label: 'Todo cuadra', class: 'ok' };
-      if (hecho < pedido && !cerrado) {
-        estado = { label: `Falta producir ${pedido - hecho}`, class: 'warn' };
-      } else if (enviado < exigible) {
-        estado = { label: `Falta enviar ${exigible - enviado}`, class: 'pending' };
-      } else if (enviado > pedido) {
-        estado = { label: `Se envió ${enviado - pedido} de más`, class: 'bad' };
-      } else if (cerrado) {
-        estado = { label: `Cerrado con ${pedido - hecho} menos`, class: 'closed' };
-      }
-
-      return { name: p.name, pedido, hecho, enviado, cerrado, estado };
+      return { name: p.name, pedido, enviado, estado };
     })
   );
 
   const totals = computed(() =>
     lines.value.reduce(
-      (acc, l) => ({
-        pedido: acc.pedido + l.pedido,
-        hecho: acc.hecho + l.hecho,
-        enviado: acc.enviado + l.enviado,
-      }),
-      { pedido: 0, hecho: 0, enviado: 0 }
+      (acc, l) => ({ pedido: acc.pedido + l.pedido, enviado: acc.enviado + l.enviado }),
+      { pedido: 0, enviado: 0 }
     )
   );
 
   const veredicto = computed(() => {
     const count = (c: string) => lines.value.filter(l => l.estado.class === c).length;
-    if (count('bad')) return { label: 'Hay producto enviado de más', class: 'bad' };
-    if (count('warn')) return { label: `${count('warn')} producto(s) sin terminar de producir`, class: 'warn' };
-    if (count('pending')) return { label: `${count('pending')} producto(s) por enviar`, class: 'pending' };
-    return { label: 'Todo cuadra: lo que se hizo ya salió', class: 'ok' };
+    if (count('none') || count('partial')) return { label: `${count('none') + count('partial')} producto(s) por enviar`, class: 'partial' };
+    if (count('over')) return { label: 'Completo, con producto enviado de más', class: 'over' };
+    return { label: 'Todo enviado', class: 'ok' };
   });
 
   const fmt = (d: string | Date) =>

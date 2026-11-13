@@ -2,8 +2,7 @@
 import { toRef } from 'vue'
 import { useOrderBreakdown } from '../composables/useOrderBreakdown'
 
-// Desglose de una orden para comprobar que cuadra antes (y después) de
-// marcar enviado: lo pedido, lo que realmente se hizo y lo que ya salió.
+// Detalle de un pedido: por producto, lo pedido y lo enviado.
 const props = defineProps<{ order: any }>()
 
 const { lines, totals, veredicto, fmt, receptionLabel } = useOrderBreakdown(toRef(props, 'order'))
@@ -17,7 +16,6 @@ const { lines, totals, veredicto, fmt, receptionLabel } = useOrderBreakdown(toRe
         <span class="pname">{{ line.name }}</span>
         <span class="nums">
           <span class="num"><b>{{ line.pedido }}</b><i>pedido</i></span>
-          <span class="num hecho"><b>{{ line.hecho }}</b><i>hecho</i></span>
           <span class="num enviado"><b>{{ line.enviado }}</b><i>enviado</i></span>
         </span>
         <span class="tag" :class="line.estado.class">{{ line.estado.label }}</span>
@@ -26,7 +24,7 @@ const { lines, totals, veredicto, fmt, receptionLabel } = useOrderBreakdown(toRe
 
     <!-- Totales y veredicto -->
     <div class="totals">
-      <span>Total: <b>{{ totals.pedido }}</b> pedido · <b>{{ totals.hecho }}</b> hecho · <b>{{ totals.enviado }}</b> enviado</span>
+      <span>Total: <b>{{ totals.pedido }}</b> pedido · <b>{{ totals.enviado }}</b> enviado</span>
       <span class="verdict" :class="veredicto.class">{{ veredicto.label }}</span>
     </div>
 
@@ -80,10 +78,9 @@ const { lines, totals, veredicto, fmt, receptionLabel } = useOrderBreakdown(toRe
   padding: 0.45rem 0.6rem;
 
   &.ok { border-left-color: #16a34a; }
-  &.pending { border-left-color: #2563eb; background: #f5f9ff; }
-  &.warn { border-left-color: #f59e0b; background: #fffbeb; }
-  &.closed { border-left-color: #94a3b8; }
-  &.bad { border-left-color: #dc2626; background: #fef2f2; }
+  &.none { border-left-color: #cbd5e1; }
+  &.partial { border-left-color: #f59e0b; background: #fffbeb; }
+  &.over { border-left-color: #7e22ce; background: #faf5ff; }
 }
 
 .pname {
@@ -113,7 +110,6 @@ const { lines, totals, veredicto, fmt, receptionLabel } = useOrderBreakdown(toRe
   b { font-size: 0.86rem; font-weight: 800; color: #0f172a; line-height: 1.2; }
   i { font-style: normal; font-size: 0.58rem; font-weight: 800; text-transform: uppercase; color: #94a3b8; }
 
-  &.hecho b { color: #7c3aed; }
   &.enviado b { color: #2563eb; }
 }
 
@@ -126,10 +122,9 @@ const { lines, totals, veredicto, fmt, receptionLabel } = useOrderBreakdown(toRe
   white-space: nowrap;
 
   &.ok { background: #dcfce7; color: #15803d; }
-  &.pending { background: #dbeafe; color: #1d4ed8; }
-  &.warn { background: #fef3c7; color: #92400e; }
-  &.closed { background: #e2e8f0; color: #475569; }
-  &.bad { background: #fee2e2; color: #b91c1c; }
+  &.none { background: #f1f5f9; color: #475569; }
+  &.partial { background: #fef3c7; color: #92400e; }
+  &.over { background: #f3e8ff; color: #7e22ce; }
 }
 
 .totals {
@@ -153,9 +148,8 @@ const { lines, totals, veredicto, fmt, receptionLabel } = useOrderBreakdown(toRe
   border-radius: 20px;
 
   &.ok { background: #dcfce7; color: #15803d; }
-  &.pending { background: #dbeafe; color: #1d4ed8; }
-  &.warn { background: #fef3c7; color: #92400e; }
-  &.bad { background: #fee2e2; color: #b91c1c; }
+  &.partial { background: #fef3c7; color: #92400e; }
+  &.over { background: #f3e8ff; color: #7e22ce; }
 }
 
 .dispatches {

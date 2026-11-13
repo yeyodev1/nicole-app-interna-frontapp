@@ -2,14 +2,14 @@
 import { ref, computed, onMounted } from 'vue'
 import ProductionHistoryPanel from './components/ProductionHistoryPanel.vue'
 import ProductionExportModal from './components/ProductionExportModal.vue'
-import ProductionBatchModal from './components/ProductionBatchModal.vue'
 import ProductionSummaryHeader from './components/ProductionSummaryHeader.vue'
-import ProductionDestinationCard from './components/ProductionDestinationCard.vue'
-import ProductionBatchBar from './components/ProductionBatchBar.vue'
+import ProductionDispatchBoard from './components/ProductionDispatchBoard.vue'
+import { useRouter } from 'vue-router'
+import ProductionService from '@/services/production.service'
 import { useProductionSummary } from '@/composables/useProductionSummary'
 import { useOrderExport } from '@/composables/useOrderExport'
 import { useToast } from '@/composables/useToast'
-import { getECTNow, parseECTDate } from '@/utils/dateUtils'
+import { getECTNow, getECTTodayString, parseECTDate } from '@/utils/dateUtils'
 
 const {
   isLoading,
@@ -20,24 +20,17 @@ const {
   rawBucketFilter,
   rawFilteredOrders,
   rawStatsByDestRoundCategory,
-  collapsedProductCategories,
-  toggleProductCategory,
-  selectedRawProducts,
-  toggleRawProductSelection,
-  clearRawSelection,
   rawOrders,
   sourceFilter,
-  batchCompleteSelected,
-  isBatchProcessing,
-  batchQuantities,
-  prepareBatchQuantities,
-  setBatchQuantity,
-  selectedRows,
-  selectedProductNames,
   sourceCounts,
   filterOrdersForExport,
   contificoCatByName,
+  destOf,
+  categoryOf,
+  CATEGORY_ORDER,
 } = useProductionSummary()
+
+const router = useRouter()
 
 // Sucursales/destinos para el modal de exportación
 const exportDestinations = computed(() => {
@@ -96,31 +89,45 @@ const delayedOrders = computed(() => {
     .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
 })
 
-// Abre el modal de producción con las cantidades precargadas (todo lo pendiente)
-const openBatchConfirm = () => {
-  prepareBatchQuantities()
-  isBatchConfirmOpen.value = true
-}
+// ── Despacho de reposición por local ──
+// Día al que se despacha: solo con un día elegido (Hoy o Mañana) en el filtro de arriba.
+const sendDate = computed<string | null>(() => {
+  if (rawBucketFilter.value === 'today') return getECTTodayString()
+  if (rawBucketFilter.value === 'tomorrow') {
+    const [y, m, d] = getECTTodayString().split('-').map(Number)
+    const t = new Date(Date.UTC(y!, m! - 1, d! + 1))
+    return t.toISOString().slice(0, 10)
+  }
+  return null
+})
 
-const handleBatchConfirm = async () => {
-  if (isBatchProcessing.value) return // evita doble registro si vuelven a mantener el botón
+const board = ref<InstanceType<typeof ProductionDispatchBoard> | null>(null)
+const sendingKey = ref<string | null>(null)
+
+const handleSend = async (p: { local: string; name: string; quantity: number; key: string }) => {
+  if (!sendDate.value || sendingKey.value) return
+  sendingKey.value = p.key
   try {
-    const result = await batchCompleteSelected()
-    isBatchConfirmOpen.value = false
-    if (result.sent === 0) {
-      showError('No había nada pendiente por producir en la selección.')
-    } else if (result.failures.length > 0) {
-      showError(`Se registraron ${result.sent} unids, pero fallaron: ${result.failures.join(', ')}. Vuelve a intentarlo con esos productos.`)
-    } else if (result.eliminated > 0) {
-      success(`¡Listo! ${result.sent} unidades producidas y ${result.eliminated} eliminadas del pedido.`)
+    const res = await ProductionService.registerDispatchProgress(p.local, [{ name: p.name, quantity: p.quantity }], sendDate.value)
+    const r = (res?.data || [])[0]
+    await fetchSummary(true)
+    board.value?.resetDraft(p.key)
+    if (r && r.remaining > 0) {
+      showError(`${p.name}: se registraron ${r.distributed} de ${p.quantity}. No hay reposición de ${p.local} con ese producto para ese día.`)
+    } else if (r && r.excess > 0) {
+      success(`Enviado: ${p.quantity} ${p.name} a ${p.local} (+${r.excess} de más de lo pedido).`)
     } else {
-      success(`¡Listo! Se registraron ${result.sent} unidades producidas.`)
+      success(`Enviado: ${p.quantity} ${p.name} a ${p.local}.`)
     }
-  } catch (err) {
+  } catch (err: any) {
     console.error(err)
-    showError('No se pudo registrar la producción. Revisa tu conexión e inténtalo de nuevo.')
+    showError(`No se pudo registrar el envío: ${err?.response?.data?.message || err?.message || 'error inesperado'}`)
+  } finally {
+    sendingKey.value = null
   }
 }
+
+const goToOrders = () => router.push({ path: '/production/orders' })
 
 const handleExportClick = (mode: 'dispatch' | 'production') => {
   exportMode.value = mode
@@ -141,17 +148,7 @@ const updateExportPreview = (opts: { destination: string; date: string }) => {
 const handleExportConfirm = async (opts: { responsibleName: string; destination: string; date: string }) => {
   try {
     // Pedidos por sucursal y fecha, independiente de los filtros de la pantalla
-    let ordersToExport = filterOrdersForExport({ date: opts.date, destination: opts.destination })
-
-    const selectedProducts = selectedProductNames.value
-    if (selectedProducts.length > 0) {
-      ordersToExport = ordersToExport
-        .filter((order: any) => order.products.some((p: any) => selectedProducts.includes(p.name)))
-        .map((order: any) => ({
-          ...order,
-          products: order.products.filter((p: any) => selectedProducts.includes(p.name)),
-        }))
-    }
+    const ordersToExport = filterOrdersForExport({ date: opts.date, destination: opts.destination })
 
     if (ordersToExport.length === 0) {
       showError('No hay pedidos con esa fecha y sucursal. Cambia la fecha o elige "Todas las sucursales".')
@@ -169,7 +166,6 @@ const handleExportConfirm = async (opts: { responsibleName: string; destination:
     }
 
     showExportModal.value = false
-    clearRawSelection()
   } catch (err: any) {
     console.error(err)
     showError(`No se pudo exportar: ${err?.message || 'error inesperado'}`)
@@ -182,7 +178,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="summary-view" :class="{ 'has-selection': selectedRawProducts.size > 0 }">
+  <div class="summary-view">
     <ProductionSummaryHeader
       :is-background-loading="isBackgroundLoading"
       :show-history="showHistory"
@@ -190,7 +186,7 @@ onMounted(() => {
       :source-filter="sourceFilter"
       :bucket-filter="rawBucketFilter"
       :has-orders="rawOrders.length > 0"
-      :selected-count="selectedRawProducts.size"
+      :selected-count="0"
       :is-exporting="isExporting"
       :export-mode="exportMode"
       :source-counts="sourceCounts"
@@ -233,18 +229,18 @@ onMounted(() => {
           </li>
         </ul>
       </div>
-      <div class="destination-grid" v-if="Object.keys(rawStatsByDestRoundCategory).length > 0">
-        <ProductionDestinationCard
-          v-for="(rounds, destination) in rawStatsByDestRoundCategory"
-          :key="destination"
-          :destination="String(destination)"
-          :rounds="rounds"
-          :collapsed-keys="collapsedProductCategories"
-          :selected="selectedRawProducts"
-          @toggle-category="toggleProductCategory"
-          @toggle-product="toggleRawProductSelection"
-        />
-      </div>
+      <ProductionDispatchBoard
+        v-if="rawFilteredOrders.length > 0"
+        ref="board"
+        :orders="rawFilteredOrders"
+        :dest-of="destOf"
+        :category-of="categoryOf"
+        :category-order="CATEGORY_ORDER"
+        :send-date="sendDate"
+        :sending-key="sendingKey"
+        @send="handleSend"
+        @go-orders="goToOrders"
+      />
 
       <div v-else class="empty-raw">
         <i class="fas fa-folder-open"></i>
@@ -256,31 +252,12 @@ onMounted(() => {
       </div>
     </div>
 
-    <ProductionBatchBar
-      :visible="selectedRawProducts.size > 0"
-      :selected-count="selectedRawProducts.size"
-      :is-processing="isBatchProcessing"
-      @clear="clearRawSelection"
-      @complete="openBatchConfirm"
-    />
-
-    <!-- Cantidades editables: piden 100, la cocina puede marcar que hará 20 -->
-    <ProductionBatchModal
-      :is-open="isBatchConfirmOpen"
-      :rows="selectedRows"
-      :quantities="batchQuantities"
-      :is-processing="isBatchProcessing"
-      @set-quantity="setBatchQuantity"
-      @close="isBatchConfirmOpen = false"
-      @confirm="handleBatchConfirm"
-    />
-
     <ProductionExportModal
       :is-open="showExportModal"
       :is-loading="isExporting"
       :mode="exportMode"
       :destinations="exportDestinations"
-      :selected-count="selectedProductNames.length"
+      :selected-count="0"
       :preview-count="exportPreviewCount"
       @preview="updateExportPreview"
       @close="showExportModal = false"
@@ -294,11 +271,10 @@ $font-stack-system: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helve
 
 .summary-view {
   min-height: 100vh;
-  background: #f8f9fa;
+  background: #ffffff;
   color: #2c3e50;
   padding-bottom: 4rem;
   font-family: $font-stack-system;
-  &.has-selection { padding-bottom: 7rem; }
 }
 
 .content-wrapper { max-width: 1200px; margin: 0 auto; padding: 0 1rem; }
