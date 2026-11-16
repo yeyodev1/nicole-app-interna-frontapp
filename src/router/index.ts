@@ -254,6 +254,12 @@ const router = createRouter({
       component: () => import('../views/production/RequisitionCreateView.vue'),
       meta: { requiresAuth: true, role: 'production', title: 'Pedir a Bodega' }
     },
+    {
+      path: '/production/inventory',
+      name: 'production-inventory',
+      component: () => import('../views/inventory/InventoryCountView.vue'),
+      meta: { requiresAuth: true, role: 'production', title: 'Toma de inventario' }
+    },
     // Operations Manager Routes
     {
       path: '/operations/report',
@@ -308,6 +314,19 @@ const router = createRouter({
       name: 'operations-operators',
       component: () => import('../views/operations/OperationsOperatorsView.vue'),
       meta: { requiresAuth: true, role: 'OPERATIONS_MANAGER', title: 'Operarios' }
+    },
+    // Inventarios (toma de los lunes): la toma la ven Operaciones y Producción; Ajustes, solo Operaciones
+    {
+      path: '/operations/inventory',
+      name: 'operations-inventory',
+      component: () => import('../views/inventory/InventoryCountView.vue'),
+      meta: { requiresAuth: true, role: 'OPERATIONS_MANAGER', title: 'Toma de inventario' }
+    },
+    {
+      path: '/operations/inventory/settings',
+      name: 'operations-inventory-settings',
+      component: () => import('../views/inventory/InventorySettingsView.vue'),
+      meta: { requiresAuth: true, role: 'OPERATIONS_MANAGER', title: 'Ajustes de inventario' }
     },
     // POS / RetailManager Routes
     {
