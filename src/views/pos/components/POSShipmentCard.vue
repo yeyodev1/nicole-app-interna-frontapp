@@ -23,6 +23,10 @@ const isRestock = computed(() =>
   props.order.salesChannel === 'Restock' || props.order.salesChannel === 'Restock-Bodega'
 )
 const roundLabel = computed(() => (isRestock.value && props.order.comments) ? props.order.comments : '')
+
+// La app ya emitió la factura: la cajera solo entrega, no factura en caja.
+const appInvoiced = computed(() => props.order.invoiceStatus === 'PROCESSED')
+const appInvoiceNumber = computed(() => props.order.invoiceInfo?.documento || '')
 </script>
 
 <template>
@@ -91,7 +95,11 @@ const roundLabel = computed(() => (isRestock.value && props.order.comments) ? pr
             <span>{{ getEffectivePaymentMethod(order) }}</span>
           </div>
           <div class="payment-status">
-            <div v-if="order.settledInIsland" class="settled-badge">
+            <div v-if="appInvoiced" class="invoiced-badge" title="La app ya emitió la factura. No la factures en caja.">
+              <span class="invoiced-title"><i class="fa-solid fa-file-circle-check"></i> Ya facturado · No facturar en caja</span>
+              <span v-if="appInvoiceNumber" class="invoiced-number">Factura {{ appInvoiceNumber }}</span>
+            </div>
+            <div v-else-if="order.settledInIsland" class="settled-badge">
               <i class="fa-solid fa-umbrella-beach"></i> Facturado en Isla
             </div>
             <div v-else-if="isOrderFullyPaid(order)" class="paid-badge">
@@ -430,6 +438,33 @@ const roundLabel = computed(() => (isRestock.value && props.order.comments) ? pr
 .settled-badge {
   background: #F3E8FF;
   color: #6B21A8;
+}
+
+.invoiced-badge {
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  background: #DBEAFE;
+  color: #1E40AF;
+  border: 1px solid #93C5FD;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  text-align: center;
+
+  .invoiced-title {
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .invoiced-number {
+    font-size: 0.7rem;
+    font-weight: 600;
+  }
 }
 
 .balance-badge {
