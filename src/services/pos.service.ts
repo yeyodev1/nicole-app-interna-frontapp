@@ -43,6 +43,9 @@ export interface POSOrder {
   payments?: { monto: number; forma_cobro: string; fecha: string }[];
   isCredit?: boolean;
   settledInIsland?: boolean;
+  /** PROCESSED = la app ya emitió la factura: la caja no debe facturarlo. */
+  invoiceStatus?: string;
+  invoiceInfo?: { documento?: string };
   isGlobalCourtesy?: boolean;
   globalDiscountPercentage?: number;
   branch?: string;
