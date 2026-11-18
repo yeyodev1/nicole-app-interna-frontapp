@@ -92,8 +92,10 @@ const status = computed<{ label: string; tone: string; icon: string }>(() => {
 })
 
 const invoice = computed<{ label: string; tone: string }>(() => {
+  // Factura de la app primero: si además figura "en isla" es una doble factura.
+  if (o.value.invoiceStatus === 'PROCESSED' && o.value.settledInIsland) return { label: 'Doble: app + isla', tone: 'danger' }
+  if (o.value.invoiceStatus === 'PROCESSED') return { label: 'Facturado por la app', tone: 'ok' }
   if (o.value.settledInIsland) return { label: `Facturado en ${o.value.settledIslandName || 'isla'}`, tone: 'ok' }
-  if (o.value.invoiceStatus === 'PROCESSED') return { label: 'Facturado', tone: 'ok' }
   if (o.value.invoiceStatus === 'ERROR') return { label: 'Error factura', tone: 'danger' }
   if (o.value.invoiceStatus === 'PENDING') return { label: 'Factura en cola', tone: 'neutral' }
   return { label: 'Sin factura', tone: 'muted' }
@@ -282,7 +284,7 @@ const canReturn = computed(() => ['SENT', 'PARTIAL', 'PROBLEM'].includes(o.value
             <button v-if="showInvoiceEdit" type="button" role="menuitem" @click="run(() => emit('invoice-edit'))">
               <i class="fa-solid fa-file-invoice"></i> Datos de factura
             </button>
-            <button v-if="!order.settledInIsland" type="button" role="menuitem" @click="run(() => emit('settle'))">
+            <button v-if="!order.settledInIsland && order.invoiceStatus !== 'PROCESSED'" type="button" role="menuitem" @click="run(() => emit('settle'))">
               <i class="fa-solid fa-store"></i> Facturado en isla
             </button>
             <button v-if="batchMode" type="button" role="menuitem" @click="run(() => emit('view-detail'))">
