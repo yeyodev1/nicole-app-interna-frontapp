@@ -12,10 +12,12 @@ import {
 import { compressPhoto } from './inventoryPhoto'
 
 /**
- * Toma de inventario (todos los lunes). La usan Producción y el Jefe de Operaciones.
- * - Utensilios: columnas de los lunes anteriores + la de hoy; todo utensilio nuevo lleva foto.
+ * Toma de inventario. La usan Producción y el Jefe de Operaciones.
+ * - Utensilios: columnas de las tomas anteriores + la vigente; todo utensilio nuevo lleva foto.
  * - Productos: producto terminado, en proceso y materia prima.
- * Se puede pasar de un bloque a otro sin cerrarlo. Un bloque cerrado ya no se edita.
+ * Se puede pasar de un bloque a otro sin cerrarlo. El mismo día de la toma, un bloque cerrado se
+ * puede reabrir para corregir. Desde la medianoche la toma queda bloqueada (también lo que quedó
+ * abierto) y se empieza una nueva con el botón "Nueva toma de inventario".
  * Cada cambio se guarda solo, unos segundos después.
  */
 
@@ -84,15 +86,31 @@ const weekLabel = computed(() => {
 })
 const shortDate = (iso: string) => {
   const [, m, d] = iso.split('-')
-  return `Lun ${d}/${m}`
+  return `${d}/${m}`
 }
 
 const statusOf = (k: InventoryBlock) => week.value?.count[k].status || 'open'
 const isClosed = (k: InventoryBlock) => statusOf(k) === 'closed'
+/** La toma es de un día anterior: ya no se modifica (pasó la medianoche del día de la toma). */
+const locked = computed(() => !!week.value && !week.value.editable)
+/** El bloque no se puede editar: está cerrado o la toma ya está bloqueada. */
+const readOnly = (k: InventoryBlock) => locked.value || isClosed(k)
 const countedIn = (k: InventoryBlock) =>
   k === 'ut' ? Object.values(utCounts.value).filter(v => v != null).length : productItems.value[k].length
-const pillOf = (k: InventoryBlock) => (isClosed(k) ? 'closed' : countedIn(k) ? 'open' : 'pending')
-const PILL_TEXT = { closed: '✓ Cerrado', open: '● En curso', pending: 'Pendiente' }
+const pillOf = (k: InventoryBlock) =>
+  isClosed(k) ? 'closed' : locked.value ? 'locked' : countedIn(k) ? 'open' : 'pending'
+const PILL_TEXT = { closed: '✓ Cerrado', open: '● En curso', pending: 'Pendiente', locked: '🔒 Bloqueado' }
+const hourOf = (iso: string | null | undefined) =>
+  iso ? new Date(iso).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Guayaquil' }) : ''
+/** "Cerrado a las 10:05 por Ricardo · se reabrió a las 15:00" */
+function closedInfo(k: InventoryBlock) {
+  const b = week.value?.count[k]
+  if (!b) return ''
+  let t = b.closedAt ? `a las ${hourOf(b.closedAt)}` : ''
+  if (b.closedBy) t += ` por ${b.closedBy}`
+  if (b.reopenedAt) t += ` · se reabrió a las ${hourOf(b.reopenedAt)}`
+  return t
+}
 
 const blockTitle = (k: InventoryProductBlock) => catalog.value?.blocks.find(b => b.key === k)?.title || k
 const lastCountLabel = computed(() => {
@@ -102,7 +120,7 @@ const lastCountLabel = computed(() => {
 
 // ───────────── Guardado automático ─────────────
 function scheduleSave(k: InventoryBlock) {
-  if (isClosed(k)) return
+  if (readOnly(k)) return
   if (timers[k]) clearTimeout(timers[k])
   saveState.value = 'saving'
   timerCompany[k] = company.value
@@ -114,7 +132,7 @@ async function saveNow(k: InventoryBlock) {
   delete timers[k]
   const comp = timerCompany[k] ?? company.value
   delete timerCompany[k]
-  if (!week.value || isClosed(k)) return
+  if (!week.value || readOnly(k)) return
   saveState.value = 'saving'
   saveError.value = ''
   try {
@@ -140,7 +158,7 @@ function flushAll() {
 watch(responsible, () => {
   // El responsable se guarda junto con cualquier bloque abierto
   const k: InventoryBlock = screen.value === 'ut' ? 'ut' : block.value
-  if (!isClosed(k)) scheduleSave(k)
+  if (!readOnly(k)) scheduleSave(k)
 })
 
 const closing = ref(false)
@@ -156,6 +174,42 @@ async function closeBlock(k: InventoryBlock) {
     saveError.value = e?.message || 'No se pudo cerrar el bloque.'
   } finally {
     closing.value = false
+  }
+}
+
+const reopening = ref(false)
+/** Reabre un bloque cerrado para corregirlo (solo el mismo día de la toma). */
+async function reopenBlock(k: InventoryBlock) {
+  if (!week.value || locked.value) return
+  reopening.value = true
+  saveError.value = ''
+  try {
+    week.value.count = await inventoryService.reopenBlock(k, company.value)
+    syncFromServer()
+  } catch (e: any) {
+    saveState.value = 'error'
+    saveError.value = e?.message || 'No se pudo reabrir el bloque.'
+    load()
+  } finally {
+    reopening.value = false
+  }
+}
+
+const starting = ref(false)
+/** Empieza una toma nueva hoy: la anterior pasa a ser historial. */
+async function startNew() {
+  if (!week.value || !week.value.canStartNew) return
+  starting.value = true
+  saveError.value = ''
+  try {
+    week.value = await inventoryService.startNew(company.value)
+    syncFromServer()
+    saveState.value = 'idle'
+  } catch (e: any) {
+    saveState.value = 'error'
+    saveError.value = e?.message || 'No se pudo empezar la nueva toma.'
+  } finally {
+    starting.value = false
   }
 }
 
@@ -184,7 +238,7 @@ const parsedQty = computed(() => {
   const n = Number(String(quantity.value).replace(',', '.'))
   return Number.isFinite(n) && n >= 0 && String(quantity.value).trim() !== '' ? n : null
 })
-const canAdd = computed(() => !!productCode.value && parsedQty.value != null && !isClosed(block.value))
+const canAdd = computed(() => !!productCode.value && parsedQty.value != null && !readOnly(block.value))
 
 function addProduct() {
   const p = productsInCategory.value.find(x => x.code === productCode.value)
@@ -310,8 +364,8 @@ onBeforeUnmount(flushAll)
       </span>
     </header>
     <p class="sub">
-      <template v-if="screen === 'home'">Se hace todos los lunes. Elige qué vas a contar. Puedes pasar de un bloque a otro cuando quieras; al cerrar un bloque ya no se puede editar.</template>
-      <template v-else-if="screen === 'ut'">Cada lunes se agrega una columna nueva al lado de los conteos anteriores. Todo utensilio nuevo se registra con su foto.</template>
+      <template v-if="screen === 'home'">Elige qué vas a contar. Puedes pasar de un bloque a otro cuando quieras. Un bloque cerrado se puede reabrir para corregir hasta las 23:59 del día de la toma.</template>
+      <template v-else-if="screen === 'ut'">Cada toma agrega una columna nueva al lado de las anteriores. Todo utensilio nuevo se registra con su foto.</template>
       <template v-else>Elige el bloque: producto terminado, producto en proceso o materia prima. Puedes cambiar de bloque cuando quieras.</template>
     </p>
     <p v-if="saveState === 'error' && saveError" class="error">{{ saveError }}</p>
@@ -323,6 +377,15 @@ onBeforeUnmount(flushAll)
     </div>
 
     <template v-else-if="week && catalog">
+      <div v-if="locked" class="lockmsg">
+        <p>
+          🔒 La toma del {{ shortDate(week.weekOf) }} está cerrada y ya no se puede modificar.
+          <small>Pasó la medianoche del día de la toma. Para contar de nuevo, empieza una nueva toma.</small>
+        </p>
+        <button class="btn" :disabled="starting" @click="startNew">
+          <i v-if="starting" class="fa-solid fa-spinner fa-spin"></i> ＋ Nueva toma de inventario
+        </button>
+      </div>
       <!-- Portada -->
       <template v-if="screen === 'home'">
         <section class="panel">
@@ -373,8 +436,12 @@ onBeforeUnmount(flushAll)
         </div>
         <section class="panel">
           <h2>{{ blockTitle(block) }}</h2>
-          <div v-if="isClosed(block)" class="donemsg">✓ Bloque cerrado. Ya no se puede editar.</div>
-          <div v-else class="field">
+          <div v-if="isClosed(block) && !locked" class="donemsg">
+            <p>✓ Bloque cerrado {{ closedInfo(block) }}<small>Puedes reabrirlo para corregir hasta las 23:59 de hoy.</small></p>
+            <button class="btn warn" :disabled="reopening" @click="reopenBlock(block)">✎ Reabrir para corregir</button>
+          </div>
+          <div v-else-if="locked" class="donemsg muted">{{ isClosed(block) ? `✓ Bloque cerrado ${closedInfo(block)}.` : 'Este bloque no se cerró; quedó con lo que se guardó.' }}</div>
+          <div v-if="!readOnly(block)" class="field">
             <span class="lab">Agregar ítem a {{ blockTitle(block).toLowerCase() }}</span>
             <div v-if="!categories.length" class="empty">Este bloque todavía no tiene productos. El Jefe de Operaciones los agrega en Inventarios › Ajustes.</div>
             <div v-else class="add">
@@ -407,21 +474,21 @@ onBeforeUnmount(flushAll)
 
           <div class="tbl-wrap">
             <table v-if="productItems[block].length">
-              <thead><tr><th>Producto</th><th>Categoría</th><th class="r">Cantidad</th><th>Unidad</th><th v-if="!isClosed(block)"></th></tr></thead>
+              <thead><tr><th>Producto</th><th>Categoría</th><th class="r">Cantidad</th><th>Unidad</th><th v-if="!readOnly(block)"></th></tr></thead>
               <tbody>
                 <tr v-for="(i, ix) in productItems[block]" :key="`${i.code}-${i.unit}`">
                   <td><span class="nm">{{ i.name }}</span><span class="cd">{{ i.code }}</span></td>
                   <td>{{ i.category }}</td>
                   <td class="r"><b>{{ String(i.quantity).replace('.', ',') }}</b></td>
                   <td>{{ i.unit }}</td>
-                  <td v-if="!isClosed(block)" class="r"><button class="rm" :aria-label="`Quitar ${i.name}`" @click="removeProduct(ix)">✕</button></td>
+                  <td v-if="!readOnly(block)" class="r"><button class="rm" :aria-label="`Quitar ${i.name}`" @click="removeProduct(ix)">✕</button></td>
                 </tr>
               </tbody>
             </table>
             <div v-else class="empty-st">Todavía no hay ítems. Elige categoría y producto, escribe la cantidad y toca “Agregar”.</div>
           </div>
 
-          <div v-if="!isClosed(block)" class="foot">
+          <div v-if="!readOnly(block)" class="foot">
             <span class="tot"><b>{{ productItems[block].length }}</b> ítems contados en {{ blockTitle(block).toLowerCase() }}</span>
             <button class="btn ok" :disabled="!productItems[block].length || closing" @click="closeBlock(block)">✓ Cerrar bloque</button>
           </div>
@@ -430,7 +497,11 @@ onBeforeUnmount(flushAll)
 
       <!-- Utensilios -->
       <section v-else class="panel">
-        <div v-if="isClosed('ut')" class="donemsg">✓ Conteo de utensilios cerrado. Ya no se puede editar.</div>
+        <div v-if="isClosed('ut') && !locked" class="donemsg">
+          <p>✓ Conteo de utensilios cerrado {{ closedInfo('ut') }}<small>Puedes reabrirlo para corregir hasta las 23:59 de hoy.</small></p>
+          <button class="btn warn" :disabled="reopening" @click="reopenBlock('ut')">✎ Reabrir para corregir</button>
+        </div>
+        <div v-else-if="locked" class="donemsg muted">{{ isClosed('ut') ? `✓ Conteo de utensilios cerrado ${closedInfo('ut')}.` : 'Este conteo no se cerró; quedó con lo que se guardó.' }}</div>
         <div v-else class="field">
           <span class="lab">Agregar utensilio nuevo · la foto es obligatoria</span>
           <div class="add ut">
@@ -461,7 +532,7 @@ onBeforeUnmount(flushAll)
               <tr>
                 <th>Foto</th><th>Utensilio</th>
                 <th v-for="h in history" :key="h.weekOf" class="r">{{ shortDate(h.weekOf) }}</th>
-                <th class="now">Hoy · {{ shortDate(week.weekOf) }}</th>
+                <th class="now">{{ week.editable ? 'Hoy' : 'Toma' }} · {{ shortDate(week.weekOf) }}</th>
               </tr>
             </thead>
             <tbody>
@@ -470,7 +541,7 @@ onBeforeUnmount(flushAll)
                 <td><span class="nm">{{ u.name }}</span><span v-if="isNewUtensil(u.id)" class="nuevo">NUEVO</span></td>
                 <td v-for="h in history" :key="h.weekOf" class="r old">{{ h.utensils[u.id] ?? '—' }}</td>
                 <td class="now">
-                  <span v-if="!isClosed('ut')" class="qty">
+                  <span v-if="!readOnly('ut')" class="qty">
                     <button aria-label="Restar" @click="incUt(u.id, -1)">−</button>
                     <input
                       :id="`inv-ut-${u.id}`"
@@ -493,9 +564,9 @@ onBeforeUnmount(flushAll)
           </table>
           <div v-else class="empty-st">Todavía no hay utensilios. Agrega el primero con su foto.</div>
         </div>
-        <p class="note">Las columnas grises son los lunes anteriores y no se pueden cambiar. “—” = no se contó ese lunes. En rojo, lo que bajó frente al último conteo.</p>
+        <p class="note">Las columnas grises son tomas anteriores y no se pueden cambiar. “—” = no se contó en esa toma. En rojo, lo que bajó frente a la toma anterior.</p>
 
-        <div v-if="!isClosed('ut')" class="foot">
+        <div v-if="!readOnly('ut')" class="foot">
           <span class="tot"><b>{{ week.utensils.length - missingUt }}</b> de {{ week.utensils.length }} contados<template v-if="missingUt"> · faltan {{ missingUt }}</template></span>
           <button class="btn ok" :disabled="!week.utensils.length || missingUt > 0 || closing" @click="closeBlock('ut')">✓ Cerrar conteo</button>
         </div>

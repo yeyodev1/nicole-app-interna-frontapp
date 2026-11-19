@@ -1,6 +1,6 @@
 import APIBase from './httpBase'
 
-/** Inventario semanal (toma de los lunes): catálogo, conteo por bloques y utensilios con foto. */
+/** Toma de inventario (una por día): catálogo, conteo por bloques y utensilios con foto. */
 export type InventoryCompany = 'nicole' | 'sucree'
 export type InventoryProductBlock = 'pt' | 'pp' | 'mp'
 export type InventoryBlock = InventoryProductBlock | 'ut'
@@ -49,11 +49,13 @@ export interface InventoryBlockState<T> {
   items: T[]
   closedAt: string | null
   closedBy: string | null
+  reopenedAt?: string | null
+  reopenedBy?: string | null
 }
 
 export interface InventoryCount {
   company: InventoryCompany
-  weekOf: string // AAAA-MM-DD del lunes
+  weekOf: string // AAAA-MM-DD: fecha de la toma (las anteriores al 19/11/2026, el lunes de su semana)
   responsible: string
   pt: InventoryBlockState<InventoryCountItem>
   pp: InventoryBlockState<InventoryCountItem>
@@ -70,9 +72,13 @@ export interface InventoryUtensil {
 export interface InventoryWeek {
   today: string
   weekOf: string
+  /** La toma es de hoy: se puede contar, cerrar y reabrir bloques. */
+  editable: boolean
+  /** La toma es de un día anterior: ya no se modifica y se puede empezar una nueva. */
+  canStartNew: boolean
   count: InventoryCount
   utensils: InventoryUtensil[]
-  /** Conteos de utensilios de semanas anteriores (de la más vieja a la más reciente). */
+  /** Conteos de utensilios de las tomas anteriores (de la más vieja a la más reciente). */
   history: Array<{ weekOf: string; utensils: Record<string, number> }>
 }
 
@@ -106,6 +112,16 @@ class InventoryService extends APIBase {
 
   async closeBlock(block: InventoryBlock, company: InventoryCompany): Promise<InventoryCount> {
     const { data } = await this.post<any>(`inventory/week/blocks/${block}/close`, { company })
+    return data.data
+  }
+
+  async reopenBlock(block: InventoryBlock, company: InventoryCompany): Promise<InventoryCount> {
+    const { data } = await this.post<any>(`inventory/week/blocks/${block}/reopen`, { company })
+    return data.data
+  }
+
+  async startNew(company: InventoryCompany): Promise<InventoryWeek> {
+    const { data } = await this.post<any>('inventory/week/new', { company })
     return data.data
   }
 
