@@ -3,7 +3,7 @@ import { ref, onMounted, watch, computed } from 'vue'
 import POSService, { type POSOrder } from '@/services/pos.service'
 import { useOrderExport } from '@/composables/useOrderExport'
 import { posRestockService } from '@/services/pos-restock.service'
-import ProductionSettingsService from '@/services/production-settings.service'
+import { useBranches } from '@/composables/useBranches'
 import POSShipmentCard from './components/POSShipmentCard.vue'
 import POSLocationBanner from './components/POSLocationBanner.vue'
 import DeliveryModal from './components/DeliveryModal.vue'
@@ -21,6 +21,7 @@ const pendingDispatchesForBulk = ref<any[]>([])
 const BRANCH_STORAGE_KEY = 'pos_selected_branch'
 const selectedBranch = ref(localStorage.getItem(BRANCH_STORAGE_KEY) || '')
 const branches = ref<string[]>(['Todas las sucursales'])
+const { load: loadBranches, posBranchNames } = useBranches()
 const sidebarOpen = ref(false)
 
 const filterMode = ref<POSFilterMode>('today')
@@ -213,14 +214,16 @@ const confirmExportWithOldClosing = async () => {
 
 onMounted(async () => {
   try {
-    const settings = await ProductionSettingsService.getSettings()
-    const destinations = (settings.destinations || []).map((d: any) => d.name)
+    // Sucursales de Puntos de Venta (todas las empresas, sin el CDP), no los destinos de producción:
+    // así un local nuevo (Entre Ríos de Sucrée) aparece sin tocar otra configuración.
+    await loadBranches(true)
+    const destinations = [...posBranchNames.value]
     branches.value = ['Todas las sucursales', ...destinations]
     const stored = localStorage.getItem(BRANCH_STORAGE_KEY)
     if (stored && destinations.includes(stored)) {
       selectedBranch.value = stored
     } else if (destinations.length > 0) {
-      selectedBranch.value = destinations[0]
+      selectedBranch.value = destinations[0] ?? ''
     }
   } catch (e) {
     console.error('Error fetching dynamic branches:', e)

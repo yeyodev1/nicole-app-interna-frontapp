@@ -328,6 +328,14 @@ const router = createRouter({
       component: () => import('../views/inventory/InventorySettingsView.vue'),
       meta: { requiresAuth: true, role: 'OPERATIONS_MANAGER', title: 'Ajustes de inventario' }
     },
+    // Puntos de Venta para el Jefe de Operaciones (misma pantalla que /settings/branches):
+    // crear sucursales, nombre, empresa (La Finestra / Sucrenda), activar y desactivar.
+    {
+      path: '/operations/branches',
+      name: 'operations-branches',
+      component: () => import('../views/settings/BranchManagementView.vue'),
+      meta: { requiresAuth: true, role: 'OPERATIONS_MANAGER', title: 'Puntos de Venta' }
+    },
     // POS / RetailManager Routes
     {
       path: '/pos/shipments',
