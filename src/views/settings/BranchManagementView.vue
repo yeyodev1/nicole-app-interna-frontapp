@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import BranchService, { type Branch } from '@/services/branch.service'
+import BranchService, { type Branch, type BranchCompany, BRANCH_COMPANY_LABELS } from '@/services/branch.service'
 import { useBranches } from '@/composables/useBranches'
 
 const { load: reloadCache } = useBranches()
@@ -16,12 +16,16 @@ const deletingId = ref<string | null>(null)
 // Add form
 const addName = ref('')
 const addSortOrder = ref(0)
+const addCompany = ref<BranchCompany>('nicole')
+const companyOptions = Object.entries(BRANCH_COMPANY_LABELS) as [BranchCompany, string][]
+const companyLabel = (c?: BranchCompany) => BRANCH_COMPANY_LABELS[c || 'nicole']
 
 // Edit
 const editingId = ref<string | null>(null)
 const editName = ref('')
 const editIsActive = ref(true)
 const editSortOrder = ref(0)
+const editCompany = ref<BranchCompany>('nicole')
 
 const activeCount = computed(() => branches.value.filter(b => b.isActive).length)
 const inactiveCount = computed(() => branches.value.filter(b => !b.isActive).length)
@@ -45,6 +49,7 @@ const load = async () => {
 const openAdd = () => {
   addName.value = ''
   addSortOrder.value = branches.value.length
+  addCompany.value = 'nicole'
   showAddModal.value = true
 }
 
@@ -52,7 +57,7 @@ const handleAdd = async () => {
   if (!addName.value.trim()) return
   isSaving.value = true
   try {
-    await BranchService.createBranch({ name: addName.value.trim(), isActive: true, sortOrder: addSortOrder.value })
+    await BranchService.createBranch({ name: addName.value.trim(), isActive: true, sortOrder: addSortOrder.value, company: addCompany.value })
     showAddModal.value = false
     showSuccess(`"${addName.value.trim()}" agregado correctamente.`)
     await load(); await reloadCache(true)
@@ -64,6 +69,7 @@ const handleAdd = async () => {
 const startEdit = (b: Branch) => {
   editingId.value = b._id; editName.value = b.name
   editIsActive.value = b.isActive; editSortOrder.value = b.sortOrder
+  editCompany.value = b.company || 'nicole'
 }
 const cancelEdit = () => { editingId.value = null }
 
@@ -71,7 +77,13 @@ const handleUpdate = async (id: string) => {
   if (!editName.value.trim()) return
   isSaving.value = true
   try {
-    await BranchService.updateBranch(id, { name: editName.value.trim(), isActive: editIsActive.value, sortOrder: editSortOrder.value })
+    const current = branches.value.find(b => b._id === id)
+    const payload: Parameters<typeof BranchService.updateBranch>[1] = {
+      isActive: editIsActive.value, sortOrder: editSortOrder.value, company: editCompany.value,
+    }
+    // Solo se manda el nombre si cambió: el back no deja renombrar una sucursal con historial.
+    if (editName.value.trim() !== current?.name) payload.name = editName.value.trim()
+    await BranchService.updateBranch(id, payload)
     editingId.value = null
     showSuccess('Punto de venta actualizado.')
     await load(); await reloadCache(true)
@@ -88,11 +100,13 @@ const handleDelete = async (id: string) => {
   }
   try {
     const name = branches.value.find(b => b._id === id)?.name
-    await BranchService.deleteBranch(id)
+    const result = await BranchService.deleteBranch(id)
     deletingId.value = null
-    showSuccess(`"${name}" eliminado.`)
+    showSuccess(result.deactivated
+      ? `"${name}" tiene historial: quedó desactivado, no borrado.`
+      : `"${name}" eliminado.`)
     await load(); await reloadCache(true)
-  } catch { showError('Error al eliminar.') }
+  } catch (e: any) { showError(e?.data?.message || 'Error al eliminar.') }
 }
 
 onMounted(load)
@@ -199,6 +213,7 @@ onMounted(load)
                 {{ b.isActive ? 'Activo' : 'Inactivo' }}
               </span>
               <span class="order-pill">#{{ b.sortOrder }}</span>
+              <span class="company-pill" :class="`company--${b.company || 'nicole'}`">{{ companyLabel(b.company) }}</span>
             </div>
           </div>
           <h3 class="branch-name">{{ b.name }}</h3>
@@ -233,6 +248,13 @@ onMounted(load)
               <input v-model.number="editSortOrder" type="number" min="0" class="edit-input" />
             </div>
           </div>
+          <div class="edit-field">
+            <label>Empresa</label>
+            <select v-model="editCompany" class="edit-input">
+              <option v-for="[value, label] in companyOptions" :key="value" :value="value">{{ label }}</option>
+            </select>
+          </div>
+          <p class="field-hint">Con pedidos o cierres guardados, el nombre ya no se puede cambiar.</p>
           <label class="toggle">
             <input type="checkbox" v-model="editIsActive" />
             <span class="track"></span>
@@ -290,6 +312,13 @@ onMounted(load)
                 @keyup.enter="handleAdd"
                 autofocus
               />
+            </div>
+            <div class="modal-field">
+              <label>Empresa <span class="req">*</span></label>
+              <select v-model="addCompany" class="modal-input">
+                <option v-for="[value, label] in companyOptions" :key="value" :value="value">{{ label }}</option>
+              </select>
+              <span class="field-hint">A qué razón social pertenece el local (para separar la contabilidad).</span>
             </div>
             <div class="modal-field modal-field--sm">
               <label>Posición en lista</label>
@@ -547,6 +576,16 @@ onMounted(load)
   background: $gray-100;
   padding: 0.2rem 0.5rem;
   border-radius: 10px;
+}
+
+.company-pill {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 10px;
+
+  &.company--nicole { background: #fce7f3; color: #9d174d; }
+  &.company--sucree { background: #fef3c7; color: #92400e; }
 }
 
 .branch-name {

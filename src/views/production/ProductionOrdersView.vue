@@ -8,6 +8,7 @@ import DispatchReportModal from './components/DispatchReportModal.vue'
 import ProductionOrderBreakdown from './components/ProductionOrderBreakdown.vue'
 import ProductionDateFilter from './components/ProductionDateFilter.vue'
 import { useToast } from '@/composables/useToast'
+import { useBranches } from '@/composables/useBranches'
 
 interface Order {
   _id: string
@@ -374,9 +375,15 @@ const getDispatchBadge = (status?: string) => {
   return map[status || 'NOT_SENT'] || map['NOT_SENT']
 }
 
-// Recepción en el local (solo San Marino y Mall del Sol confirman lo que llega).
-const isPosBranch = (order: Order) =>
-  order.deliveryType !== 'delivery' && /(marino|mall|sol)/i.test(order.branch || '')
+// Recepción en el local: los puntos de venta activos (Puntos de Venta, sin el CDP) confirman lo que llega.
+const { load: loadPosBranches, posBranchNames } = useBranches()
+loadPosBranches()
+const isPosBranch = (order: Order) => {
+  if (order.deliveryType === 'delivery') return false
+  const b = (order.branch || '').trim().toLowerCase()
+  if (!posBranchNames.value.length) return /(marino|mall|sol)/i.test(b)
+  return posBranchNames.value.some(n => n.trim().toLowerCase() === b)
+}
 
 const getReceptionBadge = (order: Order) => {
   if (!isPosBranch(order)) return null

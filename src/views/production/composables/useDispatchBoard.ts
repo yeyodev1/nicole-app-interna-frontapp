@@ -1,22 +1,28 @@
 import { computed, type Ref } from 'vue'
+import { useBranches } from '@/composables/useBranches'
 
 /**
  * Despacho por local (Resumen de Producción).
  *
- * - Reposición (`salesChannel` = "Restock") de San Marino y Mall del Sol: se despacha
- *   aquí, por producto.
+ * - Reposición (`salesChannel` = "Restock") de cada punto de venta activo de Puntos de Venta
+ *   (San Marino, Mall del Sol, Entre Ríos de Sucrée y los que se agreguen): se despacha aquí,
+ *   por producto. Antes la lista era fija (solo San Marino y Mall del Sol).
  * - Pedidos de clientes: solo se muestran; se despachan uno por uno en Órdenes.
  * - "Total a producir" es siempre lo PEDIDO; lo enviado de más o de menos se marca aparte.
  */
 
 export interface LocalDef { key: string; label: string; icon: string; canSend: boolean }
 
-export const LOCALS: LocalDef[] = [
+/** Locales de siempre: se usan mientras carga la lista de Puntos de Venta. */
+const FALLBACK_POS: LocalDef[] = [
   { key: 'San Marino', label: 'San Marino', icon: 'fa-store', canSend: true },
   { key: 'Mall del Sol', label: 'Mall del Sol', icon: 'fa-shopping-bag', canSend: true },
+]
+const FIXED_LOCALS: LocalDef[] = [
   { key: 'Delivery', label: 'Delivery', icon: 'fa-motorcycle', canSend: false },
   { key: 'Centro Prod.', label: 'Centro de producción', icon: 'fa-industry', canSend: false },
 ]
+const POS_ICON: Record<string, string> = { 'San Marino': 'fa-store', 'Mall del Sol': 'fa-shopping-bag' }
 
 export type Reception = 'none' | 'wait' | 'ok' | 'diff'
 
@@ -47,7 +53,22 @@ export function useDispatchBoard(
   categoryOf: (name: string, raw?: string) => string,
   categoryOrder: string[],
 ) {
+  const { load: loadBranches, posBranchNames } = useBranches()
+  loadBranches()
+
+  // Clave = nombre que devuelve destOf (San Marino / Mall del Sol normalizados; el resto, tal cual).
+  const boardLocals = computed<LocalDef[]>(() => {
+    const pos = posBranchNames.value.length
+      ? posBranchNames.value.map(name => {
+          const key = destOf({ branch: name })
+          return { key, label: name, icon: POS_ICON[key] || 'fa-store', canSend: true }
+        })
+      : FALLBACK_POS
+    return [...pos, ...FIXED_LOCALS]
+  })
+
   const data = computed(() => {
+    const LOCALS = boardLocals.value
     const byProduct = new Map<string, { cat: string; cells: Record<string, Cell>; rcv: Record<string, { pending: boolean; any: boolean; diff: number }> }>()
     const extraLocals = new Set<string>()
 

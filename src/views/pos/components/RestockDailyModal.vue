@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { posRestockService } from '@/services/pos-restock.service';
-import ProductionSettingsService from '@/services/production-settings.service';
+import { useBranches } from '@/composables/useBranches';
 import { useDailyClosing } from '@/views/pos/composables/useDailyClosing';
 import { useClosingSteps } from '@/views/pos/composables/useClosingSteps';
 import RestockQuickAdd from './RestockQuickAdd.vue';
@@ -26,13 +26,15 @@ const emit = defineEmits(['close', 'success', 'notify']);
 
 // --- Branch switching (dynamic) ---
 const dynamicBranches = ref<string[]>([]);
+const { load: loadBranches, posBranchNames } = useBranches();
 const localBranch = ref(props.branch);
 const branchOptions = computed(() => dynamicBranches.value.map(b => ({ value: b, label: b })));
 
 const fetchBranches = async () => {
   try {
-    const settings = await ProductionSettingsService.getSettings();
-    dynamicBranches.value = (settings.destinations || []).map((d: any) => d.name);
+    // Mismas sucursales que Gestión de Sucursal: Puntos de Venta activos, sin el CDP.
+    await loadBranches(true);
+    dynamicBranches.value = [...posBranchNames.value];
   } catch (e) {
     console.error('Error fetching dynamic branches:', e);
   }

@@ -124,6 +124,9 @@ const closePanel = () => { mobileOpen.value = false }
         <router-link to="/pos/shipments" active-class="active" @click="closePanel">
           <i class="fa-solid fa-store"></i> Gestión Sucursal
         </router-link>
+        <router-link to="/operations/branches" active-class="active" @click="closePanel">
+          <i class="fa-solid fa-shop"></i> Puntos de Venta
+        </router-link>
         <span class="nav-group-label">Producción</span>
         <router-link to="/operations/production-history" active-class="active" @click="closePanel">
           <i class="fa-solid fa-chart-column"></i> Histórico
