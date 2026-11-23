@@ -315,7 +315,8 @@ const router = createRouter({
       component: () => import('../views/operations/OperationsOperatorsView.vue'),
       meta: { requiresAuth: true, role: 'OPERATIONS_MANAGER', title: 'Operarios' }
     },
-    // Inventarios (toma de los lunes): la toma la ven Operaciones y Producción; Ajustes, solo Operaciones
+    // Inventarios (toma de los lunes): la toma la ven Operaciones y Producción; Ajustes generales (catálogo de
+    // inventario e Ingreso de producción), solo Operaciones
     {
       path: '/operations/inventory',
       name: 'operations-inventory',
@@ -326,7 +327,7 @@ const router = createRouter({
       path: '/operations/inventory/settings',
       name: 'operations-inventory-settings',
       component: () => import('../views/inventory/InventorySettingsView.vue'),
-      meta: { requiresAuth: true, role: 'OPERATIONS_MANAGER', title: 'Ajustes de inventario' }
+      meta: { requiresAuth: true, role: 'OPERATIONS_MANAGER', title: 'Ajustes generales' }
     },
     // Puntos de Venta para el Jefe de Operaciones (misma pantalla que /settings/branches):
     // crear sucursales, nombre, empresa (La Finestra / Sucrenda), activar y desactivar.

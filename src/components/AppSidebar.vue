@@ -138,8 +138,9 @@ const closePanel = () => { mobileOpen.value = false }
         <router-link to="/operations/inventory" exact-active-class="active" @click="closePanel">
           <i class="fa-solid fa-clipboard-check"></i> Toma de inventario
         </router-link>
+        <span class="nav-group-label">Configuración</span>
         <router-link to="/operations/inventory/settings" active-class="active" @click="closePanel">
-          <i class="fa-solid fa-gear"></i> Ajustes
+          <i class="fa-solid fa-gear"></i> Ajustes generales
         </router-link>
       </template>
 
