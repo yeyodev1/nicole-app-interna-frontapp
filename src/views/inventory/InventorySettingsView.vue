@@ -9,9 +9,10 @@ import {
 } from '@/services/inventory.service'
 
 /**
- * Ajustes del inventario (solo el Jefe de Operaciones): bloques, categorías, productos y unidades,
- * con los nombres que quiera. Los cambios se guardan con "Guardar cambios". Lo que ya se contó
- * no cambia.
+ * Ajustes generales (solo el Jefe de Operaciones): el catálogo general de productos por empresa.
+ * "Producto terminado" es la lista de la toma de inventario y también la del Ingreso de producción
+ * (tablet); sus códigos deben existir en Contífico (el servidor lo revisa al guardar).
+ * Los cambios se guardan con "Guardar cambios". Lo que ya se contó o se ingresó no cambia.
  */
 
 const BLOCK_KEYS: InventoryProductBlock[] = ['pt', 'pp', 'mp']
@@ -154,13 +155,14 @@ async function save() {
   saveError.value = ''
   saveMsg.value = ''
   try {
-    catalog.value = await inventoryService.saveCatalog({
+    const { catalog: saved, aviso } = await inventoryService.saveCatalog({
       company: company.value,
       blocks: catalog.value.blocks,
       units: catalog.value.units,
     })
+    catalog.value = saved
     original.value = JSON.stringify(catalog.value)
-    saveMsg.value = '✓ Cambios guardados'
+    saveMsg.value = aviso ? `✓ Cambios guardados. ${aviso}` : '✓ Cambios guardados'
   } catch (e: any) {
     saveError.value = e?.message || 'No se pudieron guardar los cambios.'
   } finally {
@@ -179,9 +181,9 @@ onMounted(load)
   <div class="inv-page">
     <header class="inv-head">
       <div class="ic"><i class="fa-solid fa-gear"></i></div>
-      <div class="ht"><h1>Ajustes de inventario</h1></div>
+      <div class="ht"><h1>Ajustes generales</h1></div>
     </header>
-    <p class="sub">Aquí se arma el catálogo del inventario: bloques, categorías, productos y unidades, con los nombres que quieras. Lo que ya se contó no cambia.</p>
+    <p class="sub">Aquí se arma la lista general de productos de cada empresa: bloques, categorías, productos y unidades. Lo que agregues en <b>Producto terminado</b> aparece en la <b>toma de inventario</b> y en el <b>Ingreso de producción</b>. Lo que ya se contó o se ingresó no cambia.</p>
 
     <div class="field">
       <span class="lab">Empresa</span>
@@ -215,6 +217,11 @@ onMounted(load)
           <label for="aj-title">Nombre del bloque</label>
           <input id="aj-title" v-model.trim="block.title" class="aj-in strong" style="max-width: 360px" maxlength="60" />
         </div>
+
+        <p v-if="blockKey === 'pt'" class="sub">
+          Esta lista es la del Ingreso de producción y la de la toma de inventario. Crea primero el producto en
+          Contífico y copia aquí su código tal cual: al guardar se revisa que exista en Contífico.
+        </p>
 
         <div class="field">
           <span class="lab">Categorías y productos · nombre, código y unidad</span>

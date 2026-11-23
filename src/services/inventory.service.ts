@@ -88,9 +88,13 @@ class InventoryService extends APIBase {
     return data.data
   }
 
-  async saveCatalog(catalog: Pick<InventoryCatalog, 'company' | 'blocks' | 'units'>): Promise<InventoryCatalog> {
+  /** Guarda el catálogo general. `aviso` llega si Contífico no respondió y no se revisaron los códigos. */
+  async saveCatalog(
+    catalog: Pick<InventoryCatalog, 'company' | 'blocks' | 'units'>,
+  ): Promise<{ catalog: InventoryCatalog; aviso: string | null }> {
     const { data } = await this.put<any>('inventory/catalog', catalog)
-    return data.data
+    const { aviso = null, ...saved } = data.data || {}
+    return { catalog: saved as InventoryCatalog, aviso }
   }
 
   async getWeek(company: InventoryCompany): Promise<InventoryWeek> {
