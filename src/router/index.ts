@@ -260,6 +260,12 @@ const router = createRouter({
       component: () => import('../views/inventory/InventoryCountView.vue'),
       meta: { requiresAuth: true, role: 'production', title: 'Toma de inventario' }
     },
+    {
+      path: '/production/inventory/movement',
+      name: 'production-inventory-movement',
+      component: () => import('../views/inventory/InventoryMovementView.vue'),
+      meta: { requiresAuth: true, role: 'production', title: 'Movimiento de inventario' }
+    },
     // Operations Manager Routes
     {
       path: '/operations/report',
@@ -322,6 +328,12 @@ const router = createRouter({
       name: 'operations-inventory',
       component: () => import('../views/inventory/InventoryCountView.vue'),
       meta: { requiresAuth: true, role: 'OPERATIONS_MANAGER', title: 'Toma de inventario' }
+    },
+    {
+      path: '/operations/inventory/movement',
+      name: 'operations-inventory-movement',
+      component: () => import('../views/inventory/InventoryMovementView.vue'),
+      meta: { requiresAuth: true, role: 'OPERATIONS_MANAGER', title: 'Movimiento de inventario' }
     },
     {
       path: '/operations/inventory/settings',
