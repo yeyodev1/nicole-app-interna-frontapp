@@ -74,8 +74,12 @@ export interface InventoryWeek {
   weekOf: string
   /** La toma es de hoy: se puede contar, cerrar y reabrir bloques. */
   editable: boolean
-  /** La toma es de un día anterior: ya no se modifica y se puede empezar una nueva. */
+  /** La toma es de un día anterior y hoy es lunes: se puede empezar una nueva. */
   canStartNew: boolean
+  /** Hoy es lunes: la toma de inventario se hace solo los lunes. */
+  countDay?: boolean
+  /** Ya existe al menos una toma de la empresa. */
+  hasCount?: boolean
   count: InventoryCount
   utensils: InventoryUtensil[]
   /** Conteos de utensilios de las tomas anteriores (de la más vieja a la más reciente). */
