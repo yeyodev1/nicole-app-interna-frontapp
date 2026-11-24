@@ -15,6 +15,7 @@ import { compressPhoto } from './inventoryPhoto'
  * Toma de inventario. La usan Producción y el Jefe de Operaciones.
  * - Utensilios: columnas de las tomas anteriores + la vigente; todo utensilio nuevo lleva foto.
  * - Productos: producto terminado, en proceso y materia prima.
+ * La toma se hace solo los lunes: solo ese día se puede empezar una toma nueva.
  * Se puede pasar de un bloque a otro sin cerrarlo. El mismo día de la toma, un bloque cerrado se
  * puede reabrir para corregir. Desde la medianoche la toma queda bloqueada (también lo que quedó
  * abierto) y se empieza una nueva con el botón "Nueva toma de inventario".
@@ -88,6 +89,14 @@ const shortDate = (iso: string) => {
   const [, m, d] = iso.split('-')
   return `${d}/${m}`
 }
+/** Próximo lunes (día de toma) después de hoy, AAAA-MM-DD. */
+const nextMonday = computed(() => {
+  const today = week.value?.today
+  if (!today) return ''
+  const d = new Date(`${today}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + (((8 - d.getUTCDay()) % 7) || 7))
+  return d.toISOString().slice(0, 10)
+})
 
 const statusOf = (k: InventoryBlock) => week.value?.count[k].status || 'open'
 const isClosed = (k: InventoryBlock) => statusOf(k) === 'closed'
@@ -364,7 +373,7 @@ onBeforeUnmount(flushAll)
       </span>
     </header>
     <p class="sub">
-      <template v-if="screen === 'home'">Elige qué vas a contar. Puedes pasar de un bloque a otro cuando quieras. Un bloque cerrado se puede reabrir para corregir hasta las 23:59 del día de la toma.</template>
+      <template v-if="screen === 'home'">La toma se hace solo los lunes. Elige qué vas a contar. Puedes pasar de un bloque a otro cuando quieras. Un bloque cerrado se puede reabrir para corregir hasta las 23:59 del día de la toma.</template>
       <template v-else-if="screen === 'ut'">Cada toma agrega una columna nueva al lado de las anteriores. Todo utensilio nuevo se registra con su foto.</template>
       <template v-else>Elige el bloque: producto terminado, producto en proceso o materia prima. Puedes cambiar de bloque cuando quieras.</template>
     </p>
@@ -378,11 +387,19 @@ onBeforeUnmount(flushAll)
 
     <template v-else-if="week && catalog">
       <div v-if="locked" class="lockmsg">
-        <p>
-          🔒 La toma del {{ shortDate(week.weekOf) }} está cerrada y ya no se puede modificar.
-          <small>Pasó la medianoche del día de la toma. Para contar de nuevo, empieza una nueva toma.</small>
+        <p v-if="week.hasCount === false">
+          📅 Todavía no hay toma de inventario.
+          <small>La toma se hace solo los lunes. La próxima es el lunes {{ shortDate(nextMonday) }}.</small>
         </p>
-        <button class="btn" :disabled="starting" @click="startNew">
+        <p v-else-if="week.canStartNew">
+          🔒 La toma del {{ shortDate(week.weekOf) }} está cerrada y ya no se puede modificar.
+          <small>Hoy es lunes: empieza la nueva toma de inventario.</small>
+        </p>
+        <p v-else>
+          🔒 La toma del {{ shortDate(week.weekOf) }} está cerrada y ya no se puede modificar.
+          <small>La toma se hace solo los lunes. La próxima es el lunes {{ shortDate(nextMonday) }}.</small>
+        </p>
+        <button v-if="week.canStartNew" class="btn" :disabled="starting" @click="startNew">
           <i v-if="starting" class="fa-solid fa-spinner fa-spin"></i> ＋ Nueva toma de inventario
         </button>
       </div>
