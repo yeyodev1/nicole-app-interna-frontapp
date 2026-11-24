@@ -82,6 +82,48 @@ export interface InventoryWeek {
   history: Array<{ weekOf: string; utensils: Record<string, number> }>
 }
 
+/** Movimiento de inventario (producto terminado): de una toma a la siguiente. Solo lectura. */
+export interface InventoryMovementPeriod {
+  from: string // AAAA-MM-DD: toma que abre el periodo
+  to: string | null // toma que lo cierra; null = periodo abierto (hasta hoy)
+  open: boolean
+  responsible: string
+  ptClosed: boolean
+}
+
+export interface InventoryMovementProduct {
+  code: string
+  name: string
+  unit: string
+  inCatalog: boolean
+  start: number
+  /** Lo contado en la toma que cierra el periodo; null si el periodo sigue abierto. */
+  counted: number | null
+  /** Un valor por día de `days`. */
+  produced: number[]
+  toIslands: number[]
+  toOrders: number[]
+}
+
+export interface InventoryMovement {
+  company: InventoryCompany
+  empty: boolean
+  open: boolean
+  from: string
+  to: string | null
+  startAt: string
+  endAt: string | null
+  responsibleFrom: string
+  responsibleTo: string
+  startClosed: boolean
+  endClosed: boolean | null
+  days: string[]
+  today: string
+  categories: Array<{ name: string; products: InventoryMovementProduct[] }>
+  /** Líneas despachadas que no están en el catálogo de producto terminado (no se restan). */
+  unmatched: { lines: number; units: number; names: string[] }
+}
+
 class InventoryService extends APIBase {
   async getCatalog(company: InventoryCompany): Promise<InventoryCatalog> {
     const { data } = await this.get<any>(`inventory/catalog?company=${company}`)
@@ -131,6 +173,17 @@ class InventoryService extends APIBase {
 
   async createUtensil(payload: { company: InventoryCompany; name: string; photo: string }): Promise<InventoryUtensil> {
     const { data } = await this.post<any>('inventory/utensils', payload)
+    return data.data
+  }
+  async getMovementPeriods(company: InventoryCompany): Promise<InventoryMovementPeriod[]> {
+    const { data } = await this.get<any>(`inventory/movement/periods?company=${company}`)
+    return data.data?.periods || []
+  }
+
+  /** `from` = fecha de la toma que abre el periodo; sin ella, el periodo abierto. */
+  async getMovement(company: InventoryCompany, from?: string): Promise<InventoryMovement> {
+    const q = from ? `&from=${encodeURIComponent(from)}` : ''
+    const { data } = await this.get<any>(`inventory/movement?company=${company}${q}`)
     return data.data
   }
 }
