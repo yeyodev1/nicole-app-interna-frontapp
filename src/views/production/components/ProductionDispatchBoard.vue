@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, toRef } from 'vue'
 import { useDispatchBoard, type BoardProduct } from '../composables/useDispatchBoard'
+import BulkDispatchModal, { type BulkRow } from './BulkDispatchModal.vue'
 
 /**
  * Resumen de Producción · despacho por local.
- * "Todos los locales": solo lectura. San Marino / Mall del Sol: despacho de reposición
- * por producto. Delivery / Centro de producción: solo lectura (se despacha en Órdenes).
+ * "Todos los locales": solo lectura. Puntos de venta (San Marino, Mall del Sol, Entre Ríos…):
+ * despacho de reposición por producto o con "Envío masivo" (todo el local de una vez).
+ * Delivery / Centro de producción: solo lectura (se despacha en Órdenes).
  */
 const props = defineProps<{
   orders: any[]
@@ -19,6 +21,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'send', payload: { local: string; name: string; quantity: number; key: string }): void
+  (e: 'send-bulk', payload: { local: string; label: string; key: string; items: { key: string; name: string; quantity: number }[] }): void
   (e: 'go-orders'): void
 }>()
 
@@ -66,7 +69,34 @@ const send = (p: BoardProduct) => {
 }
 /** Lo llama la pantalla cuando el envío quedó guardado: la casilla vuelve a lo pendiente. */
 const resetDraft = (key: string) => { delete drafts.value[key] }
-defineExpose({ resetDraft })
+
+// ── Envío masivo: toda la reposición pendiente del local en un solo envío ──
+// Solo en puntos de venta (canSend) y con un día elegido; nunca en Todos / Delivery / CDP.
+const bulkOpen = ref(false)
+const bulkKey = computed(() => `${filter.value}|||__masivo__`)
+const bulkRows = computed<BulkRow[]>(() => {
+  if (!current.value?.canSend) return []
+  const rows: BulkRow[] = []
+  for (const c of visibleCategories.value) {
+    for (const p of c.products) {
+      const pending = restockPendingOf(p, filter.value)
+      if (pending > 0) rows.push({ key: rowKey(filter.value, p.name), name: p.name, category: c.name, pending, initial: draftOf(p) })
+    }
+  }
+  return rows
+})
+const canBulk = computed(() => !!current.value?.canSend && !!props.sendDate && !props.sendingKey && bulkRows.value.length > 0)
+const openBulk = () => { if (canBulk.value) bulkOpen.value = true }
+const onBulkConfirm = (items: { key: string; name: string; quantity: number }[]) => {
+  if (!current.value?.canSend || !props.sendDate || props.sendingKey || !items.length) return
+  emit('send-bulk', { local: filter.value, label: current.value.label, key: bulkKey.value, items })
+}
+/** Lo llama la pantalla cuando el envío masivo quedó guardado. */
+const bulkDone = (keys: string[]) => {
+  keys.forEach(resetDraft)
+  bulkOpen.value = false
+}
+defineExpose({ resetDraft, bulkDone })
 
 const localProgress = computed(() => {
   if (filter.value === 'all') return `faltan ${totalPending.value} unids por enviar`
@@ -113,7 +143,21 @@ const catOrderedLocal = (products: BoardProduct[], local: string) => products.re
           <p v-else-if="current?.canSend">Aquí se despacha solo la reposición. La cantidad ya viene escrita: ajústala si hace falta y toca Enviar</p>
           <p v-else>Solo lectura: estos pedidos son de clientes y se despachan uno por uno en Órdenes</p>
         </div>
-        <div class="progress">{{ localProgress }}</div>
+        <div class="head-right">
+          <div class="progress">{{ localProgress }}</div>
+          <button
+            v-if="current?.canSend"
+            type="button"
+            class="bulk-btn"
+            :disabled="!canBulk"
+            :title="!sendDate ? 'Elige Hoy o Mañana para despachar' : !bulkRows.length ? 'No hay reposición pendiente' : ''"
+            @click="openBulk"
+          >
+            <i v-if="sendingKey === bulkKey" class="fas fa-spinner fa-spin"></i>
+            <i v-else class="fas fa-boxes-stacked"></i>
+            Envío masivo
+          </button>
+        </div>
       </div>
 
       <div v-if="current?.canSend && !sendDate" class="date-warn">
@@ -261,6 +305,16 @@ const catOrderedLocal = (products: BoardProduct[], local: string) => products.re
         Para despachar, ve a <button type="button" class="link" @click="emit('go-orders')">Órdenes</button> y usa "Reportar envío" en cada pedido.
       </template>
     </p>
+
+    <BulkDispatchModal
+      :open="bulkOpen"
+      :local-label="current?.label || ''"
+      :send-date="sendDate"
+      :rows="bulkRows"
+      :sending="sendingKey === bulkKey"
+      @close="bulkOpen = false"
+      @confirm="onBulkConfirm"
+    />
   </div>
 </template>
 
@@ -297,6 +351,13 @@ $over: #7e22ce;
   p { margin: 2px 0 0; font-size: 12px; color: $muted; font-weight: 600; text-transform: uppercase; }
 }
 .progress { font-size: 12px; color: $soft; font-weight: 700; }
+.head-right { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.bulk-btn {
+  display: inline-flex; align-items: center; gap: 8px; border: 0; border-radius: 9px; padding: 0 16px; height: 38px;
+  font-weight: 800; font-size: 13px; color: white; background: $brand; cursor: pointer; font-family: inherit;
+  &:disabled { background: $line; color: $muted; cursor: not-allowed; }
+  &:focus-visible { outline: 3px solid #c084fc; outline-offset: 2px; }
+}
 .date-warn { padding: 10px 16px; background: #fefce8; color: #854d0e; font-size: 13px; border-bottom: 1px solid #fde68a; }
 .empty { padding: 2rem 1rem; text-align: center; color: $muted; }
 
