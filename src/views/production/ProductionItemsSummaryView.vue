@@ -127,6 +127,34 @@ const handleSend = async (p: { local: string; name: string; quantity: number; ke
   }
 }
 
+// Envío masivo: toda la reposición elegida de un local en un solo registro.
+const handleSendBulk = async (p: { local: string; label: string; key: string; items: { key: string; name: string; quantity: number }[] }) => {
+  const items = p.items.filter(i => i.quantity > 0)
+  if (!sendDate.value || sendingKey.value || !items.length) return
+  sendingKey.value = p.key
+  try {
+    const res = await ProductionService.registerDispatchProgress(p.local, items.map(i => ({ name: i.name, quantity: i.quantity })), sendDate.value)
+    const results: any[] = res?.data || []
+    await fetchSummary(true)
+    board.value?.bulkDone(items.map(i => i.key))
+    const units = items.reduce((s, i) => s + i.quantity, 0)
+    const short = results.filter(r => r?.remaining > 0)
+    if (short.length) {
+      showError(`Envío a ${p.label} registrado, pero no hay reposición de ese día para: ${short.map(r => `${r.item} (${r.distributed} de ${r.requested})`).join(', ')}.`)
+    } else {
+      success(`Enviado a ${p.label}: ${items.length} productos, ${units} unidades.`)
+    }
+  } catch (err: any) {
+    console.error(err)
+    // Se recarga igual: si algo alcanzó a guardarse, la tabla lo muestra y no se envía dos veces.
+    await fetchSummary(true).catch(() => {})
+    board.value?.bulkDone([])
+    showError(`No se pudo registrar el envío masivo: ${err?.response?.data?.message || err?.message || 'error inesperado'}. Revisa la tabla antes de volver a enviar.`)
+  } finally {
+    sendingKey.value = null
+  }
+}
+
 const goToOrders = () => router.push({ path: '/production/orders' })
 
 const handleExportClick = (mode: 'dispatch' | 'production') => {
@@ -239,6 +267,7 @@ onMounted(() => {
         :send-date="sendDate"
         :sending-key="sendingKey"
         @send="handleSend"
+        @send-bulk="handleSendBulk"
         @go-orders="goToOrders"
       />
 
