@@ -138,6 +138,9 @@ const closePanel = () => { mobileOpen.value = false }
         <router-link to="/operations/inventory" exact-active-class="active" @click="closePanel">
           <i class="fa-solid fa-clipboard-check"></i> Toma de inventario
         </router-link>
+        <router-link to="/operations/inventory/movement" active-class="active" @click="closePanel">
+          <i class="fa-solid fa-arrow-right-arrow-left"></i> Movimiento de inventario
+        </router-link>
         <span class="nav-group-label">Configuración</span>
         <router-link to="/operations/inventory/settings" active-class="active" @click="closePanel">
           <i class="fa-solid fa-gear"></i> Ajustes generales
@@ -161,8 +164,11 @@ const closePanel = () => { mobileOpen.value = false }
           <i class="fa-solid fa-plus"></i> Ingreso de producción
         </router-link>
         <span class="nav-group-label">Inventarios</span>
-        <router-link to="/production/inventory" active-class="active" @click="closePanel">
+        <router-link to="/production/inventory" exact-active-class="active" @click="closePanel">
           <i class="fa-solid fa-clipboard-check"></i> Toma de inventario
+        </router-link>
+        <router-link to="/production/inventory/movement" active-class="active" @click="closePanel">
+          <i class="fa-solid fa-arrow-right-arrow-left"></i> Movimiento de inventario
         </router-link>
       </template>
 
