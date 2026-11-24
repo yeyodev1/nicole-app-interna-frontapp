@@ -11,10 +11,14 @@ import {
   monthLabel,
 } from '@/services/production-history.service'
 import ProductionEntryCard from './components/ProductionEntryCard.vue'
+import PlantProductionPanel from './components/PlantProductionPanel.vue'
 
-/** Histórico de producción: solo lo ve el Jefe de Operaciones. */
+/** Histórico de producción: solo lo ve el Jefe de Operaciones. Pestañas: Hoy en planta (por fechas) y Mes. */
 const router = useRouter()
+const tab = ref<'planta' | 'mes'>('planta')
 const history = ref<ProductionHistory | null>(null)
+/** Mes actual (primera carga): lo usa "Hoy en planta" para no pedirlo de nuevo. */
+const currentMonthHistory = ref<ProductionHistory | null>(null)
 const loading = ref(true)
 const error = ref('')
 const month = ref('')
@@ -26,6 +30,7 @@ async function load(m?: string) {
   try {
     history.value = await productionHistoryService.getHistory(m)
     month.value = history.value.month
+    if (!currentMonthHistory.value && history.value.month === history.value.today.slice(0, 7)) currentMonthHistory.value = history.value
   } catch (e: any) {
     error.value = e?.message || 'No se pudo cargar el histórico.'
   } finally {
@@ -50,8 +55,8 @@ const days = computed(() => {
   return Array.from(byDay.entries()).sort((a, b) => b[0].localeCompare(a[0]))
 })
 
-function openOperator(id: string) {
-  router.push({ name: 'operations-production-operator', params: { id }, query: { month: month.value } })
+function openOperator(id: string, m: string = month.value) {
+  router.push({ name: 'operations-production-operator', params: { id }, query: { month: m } })
 }
 
 onMounted(() => load())
@@ -65,7 +70,11 @@ onMounted(() => load())
         <h1>Histórico de producción</h1>
         <p>Lo que registra cada operario en la tablet de planta.</p>
       </div>
-      <div class="month">
+      <div class="tabs" role="tablist" aria-label="Vista">
+        <button type="button" role="tab" class="tab" :class="{ on: tab === 'planta' }" :aria-selected="tab === 'planta'" @click="tab = 'planta'">Hoy en planta</button>
+        <button type="button" role="tab" class="tab" :class="{ on: tab === 'mes' }" :aria-selected="tab === 'mes'" @click="tab = 'mes'">Mes</button>
+      </div>
+      <div v-if="tab === 'mes'" class="month">
         <button aria-label="Mes anterior" @click="shiftMonth(-1)"><i class="fa-solid fa-chevron-left"></i></button>
         <span class="pill"><i class="fa-regular fa-calendar"></i> {{ month ? monthLabel(month) : '…' }}</span>
         <button aria-label="Mes siguiente" :disabled="isCurrentMonth" @click="shiftMonth(1)"><i class="fa-solid fa-chevron-right"></i></button>
@@ -75,7 +84,13 @@ onMounted(() => load())
     <div v-if="loading && !history" class="sec muted">Cargando…</div>
     <div v-else-if="error" class="sec"><p class="error">{{ error }}</p><button class="btn" @click="load(month || undefined)">Reintentar</button></div>
 
-    <template v-if="history">
+    <PlantProductionPanel
+      v-if="tab === 'planta' && currentMonthHistory"
+      :seed="currentMonthHistory"
+      @open-operator="openOperator"
+    />
+
+    <template v-if="history && tab === 'mes'">
       <p v-if="!history.pricesAvailable" class="warn">Contífico no respondió: el valor a precio de venta puede salir en $0. Vuelve a cargar en unos minutos.</p>
 
       <div class="kpis">
@@ -132,4 +147,10 @@ onMounted(() => load())
 
 <style lang="scss" scoped>
 @use './production-history.scss';
+
+.tabs { display: flex; gap: 4px; background: #f8fafc; border: 1px solid #e8ecf2; border-radius: 12px; padding: 4px; }
+.tab { border: 0; background: transparent; font: inherit; font-weight: 700; font-size: .88rem; color: #64748b; padding: 7px 14px; border-radius: 9px; cursor: pointer;
+  &.on { background: #fff; color: #6d28d9; box-shadow: 0 1px 2px rgba(15, 23, 42, .08); }
+  &:focus-visible { outline: 2px solid #6d28d9; outline-offset: 1px; }
+}
 </style>
