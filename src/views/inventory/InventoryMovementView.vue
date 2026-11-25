@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import ProductNoteEditor from '@/components/ui/ProductNoteEditor.vue'
 import {
   inventoryService,
   type InventoryCompany,
@@ -14,7 +15,7 @@ import {
  *   debería haber = toma de inicio + producido (tablet) − despachado a islas − despachado en pedidos
  *   diferencia    = lo contado en la toma siguiente − debería haber
  * Se elige la semana (de una toma a la siguiente); la última sigue abierta hasta la próxima toma.
- * Solo lectura: no guarda nada.
+ * Solo lectura, salvo los comentarios por producto, que se guardan por periodo (toma que lo abre).
  */
 
 const company = ref<InventoryCompany>('nicole')
@@ -25,6 +26,24 @@ const selected = ref('')
 const loading = ref(true)
 const loadError = ref('')
 let seq = 0
+
+// ── Comentarios por producto (cualquier producto; se guardan en el periodo) ──
+const noteOf = (code: string) => data.value?.notes?.[code] || null
+const noteTooltip = (code: string) => {
+  const n = noteOf(code)
+  return n ? `${n.comment} (${n.updatedBy})` : ''
+}
+/** Guarda o borra (texto vacío) el comentario del producto en el periodo visible. */
+const saveNote = (r: { code: string; name: string }) => async (comment: string) => {
+  if (!data.value) return
+  const saved = await inventoryService.saveMovementNote({
+    company: data.value.company, from: data.value.from, code: r.code, name: r.name, comment,
+  })
+  const notes = { ...(data.value.notes || {}) }
+  if (saved) notes[r.code] = saved
+  else delete notes[r.code]
+  data.value = { ...data.value, notes }
+}
 
 const WEEKDAYS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb']
 const dm = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`
@@ -238,7 +257,17 @@ const startNote = computed(() => {
               <td class="out">{{ r.cli ? '−' + fmt(r.cli) : '0' }}</td>
               <td class="should" :class="{ neg: r.deberia < 0 }">{{ fmt(r.deberia) }}</td>
               <td class="b">{{ r.counted === null ? '—' : fmt(r.counted) }}</td>
-              <td class="dif" :class="difClass(r.dif)">{{ difText(r.dif) }}</td>
+              <td class="dif" :class="difClass(r.dif)">
+                {{ difText(r.dif) }}
+                <ProductNoteEditor
+                  :comment="noteOf(r.code)?.comment || null"
+                  :tooltip="noteTooltip(r.code)"
+                  :product-name="r.name"
+                  placeholder="Escribe un comentario sobre este producto en la semana"
+                  allow-delete
+                  :save="saveNote(r)"
+                />
+              </td>
             </tr>
           </tbody>
           <tfoot>
