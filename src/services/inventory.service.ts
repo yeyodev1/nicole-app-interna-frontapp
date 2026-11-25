@@ -126,6 +126,8 @@ export interface InventoryMovement {
   categories: Array<{ name: string; products: InventoryMovementProduct[] }>
   /** Líneas despachadas que no están en el catálogo de producto terminado (no se restan). */
   unmatched: { lines: number; units: number; names: string[] }
+  /** Tortas enteras despachadas que se restaron como porciones de su sabor (10 c/u; Keto 8). Opcional: back anterior no lo manda. */
+  wholeCakes?: { cakes: number; portions: number }
 }
 
 class InventoryService extends APIBase {
