@@ -46,12 +46,15 @@ const visibleCategories = computed(() =>
     .filter(c => c.products.length > 0),
 )
 
-// ── Casilla "Enviar reposición": ya llena con lo pendiente de reposición ──
+// ── Casilla "Enviar reposición": arranca en 0 ──
+// El operario escribe lo que realmente sale del CDP. Antes venía llena con lo pendiente y,
+// tras un envío parcial (9 de 10), se rellenaba con el resto (1), que terminaba registrado
+// como enviado sin haber salido (Mall del Sol, Hazelnut, 25/11/2026).
 const drafts = ref<Record<string, number>>({})
 const rowKey = (local: string, name: string) => `${local}|||${name}`
 const draftOf = (p: BoardProduct) => {
   const k = rowKey(filter.value, p.name)
-  return drafts.value[k] ?? restockPendingOf(p, filter.value)
+  return drafts.value[k] ?? 0
 }
 const setDraft = (p: BoardProduct, v: number) => {
   drafts.value[rowKey(filter.value, p.name)] = Math.max(0, Math.round(Number(v) || 0))
@@ -67,7 +70,7 @@ const send = (p: BoardProduct) => {
   const key = rowKey(filter.value, p.name)
   emit('send', { local: filter.value, name: p.name, quantity, key })
 }
-/** Lo llama la pantalla cuando el envío quedó guardado: la casilla vuelve a lo pendiente. */
+/** Lo llama la pantalla cuando el envío quedó guardado: la casilla vuelve a 0. */
 const resetDraft = (key: string) => { delete drafts.value[key] }
 
 // ── Envío masivo: toda la reposición pendiente del local en un solo envío ──

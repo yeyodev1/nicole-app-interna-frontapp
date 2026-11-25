@@ -57,6 +57,8 @@ const toggleHistoryPanel = () => {
 
 // Orden 5: aviso de pedidos atrasados de los últimos 7 días (sin enviar o parciales).
 // Los de hace más de 7 días no se cuentan. Respeta el filtro Todas / Nicole / Sucree.
+// La reposición a los locales solo cuenta el día de su entrega: a las 00:00 lo que no se
+// envió deja de avisarse (Ricardo, 25/11/2026). Los pedidos de clientes siguen 7 días.
 const showDelayed = ref(false)
 const delayedOrders = computed(() => {
   const today = getECTNow()
@@ -66,6 +68,7 @@ const delayedOrders = computed(() => {
   return rawOrders.value
     .filter(o => {
       if (o.productionStage === 'VOID' || !o.deliveryDate) return false
+      if (o.salesChannel === 'Restock' || o.salesChannel === 'Restock-Bodega') return false
       if (o.dispatchStatus && !['NOT_SENT', 'PARTIAL'].includes(o.dispatchStatus)) return false
       if (sourceFilter.value !== 'all' && o.contificoSource !== sourceFilter.value) return false
       const d = parseECTDate(o.deliveryDate)
