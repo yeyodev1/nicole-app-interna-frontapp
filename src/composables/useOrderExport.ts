@@ -240,7 +240,11 @@ export function useOrderExport() {
     orders: any[],
     branchName: string,
     categoryByName?: Record<string, string>,
-    output: ExportOutput = 'xlsx'
+    output: ExportOutput = 'xlsx',
+    // clientDetail: en "PEDIDOS DE CLIENTES" agrega la fecha de entrega y el
+    // comentario completo (todas sus líneas). Solo lo pide el botón "Orden de
+    // Entrega" de la pantalla Pedidos (/orders), que usa ventas (Rebecca).
+    opts: { clientDetail?: boolean } = {}
   ) => {
     isExporting.value = true
     try {
@@ -440,26 +444,43 @@ export function useOrderExport() {
       writeQtyRow('TOTAL GENERAL', Object.values(grand).reduce((s, q) => s + q, 0), grand, 'total')
 
       // ── 5. Detalle de pedidos de clientes ──
+      const detail = !!opts.clientDetail
+      const dayKey = (o: any) => (o.deliveryDate ? String(o.deliveryDate).slice(0, 10) : '9999-99-99')
       const clientOrders = orders
         .filter(o => !isRestock(o))
-        .sort((a, b) => String(a.deliveryTime || '99:99').localeCompare(String(b.deliveryTime || '99:99')) || String(a.customerName || '').localeCompare(String(b.customerName || '')))
+        .sort((a, b) =>
+          (detail ? dayKey(a).localeCompare(dayKey(b)) : 0) ||
+          String(a.deliveryTime || '99:99').localeCompare(String(b.deliveryTime || '99:99')) ||
+          String(a.customerName || '').localeCompare(String(b.customerName || '')))
+      // Con detalle, la tabla de clientes puede necesitar más columnas que la de arriba
+      const detailLast = detail ? Math.max(lastCol, 9) : lastCol
+      const detailCols = detailLast + 1
       // En el PDF para imprimir va solo la tabla (una hoja): el detalle de clientes queda en el Excel.
       if (clientOrders.length && output === 'xlsx') {
         wsData.push(blankRow())
         r++
-        // Reparto de columnas: Cliente · Hora · Va a · Productos · Nota
-        const rest = lastCol - 2
-        const third = Math.max(1, Math.floor(rest / 3))
-        const spans: Array<[number, number]> = [[0, 0], [1, 1], [2, 2 + third - 1], [2 + third, 2 + 2 * third - 1], [2 + 2 * third, lastCol]]
+        let spans: Array<[number, number]>
+        if (detail) {
+          // Cliente · Fecha · Hora · Va a · Productos · Comentarios
+          const rest = detailLast - 3
+          const va = Math.max(1, Math.floor(rest * 0.3))
+          const prod = Math.max(1, Math.floor(rest * 0.3))
+          spans = [[0, 0], [1, 1], [2, 3], [4, 4 + va - 1], [4 + va, 4 + va + prod - 1], [4 + va + prod, detailLast]]
+        } else {
+          // Cliente · Hora · Va a · Productos · Nota
+          const rest = lastCol - 2
+          const third = Math.max(1, Math.floor(rest / 3))
+          spans = [[0, 0], [1, 1], [2, 2 + third - 1], [2 + third, 2 + 2 * third - 1], [2 + 2 * third, lastCol]]
+        }
 
-        wsData.push([`PEDIDOS DE CLIENTES · ${clientOrders.length} pedidos (armar por separado, con su nombre)`, ...Array(totalCols - 1).fill('')])
-        merge(r, 0, r, lastCol)
-        for (let c = 0; c < totalCols; c++) S(r, c, { font: { bold: true, sz: 12, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: PURPLE } }, alignment: { vertical: 'center', indent: 1 } })
+        wsData.push([`PEDIDOS DE CLIENTES · ${clientOrders.length} pedidos (armar por separado, con su nombre)`, ...Array(detailCols - 1).fill('')])
+        merge(r, 0, r, detailLast)
+        for (let c = 0; c < detailCols; c++) S(r, c, { font: { bold: true, sz: 12, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: PURPLE } }, alignment: { vertical: 'center', indent: 1 } })
         rowHeights[r] = { hpt: 24 }
         r++
 
         const writeSpans = (values: string[], style: (i: number) => any, height: number) => {
-          const row = blankRow()
+          const row: any[] = Array(detailCols).fill('')
           spans.forEach(([c0, c1], i) => {
             row[c0] = values[i] ?? ''
             merge(r, c0, r, c1)
@@ -469,7 +490,10 @@ export function useOrderExport() {
           rowHeights[r] = { hpt: height }
           r++
         }
-        writeSpans(['CLIENTE', 'HORA', 'VA A', 'PRODUCTOS', 'NOTA / ✓'], () => ({ font: { bold: true, sz: 9, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: INK } }, alignment: { horizontal: 'center', vertical: 'center' }, border: box }), 20)
+        const headers = detail
+          ? ['CLIENTE', 'FECHA DE ENTREGA', 'HORA', 'VA A', 'PRODUCTOS', 'COMENTARIOS / ✓']
+          : ['CLIENTE', 'HORA', 'VA A', 'PRODUCTOS', 'NOTA / ✓']
+        writeSpans(headers, () =>({ font: { bold: true, sz: 9, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: INK } }, alignment: { horizontal: 'center', vertical: 'center' }, border: box }), 20)
 
         clientOrders.forEach(o => {
           const { branch, kind } = destOf(o)
@@ -484,6 +508,23 @@ export function useOrderExport() {
           // Nota corta: el comentario del pedido sin los datos de la tienda online
           const rawNote = String(o.comments || '').split('\n').map(s => s.trim()).filter(s => s && !/^(compra|email|c[ée]dula|pago):/i.test(s))[0] || ''
           const note = rawNote.length > 90 ? `${rawNote.slice(0, 87)}…` : rawNote
+          if (detail) {
+            // Comentario completo, todas sus líneas (sin los datos de la tienda online)
+            const fullNote = String(o.comments || '').split('\n').map(s => s.trim()).filter(s => s && !/^(compra|email|c[ée]dula|pago):/i.test(s)).join('\n')
+            const fecha = o.deliveryDate ? formatECT(o.deliveryDate, false) : '—'
+            const lines = Math.max(fullNote.split('\n').length, Math.ceil(fullNote.length / 45), Math.ceil(productos.length / 40), Math.ceil(va.length / 35), 1)
+            writeSpans(
+              [String(o.customerName || '').trim(), fecha, o.deliveryTime || '—', va, productos, fullNote ? `☐ ${fullNote}` : '☐'],
+              i => ({
+                font: { sz: 10, bold: i === 0 || i === 4, color: { rgb: i === 5 && fullNote ? 'B45309' : INK } },
+                ...(i === 3 ? { fill: { fgColor: { rgb: color?.soft || 'FFFFFF' } } } : {}),
+                alignment: { horizontal: i === 1 || i === 2 ? 'center' : 'left', vertical: 'center', wrapText: true, indent: i === 1 || i === 2 ? 0 : 1 },
+                border: box,
+              }),
+              Math.min(400, Math.max(20, lines * 14 + 6))
+            )
+            return
+          }
           const long = va.length > 35 || productos.length > 45 || note.length > 30
           writeSpans(
             [String(o.customerName || '').trim(), o.deliveryTime || '—', va, productos, note ? `☐ ${note}` : '☐'],
@@ -503,7 +544,7 @@ export function useOrderExport() {
       const ws = XLSX.utils.aoa_to_sheet(wsData)
       ws['!merges'] = merges
       ws['!rows'] = wsData.map((_, i) => rowHeights[i] ?? {})
-      ws['!cols'] = Array.from({ length: totalCols }, (_, c) => ({ wch: c === 0 ? 38 : c === 1 ? 12 : spacers.has(c) ? 2.5 : 11 }))
+      ws['!cols'] = Array.from({ length: Math.max(totalCols, detailCols) }, (_, c) => ({ wch: c === 0 ? 38 : c === 1 ? 12 : spacers.has(c) ? 2.5 : 11 }))
       Object.keys(styles).forEach(ref => {
         if (!ws[ref]) ws[ref] = { t: 's', v: '' }
         ws[ref].s = styles[ref]
