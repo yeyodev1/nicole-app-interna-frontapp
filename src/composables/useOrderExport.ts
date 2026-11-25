@@ -4,6 +4,10 @@ import XLSX from 'xlsx-js-style'
 import { formatECT } from '@/utils/dateUtils'
 import type { DailyFormData } from '@/services/pos-restock.service'
 import { XL, xlBox, xlStyle } from '@/utils/excelTheme'
+import { printWorksheet } from '@/utils/printWorksheet'
+
+/** 'xlsx' descarga el Excel; 'pdf' imprime la misma hoja en una sola página (ajustada al ancho). */
+export type ExportOutput = 'xlsx' | 'pdf'
 
 export function useOrderExport() {
   const isExporting = ref(false)
@@ -21,7 +25,8 @@ export function useOrderExport() {
   const exportProductionOrder = async (
     orders: any[],
     responsibleName: string,
-    categoryByName?: Record<string, string>
+    categoryByName?: Record<string, string>,
+    output: ExportOutput = 'xlsx'
   ) => {
     isExporting.value = true
     try {
@@ -210,6 +215,10 @@ export function useOrderExport() {
 
       Object.keys(wsStyle).forEach(ref => { if (ws[ref]) ws[ref].s = wsStyle[ref] })
 
+      if (output === 'pdf') {
+        printWorksheet(ws, `Orden de Producción ${today}`)
+        return
+      }
       XLSX.utils.book_append_sheet(wb, ws, 'Orden de Producción')
       saveExcelFile(wb, `Orden_Produccion_${today}`)
 
@@ -230,7 +239,8 @@ export function useOrderExport() {
   const exportDispatchOrder = async (
     orders: any[],
     branchName: string,
-    categoryByName?: Record<string, string>
+    categoryByName?: Record<string, string>,
+    output: ExportOutput = 'xlsx'
   ) => {
     isExporting.value = true
     try {
@@ -433,7 +443,8 @@ export function useOrderExport() {
       const clientOrders = orders
         .filter(o => !isRestock(o))
         .sort((a, b) => String(a.deliveryTime || '99:99').localeCompare(String(b.deliveryTime || '99:99')) || String(a.customerName || '').localeCompare(String(b.customerName || '')))
-      if (clientOrders.length) {
+      // En el PDF para imprimir va solo la tabla (una hoja): el detalle de clientes queda en el Excel.
+      if (clientOrders.length && output === 'xlsx') {
         wsData.push(blankRow())
         r++
         // Reparto de columnas: Cliente · Hora · Va a · Productos · Nota
@@ -497,6 +508,10 @@ export function useOrderExport() {
         if (!ws[ref]) ws[ref] = { t: 's', v: '' }
         ws[ref].s = styles[ref]
       })
+      if (output === 'pdf') {
+        printWorksheet(ws, `Orden de Despacho ${dateLabel}`)
+        return
+      }
       XLSX.utils.book_append_sheet(wb, ws, 'Despacho')
       saveExcelFile(wb, `Orden_Despacho_${dateLabel}`)
     } catch (error) {

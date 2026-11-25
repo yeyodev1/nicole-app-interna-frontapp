@@ -8,7 +8,6 @@ import { useRouter } from 'vue-router'
 import ProductionService from '@/services/production.service'
 import { useProductionSummary } from '@/composables/useProductionSummary'
 import { useOrderExport } from '@/composables/useOrderExport'
-import { printOrderSheets } from '@/utils/printOrderSheets'
 import { useToast } from '@/composables/useToast'
 import { getECTNow, getECTTodayString, parseECTDate } from '@/utils/dateUtils'
 
@@ -191,33 +190,16 @@ const handleExportConfirm = async (opts: {
       return
     }
 
-    // PDF para imprimir: una hoja por sucursal, se abre directo la ventana de impresión
-    if (opts.format === 'pdf') {
-      const sheets = printOrderSheets({
-        mode: exportMode.value,
-        orders: ordersToExport,
-        destOf,
-        destinationOrder: exportDestinations.value,
-        categoryByName: contificoCatByName.value,
-        date: opts.date,
-        responsibleName: opts.responsibleName,
-      })
-      if (!sheets) {
-        showError('Los pedidos elegidos no tienen productos para imprimir.')
-        return
-      }
-      showExportModal.value = false
-      return
-    }
-
+    // Excel o PDF para imprimir (la misma hoja, en una sola página ajustada al ancho)
+    const done = opts.format === 'pdf' ? 'lista para imprimir.' : 'exportada (Excel descargado).'
     if (exportMode.value === 'dispatch') {
       const label = opts.destinations === 'all' ? 'Todas las sucursales' : opts.destinations.join(' + ')
-      await exportDispatchOrder(ordersToExport, label, contificoCatByName.value)
-      success('Orden de Entrega exportada (Excel descargado).')
+      await exportDispatchOrder(ordersToExport, label, contificoCatByName.value, opts.format)
+      success(`Orden de Entrega ${done}`)
     } else {
-      // Excel con las categorías tal cual Contífico
-      await exportProductionOrder(ordersToExport, opts.responsibleName, contificoCatByName.value)
-      success('Orden de Producción exportada (Excel descargado).')
+      // Categorías tal cual Contífico
+      await exportProductionOrder(ordersToExport, opts.responsibleName, contificoCatByName.value, opts.format)
+      success(`Orden de Producción ${done}`)
     }
 
     showExportModal.value = false
