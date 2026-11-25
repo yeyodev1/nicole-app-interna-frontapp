@@ -229,7 +229,7 @@ const startNote = computed(() => {
               <td class="l">
                 <button class="pname" :aria-pressed="r.code === selected" @click="selected = r.code">
                   <span class="nm">{{ r.name }}</span>
-                  <small>{{ r.code }}<template v-if="!r.inCatalog"> · fuera del catálogo</template></small>
+                  <small>{{ r.code }}<template v-if="r.wholeCakeCodes?.length"> ({{ r.wholeCakeCodes.map(c => `+${c}`).join(', ') }})</template><template v-if="!r.inCatalog"> · fuera del catálogo</template></small>
                 </button>
               </td>
               <td>{{ fmt(r.start) }}</td>

@@ -100,6 +100,8 @@ export interface InventoryMovementProduct {
   name: string
   unit: string
   inCatalog: boolean
+  /** Códigos de torta entera (CAKE-…) que también restan de esta porción. Opcional: back anterior no lo manda. */
+  wholeCakeCodes?: string[]
   start: number
   /** Lo contado en la toma que cierra el periodo; null si el periodo sigue abierto. */
   counted: number | null
