@@ -3,8 +3,8 @@ import { ref, computed, watch, onBeforeUnmount } from 'vue'
 
 /**
  * Envío masivo de reposición a un local (Resumen de Producción).
- * Lista lo pendiente de reposición del local; cada cantidad se puede subir o bajar
- * y cada producto se puede quitar. "Aprobar y enviar todo" emite un solo envío.
+ * Lista lo pendiente de reposición del local; cada cantidad arranca en 0 (o en lo escrito en la tabla)
+ * y el operario pone lo que realmente sale. Cada producto se puede quitar. "Aprobar y enviar todo" emite un solo envío.
  * No incluye pedidos de clientes: esos se despachan uno por uno en Órdenes.
  */
 export interface BulkRow {
@@ -32,7 +32,7 @@ const emit = defineEmits<{
 const qty = ref<Record<string, number>>({})
 const picked = ref<Record<string, boolean>>({})
 
-// Al abrir: cantidades = lo escrito en la tabla; todo marcado.
+// Al abrir: cantidades = lo escrito en la tabla (0 si no se escribió nada); todo marcado.
 watch(() => props.open, (isOpen) => {
   if (!isOpen) return
   qty.value = Object.fromEntries(props.rows.map(r => [r.key, r.initial]))
@@ -91,7 +91,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
         <h3 id="bd-title">Envío masivo · {{ localLabel }}</h3>
         <p>
           Revisa lo que sale del Centro de producción para la reposición del <b>{{ dateLabel }}</b>.
-          Ajusta la cantidad si mandas más o menos, y desmarca lo que no vayas a enviar.
+          Escribe lo que realmente sale de cada producto: lo que quede en 0 no se envía.
         </p>
       </div>
 
