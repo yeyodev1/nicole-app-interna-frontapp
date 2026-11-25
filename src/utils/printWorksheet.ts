@@ -5,7 +5,7 @@ import XLSX from 'xlsx-js-style'
  * "PDF para imprimir": imprime la MISMA hoja que se exporta a Excel (mismos colores, bloques y
  * celdas combinadas), ajustada al ancho de la hoja y en una sola página. Elige vertical u
  * horizontal según lo que deje la letra más grande. Usa la impresión del navegador (iframe
- * oculto): desde ahí se imprime o se "Guarda como PDF".
+ * oculto con srcdoc): desde ahí se imprime o se "Guarda como PDF".
  */
 
 const MM = 96 / 25.4 // px por milímetro
@@ -82,40 +82,6 @@ export function printWorksheet(ws: any, title: string): void {
   iframe.setAttribute('aria-hidden', 'true')
   // Fuera de pantalla pero con tamaño, para poder medir la tabla antes de imprimir.
   iframe.style.cssText = 'position:fixed;left:-10000px;top:0;width:1400px;height:1000px;border:0;visibility:hidden'
-  document.body.appendChild(iframe)
-  const win = iframe.contentWindow
-  const doc = iframe.contentDocument || win?.document
-  if (!doc || !win) {
-    iframe.remove()
-    throw new Error('El navegador no permitió abrir la impresión.')
-  }
-  doc.open()
-  doc.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${esc(title)}</title>
-<style id="page"></style>
-<style>
-* { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-html, body { margin: 0; padding: 0; background: #fff; }
-body { font-family: Calibri, Carlito, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1E293B; font-size: 11pt; }
-table { border-collapse: collapse; table-layout: fixed; }
-td { padding: 1px 4px; vertical-align: middle; overflow: hidden; line-height: 1.15; }
-</style></head><body>${html}</body></html>`)
-  doc.close()
-
-  // Una sola hoja, ajustada al ancho: se mide la tabla y se escala para que entre completa,
-  // en la orientación que deje la letra más grande.
-  const table = doc.getElementById('sheet') as HTMLElement | null
-  const W = table?.offsetWidth || 1
-  const H = table?.offsetHeight || 1
-  const fit = (o: 'portrait' | 'landscape') => {
-    const pw = (PAGE[o].w - 2 * MARGIN_MM) * MM
-    const ph = (PAGE[o].h - 2 * MARGIN_MM) * MM
-    return Math.min(pw / W, ph / H) * 0.98
-  }
-  const orientation = fit('portrait') >= fit('landscape') ? 'portrait' : 'landscape'
-  const scale = fit(orientation)
-  const pageCss = doc.getElementById('page')
-  if (pageCss) pageCss.textContent = `@page { size: A4 ${orientation}; margin: ${MARGIN_MM}mm; }`
-  if (table) (table.style as any).zoom = String(scale)
 
   let removed = false
   const cleanup = () => {
@@ -123,10 +89,47 @@ td { padding: 1px 4px; vertical-align: middle; overflow: hidden; line-height: 1.
     removed = true
     setTimeout(() => iframe.remove(), 500)
   }
-  win.addEventListener('afterprint', cleanup)
-  setTimeout(() => {
-    win.focus()
-    win.print()
-    setTimeout(cleanup, 60000)
-  }, 250)
+
+  // Se imprime cuando el documento terminó de cargar (no con una espera fija):
+  // en un iPad lento una espera corta puede dejar la hoja en blanco.
+  iframe.addEventListener('load', () => {
+    const win = iframe.contentWindow
+    const doc = iframe.contentDocument
+    if (!win || !doc) return cleanup()
+
+    // Una sola hoja, ajustada al ancho: se mide la tabla y se escala para que entre completa,
+    // en la orientación que deje la letra más grande.
+    const table = doc.getElementById('sheet') as HTMLElement | null
+    const W = table?.offsetWidth || 1
+    const H = table?.offsetHeight || 1
+    const fit = (o: 'portrait' | 'landscape') => {
+      const pw = (PAGE[o].w - 2 * MARGIN_MM) * MM
+      const ph = (PAGE[o].h - 2 * MARGIN_MM) * MM
+      return Math.min(pw / W, ph / H) * 0.98
+    }
+    const orientation = fit('portrait') >= fit('landscape') ? 'portrait' : 'landscape'
+    const pageCss = doc.getElementById('page')
+    if (pageCss) pageCss.textContent = `@page { size: A4 ${orientation}; margin: ${MARGIN_MM}mm; }`
+    if (table) (table.style as any).zoom = String(fit(orientation))
+
+    win.addEventListener('afterprint', cleanup)
+    // Un instante para que tome el zoom antes de abrir la impresión
+    // (no requestAnimationFrame: en un iframe oculto el navegador puede pausarlo).
+    win.setTimeout(() => {
+      win.focus()
+      win.print()
+      setTimeout(cleanup, 60000) // por si el navegador no avisa "afterprint"
+    }, 50)
+  }, { once: true })
+
+  iframe.srcdoc = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${esc(title)}</title>
+<style id="page"></style>
+<style>
+* { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+html, body { margin: 0; padding: 0; background: #fff; }
+body { font-family: Calibri, Carlito, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1E293B; font-size: 11pt; }
+table { border-collapse: collapse; table-layout: fixed; }
+td { padding: 1px 4px; vertical-align: middle; overflow: hidden; line-height: 1.15; }
+</style></head><body>${html}</body></html>`
+  document.body.appendChild(iframe)
 }
