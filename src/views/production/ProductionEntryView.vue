@@ -5,12 +5,14 @@ import {
   type ProductionTabletData,
   type ProductionCompany,
 } from '@/services/production-entry.service'
+import ProductionDayEntries from './components/ProductionDayEntries.vue'
 
 /**
  * Ingreso de producción (tablet de planta). Dos pantallas:
  * 1) ¿Quién eres? empresa + operario + selfie con la cámara frontal.
  * 2) ¿Qué produjiste? área + productos agregados uno por uno + confirmar.
  * La selfie se comprime al mínimo: solo queda la última de cada operario.
+ * Debajo: las fichas guardadas por día (ProductionDayEntries); las de hoy se pueden corregir.
  */
 
 const data = ref<ProductionTabletData | null>(null)
@@ -28,6 +30,7 @@ const items = ref<Array<{ code: string; name: string; category: string; quantity
 const sending = ref(false)
 const sendError = ref('')
 const saved = ref<{ totalUnits: number; operatorName: string } | null>(null)
+const dayEntries = ref<InstanceType<typeof ProductionDayEntries> | null>(null)
 
 const todayLabel = computed(() => {
   const iso = data.value?.today
@@ -208,6 +211,7 @@ async function send() {
     })
     saved.value = { totalUnits: res.totalUnits, operatorName: res.operatorName }
     step.value = 2
+    dayEntries.value?.showToday()
     window.scrollTo({ top: 0, behavior: 'smooth' })
   } catch (e: any) {
     sendError.value = e?.message || 'No se pudo guardar. Revisa el internet y vuelve a tocar "Confirmar y enviar".'
@@ -382,9 +386,12 @@ onBeforeUnmount(stopCamera)
       <!-- Listo -->
       <section v-else class="panel">
         <div class="ok">✓ Listo, {{ saved?.operatorName }}. Tu ingreso de {{ saved?.totalUnits }} unidades quedó guardado.</div>
-        <p class="muted">Tu ingreso ya aparece en el panel de Operaciones.</p>
+        <p class="muted">Tu ingreso ya aparece en el panel de Operaciones y abajo, en las fichas de hoy. Si te equivocaste, toca "Corregir" hasta las 00:00.</p>
         <div><button class="btn" @click="newEntry">Nuevo ingreso</button></div>
       </section>
+
+      <!-- Fichas guardadas por día (siempre debajo) -->
+      <ProductionDayEntries ref="dayEntries" :today="data.today" :catalog="data.catalog" />
     </template>
   </div>
 </template>
