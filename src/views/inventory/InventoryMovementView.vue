@@ -125,6 +125,19 @@ const groups = computed(() =>
   (data.value?.categories || []).map(c => ({ name: c.name, rows: c.products.map(toRow) })),
 )
 const allRows = computed(() => groups.value.flatMap(g => g.rows))
+// Categorías plegables: se recuerdan mientras la pantalla está abierta (también al cambiar de semana).
+const collapsed = ref<Set<string>>(new Set())
+const isCollapsed = (name: string) => collapsed.value.has(name)
+const toggleCat = (name: string) => {
+  const next = new Set(collapsed.value)
+  if (next.has(name)) next.delete(name)
+  else next.add(name)
+  collapsed.value = next
+}
+const allCollapsed = computed(() => groups.value.length > 0 && groups.value.every(g => collapsed.value.has(g.name)))
+const toggleAll = () => {
+  collapsed.value = allCollapsed.value ? new Set() : new Set(groups.value.map(g => g.name))
+}
 const totals = computed(() => {
   const r = allRows.value
   const faltan = r.filter(x => x.dif !== null && x.dif < 0)
@@ -241,10 +254,19 @@ const startNote = computed(() => {
             </tr>
           </thead>
           <tbody v-for="g in groups" :key="g.name">
-            <tr class="cat">
-              <td colspan="8">{{ g.name }} <span>· {{ g.rows.length }} productos</span></td>
+            <tr class="cat" :class="{ closed: isCollapsed(g.name) }">
+              <td colspan="8">
+                <button type="button" class="cat-btn" :aria-expanded="!isCollapsed(g.name)" @click="toggleCat(g.name)">
+                  <i class="fas fa-chevron-down cat-chev" aria-hidden="true"></i>
+                  <span class="cat-name">{{ g.name }}</span>
+                  <span class="cat-count">{{ g.rows.length }} productos</span>
+                </button>
+                <button v-if="g === groups[0]" type="button" class="cat-all" @click="toggleAll">
+                  {{ allCollapsed ? 'Desplegar todas' : 'Plegar todas' }}
+                </button>
+              </td>
             </tr>
-            <tr v-for="r in g.rows" :key="r.code" :class="{ sel: r.code === selected }">
+            <tr v-for="r in g.rows" v-show="!isCollapsed(g.name)" :key="r.code" :class="{ sel: r.code === selected }">
               <td class="l">
                 <button class="pname" :aria-pressed="r.code === selected" @click="selected = r.code">
                   <span class="nm">{{ r.name }}</span>
@@ -370,9 +392,21 @@ th.should { color: #6d28d9; }
 td.should { font-weight: 800; color: #4c1d95; }
 .neg { color: #b91c1c !important; }
 .b { font-weight: 700; }
-tr.cat td { text-align: left; font-size: .82rem; font-weight: 800; color: #334155; background: #fff; padding: 10px 14px;
-  span { font-weight: 600; color: $muted; }
+// Categoría: franja visible y plegable (Ricardo, 25/11/2026)
+tr.cat td { text-align: left; background: #f5f3ff; padding: 0; border-top: 2px solid #ddd6fe; border-bottom: 1px solid #ddd6fe; }
+tr.cat .cat-btn { display: inline-flex; align-items: center; gap: 10px; border: none; background: transparent; cursor: pointer;
+  padding: 12px 14px; font: inherit; text-align: left; color: #4c1d95;
+  &:focus-visible { outline: 2px solid $violet; outline-offset: -2px; border-radius: 8px; }
 }
+tr.cat .cat-chev { font-size: .75rem; color: $violet; transition: transform .15s ease; }
+tr.cat.closed .cat-chev { transform: rotate(-90deg); }
+tr.cat .cat-name { font-size: .95rem; font-weight: 800; letter-spacing: .01em; }
+tr.cat .cat-count { font-size: .72rem; font-weight: 700; color: $violet; background: #ede9fe; border-radius: 999px; padding: 2px 9px; }
+tr.cat .cat-all { float: right; margin: 9px 14px 0 0; border: 1px solid #ddd6fe; background: #fff; color: #5b21b6; border-radius: 8px;
+  padding: 4px 10px; font-size: .72rem; font-weight: 700; cursor: pointer;
+  &:hover { background: #ede9fe; }
+}
+@media (prefers-reduced-motion: reduce) { tr.cat .cat-chev { transition: none; } }
 tbody tr.sel { background: #f5f3ff; box-shadow: inset 3px 0 0 $violet; }
 .pname { font: inherit; text-align: left; border: none; background: transparent; padding: 6px; border-radius: 8px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; min-height: 44px; justify-content: center; width: 100%;
   &:hover { background: #fbf9ff; }
