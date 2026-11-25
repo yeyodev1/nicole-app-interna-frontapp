@@ -13,7 +13,7 @@ defineProps<{ entry: HistoryEntry; photo?: string | null }>()
       <div class="who">
         <b>{{ entry.operatorName }}</b>
         <span>{{ entry.company === 'nicole' ? 'Nicole' : 'Sucrée' }} · {{ entry.area }} · {{ entry.items.length }} productos</span>
-        <span class="when"><i class="fa-regular fa-calendar"></i> {{ shortDate(entry.date) }} · <i class="fa-regular fa-clock"></i> {{ timeOf(entry.createdAt) }}</span>
+        <span class="when"><i class="fa-regular fa-calendar"></i> {{ shortDate(entry.date) }} · <i class="fa-regular fa-clock"></i> {{ timeOf(entry.createdAt) }}<template v-if="entry.editedAt"> · <span class="edited">corregida {{ timeOf(entry.editedAt) }}</span></template></span>
       </div>
       <div class="ev">{{ entry.totalUnits }} u<small>{{ money(entry.value) }}</small></div>
     </div>
@@ -32,6 +32,7 @@ defineProps<{ entry: HistoryEntry; photo?: string | null }>()
   b { display: block; color: #1e293b; }
   span { display: block; font-size: .8rem; color: #64748b; }
   .when { margin-top: 3px; font-weight: 700; color: #6d28d9; font-variant-numeric: tabular-nums; text-transform: capitalize; }
+  .edited { display: inline; color: #b45309; font-size: inherit; text-transform: none; }
 }
 .ev { margin-left: auto; font-weight: 800; font-variant-numeric: tabular-nums; color: #3b1d6e; text-align: right;
   small { display: block; font-weight: 600; color: #64748b; font-size: .72rem; }

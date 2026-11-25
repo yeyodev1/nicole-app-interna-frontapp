@@ -13,6 +13,7 @@ export interface HistoryEntry {
   id: string
   date: string // AAAA-MM-DD
   createdAt: string
+  editedAt: string | null // corregida desde la tablet (mismo día)
   operatorId: string
   operatorName: string
   company: 'nicole' | 'sucree'
