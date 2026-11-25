@@ -16,6 +16,8 @@ import {
  *   diferencia    = lo contado en la toma siguiente − debería haber
  * Se elige la semana (de una toma a la siguiente); la última sigue abierta hasta la próxima toma.
  * Solo lectura, salvo los comentarios por producto, que se guardan por periodo (toma que lo abre).
+ * Columna "Recibido en islas" (Mauro, 25/11/2026): oculta por defecto, se abre con el botón junto a
+ * "− A islas". Muestra lo que las islas marcaron como recibido y, en rojo, lo que no llegó. Solo informa.
  */
 
 const company = ref<InventoryCompany>('nicole')
@@ -25,6 +27,8 @@ const data = ref<InventoryMovement | null>(null)
 const selected = ref('')
 const loading = ref(true)
 const loadError = ref('')
+const showReceived = ref(false)
+const cols = computed(() => (showReceived.value ? 9 : 8))
 let seq = 0
 
 // ── Comentarios por producto (cualquier producto; se guardan en el periodo) ──
@@ -108,6 +112,9 @@ interface Row extends InventoryMovementProduct {
   prod: number
   islas: number
   cli: number
+  recibido: number
+  noLlego: number
+  marcado: boolean
   deberia: number
   dif: number | null
 }
@@ -118,7 +125,10 @@ function toRow(p: InventoryMovementProduct): Row {
   const cli = sum(p.toOrders)
   const deberia = Math.round((p.start + prod - islas - cli) * 1000) / 1000
   const dif = p.counted === null ? null : Math.round((p.counted - deberia) * 1000) / 1000
-  return { ...p, prod, islas, cli, deberia, dif }
+  const recibido = p.islandsReceived || 0
+  const enviadoMarcado = p.islandsReceivedSent || 0
+  const noLlego = Math.max(0, Math.round((enviadoMarcado - recibido) * 1000) / 1000)
+  return { ...p, prod, islas, cli, recibido, noLlego, marcado: enviadoMarcado > 0, deberia, dif }
 }
 
 const groups = computed(() =>
@@ -147,6 +157,9 @@ const totals = computed(() => {
     prod: sum(r.map(x => x.prod)),
     islas: sum(r.map(x => x.islas)),
     cli: sum(r.map(x => x.cli)),
+    recibido: sum(r.map(x => x.recibido)),
+    noLlego: sum(r.map(x => x.noLlego)),
+    marcado: r.some(x => x.marcado),
     deberia: sum(r.map(x => x.deberia)),
     counted: data.value?.open ? null : sum(r.map(x => x.counted || 0)),
     faltan: -sum(faltan.map(x => x.dif!)),
@@ -246,7 +259,22 @@ const startNote = computed(() => {
               <th class="l">Producto</th>
               <th>{{ colStart }}</th>
               <th class="in">+ Producido</th>
-              <th class="out">− A islas</th>
+              <th class="out islas">
+                <span class="th-islas">
+                  − A islas
+                  <button
+                    type="button"
+                    class="rec-toggle"
+                    :aria-pressed="showReceived"
+                    :title="showReceived ? 'Ocultar la columna Recibido en islas' : 'Mostrar lo que las islas marcaron como recibido'"
+                    @click="showReceived = !showReceived"
+                  >
+                    <i class="fas" :class="showReceived ? 'fa-chevron-down' : 'fa-chevron-right'" aria-hidden="true"></i>
+                    Recibido
+                  </button>
+                </span>
+              </th>
+              <th v-if="showReceived" class="rec">Recibido en islas</th>
               <th class="out">− Pedidos</th>
               <th class="should">= Debería haber</th>
               <th>{{ colCount }}</th>
@@ -255,7 +283,7 @@ const startNote = computed(() => {
           </thead>
           <tbody v-for="g in groups" :key="g.name">
             <tr class="cat" :class="{ closed: isCollapsed(g.name) }">
-              <td colspan="8">
+              <td :colspan="cols">
                 <button type="button" class="cat-btn" :aria-expanded="!isCollapsed(g.name)" @click="toggleCat(g.name)">
                   <i class="fas fa-chevron-down cat-chev" aria-hidden="true"></i>
                   <span class="cat-name">{{ g.name }}</span>
@@ -275,7 +303,14 @@ const startNote = computed(() => {
               </td>
               <td>{{ fmt(r.start) }}</td>
               <td class="in">{{ r.prod ? '+' + fmt(r.prod) : '0' }}</td>
-              <td class="out">{{ r.islas ? '−' + fmt(r.islas) : '0' }}</td>
+              <td class="out islas">{{ r.islas ? '−' + fmt(r.islas) : '0' }}</td>
+              <td v-if="showReceived" class="rec">
+                <template v-if="r.marcado">
+                  {{ fmt(r.recibido) }}
+                  <span v-if="r.noLlego" class="no-llego">−{{ fmt(r.noLlego) }} no llegó</span>
+                </template>
+                <span v-else class="rec-none">—</span>
+              </td>
               <td class="out">{{ r.cli ? '−' + fmt(r.cli) : '0' }}</td>
               <td class="should" :class="{ neg: r.deberia < 0 }">{{ fmt(r.deberia) }}</td>
               <td class="b">{{ r.counted === null ? '—' : fmt(r.counted) }}</td>
@@ -297,7 +332,14 @@ const startNote = computed(() => {
               <td class="l">Total</td>
               <td>{{ fmt(totals.start) }}</td>
               <td class="in">+{{ fmt(totals.prod) }}</td>
-              <td class="out">−{{ fmt(totals.islas) }}</td>
+              <td class="out islas">−{{ fmt(totals.islas) }}</td>
+              <td v-if="showReceived" class="rec">
+                <template v-if="totals.marcado">
+                  {{ fmt(totals.recibido) }}
+                  <span v-if="totals.noLlego" class="no-llego">−{{ fmt(totals.noLlego) }} no llegó</span>
+                </template>
+                <span v-else class="rec-none">—</span>
+              </td>
               <td class="out">−{{ fmt(totals.cli) }}</td>
               <td class="should">{{ fmt(totals.deberia) }}</td>
               <td>{{ totals.counted === null ? '—' : fmt(totals.counted) }}</td>
@@ -361,6 +403,7 @@ const startNote = computed(() => {
           <li><strong>Punto de partida:</strong> la toma que abre la semana (bloque Producto terminado). Desde la hora en que se cierra ese bloque empieza a contar todo lo demás.</li>
           <li><strong>Entra:</strong> lo que cada operario registra en Ingreso de producción, por código de producto.</li>
           <li><strong>Sale:</strong> lo que Producción reporta como despachado, cuando sale de planta, sin esperar a que el punto de venta lo reciba: reposición a islas y pedidos de clientes.</li>
+          <li><strong>Recibido en islas</strong> (botón junto a "− A islas"): de lo despachado a islas en la semana, lo que la isla ya marcó como recibido. Si llegó menos de lo enviado, debajo sale en rojo cuánto no llegó. Lo que la isla aún no marca no aparece. Solo informa: no cambia "Debería haber".</li>
           <li><strong>Diferencia:</strong> lo contado en la toma siguiente menos lo que debería haber. Si falta, es merma o algo no registrado. Si sobra, casi siempre es producción que no se ingresó en la tablet.</li>
         </ul>
       </section>
@@ -407,6 +450,21 @@ tr.cat .cat-all { float: right; margin: 9px 14px 0 0; border: 1px solid #ddd6fe;
   &:hover { background: #ede9fe; }
 }
 @media (prefers-reduced-motion: reduce) { tr.cat .cat-chev { transition: none; } }
+// Recibido en islas: columna oculta por defecto (Mauro, 25/11/2026)
+th.islas, td.islas { text-align: center; }
+.th-islas { display: inline-flex; align-items: center; gap: 6px; }
+.rec-toggle { border: 1px solid #fed7aa; background: #fff; color: #9a3412; border-radius: 6px; font: inherit; font-size: .68rem;
+  font-weight: 800; padding: 2px 6px; cursor: pointer; letter-spacing: 0; text-transform: none; display: inline-flex; align-items: center; gap: 4px;
+  i { font-size: .6rem; }
+  &:hover { background: #fff7ed; }
+  &:focus-visible { outline: 2px solid $violet; outline-offset: 1px; }
+  &[aria-pressed="true"] { background: #f0fdfa; border-color: #99f6e4; color: #0f766e; }
+}
+th.rec, td.rec { text-align: center; vertical-align: middle; background: #f0fdfa; border-left: 1px solid #99f6e4; border-right: 1px solid #99f6e4; }
+th.rec { color: #0f766e; }
+td.rec { color: #0f766e; font-weight: 700; }
+.no-llego { display: block; font-size: .72rem; font-weight: 800; color: #b91c1c; }
+.rec-none { color: #94a3b8; font-weight: 400; }
 tbody tr.sel { background: #f5f3ff; box-shadow: inset 3px 0 0 $violet; }
 .pname { font: inherit; text-align: left; border: none; background: transparent; padding: 6px; border-radius: 8px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; min-height: 44px; justify-content: center; width: 100%;
   &:hover { background: #fbf9ff; }
