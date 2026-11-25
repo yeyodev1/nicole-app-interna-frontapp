@@ -14,7 +14,7 @@ import {
  *   debería haber = toma de inicio + producido (tablet) − despachado a islas − despachado en pedidos
  *   diferencia    = lo contado en la toma siguiente − debería haber
  * Se elige la semana (de una toma a la siguiente); la última sigue abierta hasta la próxima toma.
- * Solo lectura: no guarda nada.
+ * Solo lectura, salvo los comentarios por producto, que se guardan por periodo (toma que lo abre).
  */
 
 const company = ref<InventoryCompany>('nicole')
@@ -25,6 +25,38 @@ const selected = ref('')
 const loading = ref(true)
 const loadError = ref('')
 let seq = 0
+
+// ── Comentarios por producto (cualquier producto; se guardan en el periodo) ──
+const noteOf = (code: string) => data.value?.notes?.[code] || null
+const editing = ref<{ code: string; name: string; text: string; had: boolean; saving: boolean; error: string } | null>(null)
+const openNote = (r: { code: string; name: string }) => {
+  const n = noteOf(r.code)
+  editing.value = { code: r.code, name: r.name, text: n?.comment || '', had: !!n, saving: false, error: '' }
+}
+const noteTitle = (code: string) => {
+  const n = noteOf(code)
+  return n ? `${n.comment} (${n.updatedBy})` : 'Agregar comentario'
+}
+async function saveNote() {
+  const e = editing.value
+  if (!e || !data.value || (!e.text.trim() && !e.had)) return
+  e.saving = true
+  e.error = ''
+  try {
+    const saved = await inventoryService.saveMovementNote({
+      company: data.value.company, from: data.value.from, code: e.code, name: e.name, comment: e.text.trim(),
+    })
+    const notes = { ...(data.value.notes || {}) }
+    if (saved) notes[e.code] = saved
+    else delete notes[e.code]
+    data.value = { ...data.value, notes }
+    editing.value = null
+  } catch (err: any) {
+    e.error = err?.response?.data?.message || 'No se pudo guardar.'
+  } finally {
+    e.saving = false
+  }
+}
 
 const WEEKDAYS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb']
 const dm = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`
@@ -238,7 +270,30 @@ const startNote = computed(() => {
               <td class="out">{{ r.cli ? '−' + fmt(r.cli) : '0' }}</td>
               <td class="should" :class="{ neg: r.deberia < 0 }">{{ fmt(r.deberia) }}</td>
               <td class="b">{{ r.counted === null ? '—' : fmt(r.counted) }}</td>
-              <td class="dif" :class="difClass(r.dif)">{{ difText(r.dif) }}</td>
+              <td class="dif" :class="difClass(r.dif)">
+                {{ difText(r.dif) }}
+                <button
+                  type="button"
+                  class="note-btn"
+                  :class="{ filled: !!noteOf(r.code) }"
+                  :title="noteTitle(r.code)"
+                  :aria-label="noteOf(r.code) ? `Comentario de ${r.name}: ${noteTitle(r.code)}` : `Comentar ${r.name}`"
+                  @click="openNote(r)"
+                >
+                  <i :class="noteOf(r.code) ? 'fa-solid fa-comment-dots' : 'fa-regular fa-comment'"></i>
+                </button>
+                <div v-if="editing && editing.code === r.code" class="note-pop" @keydown.esc="editing = null">
+                  <textarea v-model="editing.text" maxlength="500" rows="3" placeholder="Escribe un comentario sobre este producto en la semana" :aria-label="`Comentario de ${r.name}`"></textarea>
+                  <p v-if="editing.error" class="note-err">{{ editing.error }}</p>
+                  <div class="note-actions">
+                    <span>{{ editing.text.length }}/500</span>
+                    <button type="button" class="ghost" @click="editing = null">Cancelar</button>
+                    <button type="button" class="primary" :disabled="editing.saving || (!editing.text.trim() && !editing.had)" @click="saveNote">
+                      {{ editing.saving ? 'Guardando…' : (!editing.text.trim() && editing.had ? 'Borrar' : 'Guardar') }}
+                    </button>
+                  </div>
+                </div>
+              </td>
             </tr>
           </tbody>
           <tfoot>
@@ -367,5 +422,27 @@ tfoot td { background: $soft; font-weight: 800; border-top: 1px solid $line; pad
 .how { border-top: 1px solid $line; padding-top: 16px; max-width: 900px;
   h2 { margin: 0 0 8px; font-size: 1rem; }
   ul { margin: 0; padding-left: 20px; color: #475569; font-size: .9rem; line-height: 1.6; }
+}
+.note-btn {
+  margin-left: 0.35rem; border: none; background: transparent; cursor: pointer;
+  color: #cbd5e1; opacity: 0.7; font-size: 0.85rem; padding: 2px 5px; border-radius: 6px; vertical-align: middle;
+  &:hover, &:focus-visible { opacity: 1; color: #94a3b8; }
+  &.filled { color: #d97706; background: #fef3c7; opacity: 1; }
+}
+.note-pop {
+  // dentro de la celda: la tabla tiene scroll y un recuadro flotante se cortaría
+  margin: 0.4rem 0 0 auto; width: 260px; white-space: normal;
+  background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 0.6rem;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.15); text-align: left; font-size: 0.82rem; font-weight: 400; color: #1e293b;
+  textarea { width: 100%; box-sizing: border-box; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 0.45rem; font: inherit; resize: vertical; color: #1e293b; }
+  textarea:focus { outline: none; border-color: #7c3aed; }
+  .note-err { margin: 0.3rem 0 0; color: #dc2626; font-size: 0.75rem; }
+  .note-actions { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.45rem;
+    span { margin-right: auto; color: #94a3b8; font-size: 0.7rem; }
+    button { border-radius: 8px; padding: 0.35rem 0.75rem; font-weight: 700; font-size: 0.78rem; cursor: pointer; border: 1px solid #e2e8f0; }
+    .ghost { background: white; color: #475569; }
+    .primary { background: #7c3aed; border-color: #7c3aed; color: white; }
+    .primary:disabled { background: #cbd5e1; border-color: #cbd5e1; cursor: not-allowed; }
+  }
 }
 </style>

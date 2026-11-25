@@ -13,8 +13,10 @@ const search = ref('');
 // Orden 2: comentario por anomalía (Diferencia ≠ 0). Con Periodo solo se leen.
 const { notes, isRange, notesOf, save } = useAnomalyNotes();
 const esAnomalia = (p: OpsProduct) => (p.descuadre ?? 0) !== 0 && !p.motivosIncompleto?.length;
+// Se puede comentar cualquier producto del día (Operaciones, 25/11/2026), haya o no diferencia.
+// En Periodo solo se ven los comentarios guardados.
 const showNote = (branch: string, p: OpsProduct) =>
-  notesOf(branch, p).length > 0 || (!isRange.value && esAnomalia(p));
+  notesOf(branch, p).length > 0 || !isRange.value;
 const noteText = (branch: string, p: OpsProduct) =>
   notesOf(branch, p).map(n => `${isRange.value ? n.date.split('-').reverse().join('/') + ': ' : ''}${n.comment} (${n.updatedBy})`).join('\n');
 const editing = ref<{ branch: string; name: string; text: string; saving: boolean; error: string } | null>(null);
@@ -163,13 +165,13 @@ const handleExport = () =>
                   class="note-btn"
                   :class="{ filled: notesOf(b.branch, p).length > 0, readonly: isRange }"
                   :title="noteText(b.branch, p) || 'Agregar comentario'"
-                  :aria-label="notesOf(b.branch, p).length ? `Comentario: ${noteText(b.branch, p)}` : `Comentar la diferencia de ${p.name}`"
+                  :aria-label="notesOf(b.branch, p).length ? `Comentario: ${noteText(b.branch, p)}` : `Comentar ${p.name}`"
                   @click="openNote(b.branch, p)"
                 >
                   <i :class="notesOf(b.branch, p).length ? 'fa-solid fa-comment-dots' : 'fa-regular fa-comment'"></i>
                 </button>
                 <div v-if="isEditing(b.branch, p) && editing" class="note-pop" @keydown.esc="editing = null">
-                  <textarea v-model="editing.text" maxlength="500" rows="3" placeholder="¿Por qué hay esta diferencia?" aria-label="Comentario de la anomalía"></textarea>
+                  <textarea v-model="editing.text" maxlength="500" rows="3" :placeholder="esAnomalia(p) ? '¿Por qué hay esta diferencia?' : 'Escribe un comentario sobre este producto'" aria-label="Comentario del producto"></textarea>
                   <p v-if="editing.error" class="note-err">{{ editing.error }}</p>
                   <div class="note-actions">
                     <span>{{ editing.text.length }}/500</span>
@@ -337,9 +339,10 @@ table {
 
   .note-btn {
     margin-left: 0.35rem; border: none; background: transparent; cursor: pointer;
-    color: #94a3b8; font-size: 0.85rem; padding: 2px 4px; border-radius: 6px; vertical-align: middle;
-    &:hover, &:focus-visible { color: #7c3aed; background: #f5f3ff; }
-    &.filled { color: #7c3aed; }
+    color: #cbd5e1; opacity: 0.7; font-size: 0.85rem; padding: 2px 5px; border-radius: 6px; vertical-align: middle;
+    &:hover, &:focus-visible { opacity: 1; color: #94a3b8; }
+    // con comentario: amarillo; sin comentario: gris difuminado
+    &.filled { color: #d97706; background: #fef3c7; opacity: 1; }
     &.readonly { cursor: help; }
   }
 
