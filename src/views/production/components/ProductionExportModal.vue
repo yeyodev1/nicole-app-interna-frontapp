@@ -140,7 +140,7 @@ const confirm = () => {
             <label :class="{ on: format === 'pdf' }">
               <input v-model="format" type="radio" value="pdf" name="export-format" />
               <i class="fa-solid fa-print"></i> PDF para imprimir
-              <small>Una hoja por sucursal</small>
+              <small>Una sola hoja, ajustada al ancho</small>
             </label>
           </div>
         </fieldset>
