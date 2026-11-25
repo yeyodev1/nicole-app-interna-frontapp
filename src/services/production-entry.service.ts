@@ -25,6 +25,26 @@ export interface ProductionEntryPayload {
   photo: string // data URL JPEG comprimida
 }
 
+/** Ficha guardada (lo que se ve debajo del registro en la tablet). */
+export interface ProductionDayEntry {
+  id: string
+  date: string // AAAA-MM-DD
+  operatorName: string
+  company: ProductionCompany
+  area: string
+  items: Array<{ code: string; name: string; category: string; quantity: number }>
+  totalUnits: number
+  createdAt: string
+  editedAt: string | null
+}
+
+export interface ProductionDay {
+  today: string
+  date: string
+  editable: boolean // solo las fichas de hoy, hasta las 00:00
+  entries: ProductionDayEntry[]
+}
+
 class ProductionEntryService extends APIBase {
   async getTabletData(): Promise<ProductionTabletData> {
     const { data } = await this.get<any>('production-entries/tablet')
@@ -33,6 +53,16 @@ class ProductionEntryService extends APIBase {
 
   async createEntry(payload: ProductionEntryPayload): Promise<{ id: string; totalUnits: number; operatorName: string }> {
     const { data } = await this.post<any>('production-entries', payload)
+    return data.data
+  }
+
+  async getDay(date?: string): Promise<ProductionDay> {
+    const { data } = await this.get<any>('production-entries/day', undefined, { params: date ? { date } : {} })
+    return data.data
+  }
+
+  async updateEntry(id: string, items: Array<{ code: string; quantity: number }>): Promise<{ id: string; totalUnits: number; editedAt: string }> {
+    const { data } = await this.patch<any>(`production-entries/${id}`, { items })
     return data.data
   }
 }
