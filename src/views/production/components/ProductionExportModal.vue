@@ -2,7 +2,9 @@
 import { ref, computed, watch } from 'vue';
 import { getECTTodayString } from '@/utils/dateUtils';
 import CustomDatePicker from '@/components/ui/CustomDatePicker.vue';
-import SearchableSelect from '@/components/ui/SearchableSelect.vue';
+
+/** 'all' = todas las sucursales marcadas (incluye pedidos sin local reconocido). */
+type ExportDestinations = 'all' | string[];
 
 const props = defineProps<{
   isOpen: boolean;
@@ -22,13 +24,15 @@ const tomorrowStr = () => {
 };
 
 const responsibleName = ref('');
-const destination = ref('all');
+// Sucursales marcadas con check (por defecto todas): se puede elegir cualquier combinación.
+const selected = ref<string[]>([]);
+const format = ref<'pdf' | 'xlsx'>('pdf');
 const allDates = ref(false);
 const date = ref(getECTTodayString());
 
 watch(() => props.isOpen, (open) => {
   if (open) {
-    destination.value = 'all';
+    selected.value = [...props.destinations];
     allDates.value = false;
     date.value = getECTTodayString();
   }
@@ -38,27 +42,33 @@ const title = computed(() =>
   props.mode === 'production' ? 'Exportar Orden de Producción' : 'Exportar Orden de Entrega'
 );
 
+const allSelected = computed(() => props.destinations.length > 0 && selected.value.length === props.destinations.length);
+const noneSelected = computed(() => selected.value.length === 0);
+const destinationsValue = computed<ExportDestinations>(() => (allSelected.value ? 'all' : [...selected.value]));
+const selectionLabel = computed(() =>
+  allSelected.value ? 'Todas' : noneSelected.value ? 'Ninguna' : `${selected.value.length} de ${props.destinations.length}`
+);
+const toggleAll = (ev: Event) => {
+  selected.value = (ev.target as HTMLInputElement).checked ? [...props.destinations] : [];
+};
+
 // Avisa al padre qué se exportaría con la selección actual, para mostrar
 // el conteo antes de presionar (así nunca se presiona a ciegas).
 const emitPreview = () => {
+  if (noneSelected.value) return;
   emit('preview', {
-    destination: destination.value,
+    destinations: destinationsValue.value,
     date: allDates.value ? 'all' : date.value,
   });
 };
 
-watch([destination, date, allDates], emitPreview);
+watch([selected, date, allDates], emitPreview, { deep: true });
 watch(() => props.isOpen, (open) => { if (open) emitPreview(); });
-
-const destinationOptions = computed(() => [
-  { value: 'all', label: 'Todas las sucursales' },
-  ...props.destinations.map(d => ({ value: d, label: d })),
-]);
 
 const subtitle = computed(() =>
   props.mode === 'production'
-    ? 'Excel para la cocina, agrupado por las categorías de Contífico.'
-    : 'Excel para despachar los pedidos a cada destino.'
+    ? 'Para la cocina, agrupado por las categorías de Contífico.'
+    : 'Para despachar los pedidos a cada destino.'
 );
 
 const quickDate = (value: string) => {
@@ -67,11 +77,13 @@ const quickDate = (value: string) => {
 };
 
 const confirm = () => {
+  if (noneSelected.value) return;
   emit('confirm', {
-    // El nombre es opcional: sin él el Excel sale a nombre de "Producción".
+    // El nombre es opcional: sin él sale a nombre de "Producción".
     responsibleName: responsibleName.value.trim() || 'Producción',
-    destination: destination.value,
+    destinations: destinationsValue.value,
     date: allDates.value ? 'all' : date.value,
+    format: format.value,
   });
 };
 </script>
@@ -88,10 +100,19 @@ const confirm = () => {
           Solo se exportarán los <strong>{{ selectedCount }}</strong> productos seleccionados.
         </div>
 
-        <div class="field">
-          <label>Sucursal / Destino</label>
-          <SearchableSelect v-model="destination" :options="destinationOptions" placeholder="Elige la sucursal..." search-placeholder="Buscar sucursal..." />
-        </div>
+        <fieldset class="field">
+          <legend class="lbl-row"><span>Sucursales / destinos</span><small>{{ selectionLabel }}</small></legend>
+          <div class="dest-list">
+            <label class="dest-opt all" :class="{ on: allSelected }">
+              <input type="checkbox" :checked="allSelected" :indeterminate.prop="!allSelected && !noneSelected" @change="toggleAll" />
+              Todas las sucursales
+            </label>
+            <label v-for="d in destinations" :key="d" class="dest-opt" :class="{ on: selected.includes(d) }">
+              <input v-model="selected" type="checkbox" :value="d" />
+              {{ d }}
+            </label>
+          </div>
+        </fieldset>
 
         <div class="field">
           <label>Fecha de entrega</label>
@@ -108,26 +129,43 @@ const confirm = () => {
           />
         </div>
 
+        <fieldset class="field">
+          <legend class="lbl-row"><span>Formato</span></legend>
+          <div class="fmt">
+            <label :class="{ on: format === 'xlsx' }">
+              <input v-model="format" type="radio" value="xlsx" name="export-format" />
+              <i class="fa-solid fa-file-excel"></i> Excel
+              <small>Para editar</small>
+            </label>
+            <label :class="{ on: format === 'pdf' }">
+              <input v-model="format" type="radio" value="pdf" name="export-format" />
+              <i class="fa-solid fa-print"></i> PDF para imprimir
+              <small>Una hoja por sucursal</small>
+            </label>
+          </div>
+        </fieldset>
+
         <div v-if="mode === 'production'" class="field">
           <label>Nombre del responsable <span class="optional">(opcional)</span></label>
           <input v-model="responsibleName" type="text" placeholder="Ej: Juan Pérez" @keyup.enter="confirm" />
         </div>
 
-        <p class="preview-line" :class="{ empty: previewCount === 0 }">
-          <i :class="previewCount === 0 ? 'fa-solid fa-circle-exclamation' : 'fa-solid fa-circle-info'"></i>
-          <span v-if="previewCount === null || previewCount === undefined">Calculando qué se va a exportar…</span>
+        <p class="preview-line" :class="{ empty: noneSelected || previewCount === 0 }">
+          <i :class="noneSelected || previewCount === 0 ? 'fa-solid fa-circle-exclamation' : 'fa-solid fa-circle-info'"></i>
+          <span v-if="noneSelected">Marca al menos una sucursal para exportar.</span>
+          <span v-else-if="previewCount === null || previewCount === undefined">Calculando qué se va a exportar…</span>
           <span v-else-if="previewCount === 0">
-            No hay pedidos con esta fecha y sucursal. Cambia la fecha, elige
-            <strong>Todas las sucursales</strong> o marca <strong>todas las fechas</strong>.
+            No hay pedidos con esta fecha y sucursales. Cambia la fecha, marca
+            <strong>Todas las sucursales</strong> o elige <strong>Todas</strong> las fechas.
           </span>
-          <span v-else>Se exportarán <strong>{{ previewCount }}</strong> pedido(s).</span>
+          <span v-else>Se exportarán <strong>{{ previewCount }}</strong> pedido(s)<template v-if="!allSelected"> de <strong>{{ selected.join(', ') }}</strong></template>.</span>
         </p>
 
         <div class="actions">
           <button class="btn-cancel" :disabled="isLoading" @click="emit('close')">Cancelar</button>
-          <button class="btn-confirm" :class="mode" :disabled="isLoading" @click="confirm">
-            <i class="fas" :class="isLoading ? 'fa-spinner fa-spin' : 'fa-file-excel'"></i>
-            {{ isLoading ? 'Exportando...' : 'Exportar Excel' }}
+          <button class="btn-confirm" :class="mode" :disabled="isLoading || noneSelected" @click="confirm">
+            <i class="fas" :class="isLoading ? 'fa-spinner fa-spin' : format === 'pdf' ? 'fa-print' : 'fa-file-excel'"></i>
+            {{ isLoading ? 'Exportando...' : 'Exportar' }}
           </button>
         </div>
       </div>
@@ -182,7 +220,9 @@ const confirm = () => {
   padding: 1.75rem;
   border-radius: 16px;
   width: 100%;
-  max-width: 420px;
+  max-width: 440px;
+  max-height: 94vh;
+  overflow-y: auto;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
 
   h2 {
@@ -242,6 +282,73 @@ const confirm = () => {
   }
 }
 
+fieldset.field { border: 0; padding: 0; min-width: 0; }
+.field .lbl-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  width: 100%;
+  padding: 0;
+  margin-bottom: 0.4rem;
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  small { text-transform: none; letter-spacing: 0; color: #7c3aed; font-size: 0.8rem; }
+}
+.field .dest-list {
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  max-height: 290px;
+  overflow-y: auto;
+  .dest-opt {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    margin: 0;
+    padding: 0 0.9rem;
+    min-height: 44px;
+    border-bottom: 1px solid #f1f5f9;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #0f172a;
+    text-transform: none;
+    letter-spacing: 0;
+    &:last-child { border-bottom: 0; }
+    &:hover { background: #faf8ff; }
+    &.on { background: #f5f3ff; }
+    &.all { background: #f8fafc; font-weight: 800; }
+    input { width: 20px; height: 20px; margin: 0; padding: 0; accent-color: #7c3aed; cursor: pointer; flex-shrink: 0; }
+  }
+}
+.field .fmt {
+  display: flex;
+  gap: 0.5rem;
+  label {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem;
+    row-gap: 2px;
+    margin: 0;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 0.6rem 0.75rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #334155;
+    text-transform: none;
+    letter-spacing: 0;
+    &.on { border-color: #7c3aed; background: #f5f3ff; color: #4c1d95; }
+    input { width: 18px; height: 18px; margin: 0; padding: 0; accent-color: #7c3aed; }
+    small { flex-basis: 100%; padding-left: 1.6rem; font-weight: 500; color: #64748b; font-size: 0.75rem; }
+  }
+}
 .date-pills {
   display: flex;
   gap: 0.4rem;

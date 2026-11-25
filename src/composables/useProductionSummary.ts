@@ -323,14 +323,17 @@ export function useProductionSummary() {
 
   // Pedidos para exportar la Orden de Producción/Entrega: por fecha y sucursal,
   // independiente de las píldoras de arriba. date: 'all' | 'YYYY-MM-DD'.
-  const filterOrdersForExport = (opts: { date: string; destination: string }) => {
+  // destination: 'all', una sucursal o varias (las marcadas con check en el modal de exportar)
+  const filterOrdersForExport = (opts: { date: string; destination: string | string[] }) => {
     return rawOrders.value.filter(order => {
       if (order.productionStage === 'VOID') return false
       if (opts.date !== 'all') {
         if (!order.deliveryDate) return false
         if (!isSameDayECT(parseECTDate(order.deliveryDate), parseECTDate(opts.date))) return false
       }
-      if (opts.destination !== 'all' && destOf(order) !== opts.destination) return false
+      if (Array.isArray(opts.destination)) {
+        if (!opts.destination.includes(destOf(order))) return false
+      } else if (opts.destination !== 'all' && destOf(order) !== opts.destination) return false
       return true
     })
   }
