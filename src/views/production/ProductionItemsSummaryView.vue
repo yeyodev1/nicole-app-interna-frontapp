@@ -8,6 +8,7 @@ import { useRouter } from 'vue-router'
 import ProductionService from '@/services/production.service'
 import { useProductionSummary } from '@/composables/useProductionSummary'
 import { useOrderExport } from '@/composables/useOrderExport'
+import { printOrderSheets } from '@/utils/printOrderSheets'
 import { useToast } from '@/composables/useToast'
 import { getECTNow, getECTTodayString, parseECTDate } from '@/utils/dateUtils'
 
@@ -165,26 +166,52 @@ const handleExportClick = (mode: 'dispatch' | 'production') => {
 // Cuántos pedidos saldrían con la fecha/sucursal elegidas en el modal
 const exportPreviewCount = ref<number | null>(null)
 
-const updateExportPreview = (opts: { destination: string; date: string }) => {
+type ExportDestinations = 'all' | string[]
+
+const updateExportPreview = (opts: { destinations: ExportDestinations; date: string }) => {
   try {
-    exportPreviewCount.value = filterOrdersForExport(opts).length
+    exportPreviewCount.value = filterOrdersForExport({ date: opts.date, destination: opts.destinations }).length
   } catch {
     exportPreviewCount.value = null
   }
 }
 
-const handleExportConfirm = async (opts: { responsibleName: string; destination: string; date: string }) => {
+const handleExportConfirm = async (opts: {
+  responsibleName: string
+  destinations: ExportDestinations
+  date: string
+  format: 'pdf' | 'xlsx'
+}) => {
   try {
-    // Pedidos por sucursal y fecha, independiente de los filtros de la pantalla
-    const ordersToExport = filterOrdersForExport({ date: opts.date, destination: opts.destination })
+    // Pedidos por sucursales marcadas y fecha, independiente de los filtros de la pantalla
+    const ordersToExport = filterOrdersForExport({ date: opts.date, destination: opts.destinations })
 
     if (ordersToExport.length === 0) {
-      showError('No hay pedidos con esa fecha y sucursal. Cambia la fecha o elige "Todas las sucursales".')
+      showError('No hay pedidos con esa fecha y sucursales. Cambia la fecha o marca "Todas las sucursales".')
+      return
+    }
+
+    // PDF para imprimir: una hoja por sucursal, se abre directo la ventana de impresión
+    if (opts.format === 'pdf') {
+      const sheets = printOrderSheets({
+        mode: exportMode.value,
+        orders: ordersToExport,
+        destOf,
+        destinationOrder: exportDestinations.value,
+        categoryByName: contificoCatByName.value,
+        date: opts.date,
+        responsibleName: opts.responsibleName,
+      })
+      if (!sheets) {
+        showError('Los pedidos elegidos no tienen productos para imprimir.')
+        return
+      }
+      showExportModal.value = false
       return
     }
 
     if (exportMode.value === 'dispatch') {
-      const label = opts.destination === 'all' ? 'Todas las sucursales' : opts.destination
+      const label = opts.destinations === 'all' ? 'Todas las sucursales' : opts.destinations.join(' + ')
       await exportDispatchOrder(ordersToExport, label, contificoCatByName.value)
       success('Orden de Entrega exportada (Excel descargado).')
     } else {
