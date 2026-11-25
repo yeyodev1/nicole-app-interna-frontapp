@@ -261,7 +261,7 @@ const startNote = computed(() => {
               <td class="l">
                 <button class="pname" :aria-pressed="r.code === selected" @click="selected = r.code">
                   <span class="nm">{{ r.name }}</span>
-                  <small>{{ r.code }}<template v-if="!r.inCatalog"> · fuera del catálogo</template></small>
+                  <small>{{ r.code }}<template v-if="r.wholeCakeCodes?.length"> ({{ r.wholeCakeCodes.map(c => `+${c}`).join(', ') }})</template><template v-if="!r.inCatalog"> · fuera del catálogo</template></small>
                 </button>
               </td>
               <td>{{ fmt(r.start) }}</td>
@@ -311,6 +311,10 @@ const startNote = computed(() => {
         </table>
       </div>
 
+      <p v-if="data.wholeCakes?.cakes" class="note">
+        Incluye {{ fmt(data.wholeCakes.cakes) }} {{ data.wholeCakes.cakes === 1 ? 'torta entera despachada' : 'tortas enteras despachadas' }},
+        restadas como {{ fmt(data.wholeCakes.portions) }} porciones de su sabor (10 por torta; Tarta queso KETO, 8).
+      </p>
       <p v-if="data.unmatched.lines" class="note">
         {{ data.unmatched.lines }} líneas despachadas ({{ fmt(data.unmatched.units) }} u.) no están en el catálogo de
         producto terminado y no se restan<template v-if="data.unmatched.names.length">: {{ data.unmatched.names.join(', ') }}</template>.

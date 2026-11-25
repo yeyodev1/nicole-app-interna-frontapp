@@ -100,6 +100,8 @@ export interface InventoryMovementProduct {
   name: string
   unit: string
   inCatalog: boolean
+  /** Códigos de torta entera (CAKE-…) que también restan de esta porción. Opcional: back anterior no lo manda. */
+  wholeCakeCodes?: string[]
   start: number
   /** Lo contado en la toma que cierra el periodo; null si el periodo sigue abierto. */
   counted: number | null
@@ -126,6 +128,8 @@ export interface InventoryMovement {
   categories: Array<{ name: string; products: InventoryMovementProduct[] }>
   /** Líneas despachadas que no están en el catálogo de producto terminado (no se restan). */
   unmatched: { lines: number; units: number; names: string[] }
+  /** Tortas enteras despachadas que se restaron como porciones de su sabor (10 c/u; Keto 8). Opcional: back anterior no lo manda. */
+  wholeCakes?: { cakes: number; portions: number }
   /** Comentarios del periodo por código de producto. */
   notes?: Record<string, InventoryMovementNote>
 }
