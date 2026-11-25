@@ -109,6 +109,10 @@ export interface InventoryMovementProduct {
   produced: number[]
   toIslands: number[]
   toOrders: number[]
+  /** Recibido por las islas en los despachos de reposición ya marcados (sin los pendientes). */
+  islandsReceived?: number
+  /** Enviado en esos mismos despachos marcados: la resta con lo recibido es lo que no llegó. */
+  islandsReceivedSent?: number
 }
 
 export interface InventoryMovement {
