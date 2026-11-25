@@ -80,7 +80,7 @@ const executeExportProduction = async (responsibleName: string) => {
 const handleExportDispatch = async () => {
   try {
     // Export currently loaded orders
-    await exportDispatchOrder(orders.value, 'General (Lista de Pedidos)')
+    await exportDispatchOrder(orders.value, 'General (Lista de Pedidos)', undefined, 'xlsx', { clientDetail: true })
     success('Reporte de Entregas exportado')
   } catch (err) {
     showError('Error al exportar')

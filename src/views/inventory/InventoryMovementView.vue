@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import ProductNoteEditor from '@/components/ui/ProductNoteEditor.vue'
 import {
   inventoryService,
   type InventoryCompany,
@@ -14,7 +15,7 @@ import {
  *   debería haber = toma de inicio + producido (tablet) − despachado a islas − despachado en pedidos
  *   diferencia    = lo contado en la toma siguiente − debería haber
  * Se elige la semana (de una toma a la siguiente); la última sigue abierta hasta la próxima toma.
- * Solo lectura: no guarda nada.
+ * Solo lectura, salvo los comentarios por producto, que se guardan por periodo (toma que lo abre).
  */
 
 const company = ref<InventoryCompany>('nicole')
@@ -25,6 +26,24 @@ const selected = ref('')
 const loading = ref(true)
 const loadError = ref('')
 let seq = 0
+
+// ── Comentarios por producto (cualquier producto; se guardan en el periodo) ──
+const noteOf = (code: string) => data.value?.notes?.[code] || null
+const noteTooltip = (code: string) => {
+  const n = noteOf(code)
+  return n ? `${n.comment} (${n.updatedBy})` : ''
+}
+/** Guarda o borra (texto vacío) el comentario del producto en el periodo visible. */
+const saveNote = (r: { code: string; name: string }) => async (comment: string) => {
+  if (!data.value) return
+  const saved = await inventoryService.saveMovementNote({
+    company: data.value.company, from: data.value.from, code: r.code, name: r.name, comment,
+  })
+  const notes = { ...(data.value.notes || {}) }
+  if (saved) notes[r.code] = saved
+  else delete notes[r.code]
+  data.value = { ...data.value, notes }
+}
 
 const WEEKDAYS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb']
 const dm = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`
@@ -106,6 +125,19 @@ const groups = computed(() =>
   (data.value?.categories || []).map(c => ({ name: c.name, rows: c.products.map(toRow) })),
 )
 const allRows = computed(() => groups.value.flatMap(g => g.rows))
+// Categorías plegables: se recuerdan mientras la pantalla está abierta (también al cambiar de semana).
+const collapsed = ref<Set<string>>(new Set())
+const isCollapsed = (name: string) => collapsed.value.has(name)
+const toggleCat = (name: string) => {
+  const next = new Set(collapsed.value)
+  if (next.has(name)) next.delete(name)
+  else next.add(name)
+  collapsed.value = next
+}
+const allCollapsed = computed(() => groups.value.length > 0 && groups.value.every(g => collapsed.value.has(g.name)))
+const toggleAll = () => {
+  collapsed.value = allCollapsed.value ? new Set() : new Set(groups.value.map(g => g.name))
+}
 const totals = computed(() => {
   const r = allRows.value
   const faltan = r.filter(x => x.dif !== null && x.dif < 0)
@@ -222,10 +254,19 @@ const startNote = computed(() => {
             </tr>
           </thead>
           <tbody v-for="g in groups" :key="g.name">
-            <tr class="cat">
-              <td colspan="8">{{ g.name }} <span>· {{ g.rows.length }} productos</span></td>
+            <tr class="cat" :class="{ closed: isCollapsed(g.name) }">
+              <td colspan="8">
+                <button type="button" class="cat-btn" :aria-expanded="!isCollapsed(g.name)" @click="toggleCat(g.name)">
+                  <i class="fas fa-chevron-down cat-chev" aria-hidden="true"></i>
+                  <span class="cat-name">{{ g.name }}</span>
+                  <span class="cat-count">{{ g.rows.length }} productos</span>
+                </button>
+                <button v-if="g === groups[0]" type="button" class="cat-all" @click="toggleAll">
+                  {{ allCollapsed ? 'Desplegar todas' : 'Plegar todas' }}
+                </button>
+              </td>
             </tr>
-            <tr v-for="r in g.rows" :key="r.code" :class="{ sel: r.code === selected }">
+            <tr v-for="r in g.rows" v-show="!isCollapsed(g.name)" :key="r.code" :class="{ sel: r.code === selected }">
               <td class="l">
                 <button class="pname" :aria-pressed="r.code === selected" @click="selected = r.code">
                   <span class="nm">{{ r.name }}</span>
@@ -238,7 +279,17 @@ const startNote = computed(() => {
               <td class="out">{{ r.cli ? '−' + fmt(r.cli) : '0' }}</td>
               <td class="should" :class="{ neg: r.deberia < 0 }">{{ fmt(r.deberia) }}</td>
               <td class="b">{{ r.counted === null ? '—' : fmt(r.counted) }}</td>
-              <td class="dif" :class="difClass(r.dif)">{{ difText(r.dif) }}</td>
+              <td class="dif" :class="difClass(r.dif)">
+                {{ difText(r.dif) }}
+                <ProductNoteEditor
+                  :comment="noteOf(r.code)?.comment || null"
+                  :tooltip="noteTooltip(r.code)"
+                  :product-name="r.name"
+                  placeholder="Escribe un comentario sobre este producto en la semana"
+                  allow-delete
+                  :save="saveNote(r)"
+                />
+              </td>
             </tr>
           </tbody>
           <tfoot>
@@ -341,9 +392,21 @@ th.should { color: #6d28d9; }
 td.should { font-weight: 800; color: #4c1d95; }
 .neg { color: #b91c1c !important; }
 .b { font-weight: 700; }
-tr.cat td { text-align: left; font-size: .82rem; font-weight: 800; color: #334155; background: #fff; padding: 10px 14px;
-  span { font-weight: 600; color: $muted; }
+// Categoría: franja visible y plegable (Ricardo, 25/11/2026)
+tr.cat td { text-align: left; background: #f5f3ff; padding: 0; border-top: 2px solid #ddd6fe; border-bottom: 1px solid #ddd6fe; }
+tr.cat .cat-btn { display: inline-flex; align-items: center; gap: 10px; border: none; background: transparent; cursor: pointer;
+  padding: 12px 14px; font: inherit; text-align: left; color: #4c1d95;
+  &:focus-visible { outline: 2px solid $violet; outline-offset: -2px; border-radius: 8px; }
 }
+tr.cat .cat-chev { font-size: .75rem; color: $violet; transition: transform .15s ease; }
+tr.cat.closed .cat-chev { transform: rotate(-90deg); }
+tr.cat .cat-name { font-size: .95rem; font-weight: 800; letter-spacing: .01em; }
+tr.cat .cat-count { font-size: .72rem; font-weight: 700; color: $violet; background: #ede9fe; border-radius: 999px; padding: 2px 9px; }
+tr.cat .cat-all { float: right; margin: 9px 14px 0 0; border: 1px solid #ddd6fe; background: #fff; color: #5b21b6; border-radius: 8px;
+  padding: 4px 10px; font-size: .72rem; font-weight: 700; cursor: pointer;
+  &:hover { background: #ede9fe; }
+}
+@media (prefers-reduced-motion: reduce) { tr.cat .cat-chev { transition: none; } }
 tbody tr.sel { background: #f5f3ff; box-shadow: inset 3px 0 0 $violet; }
 .pname { font: inherit; text-align: left; border: none; background: transparent; padding: 6px; border-radius: 8px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; min-height: 44px; justify-content: center; width: 100%;
   &:hover { background: #fbf9ff; }

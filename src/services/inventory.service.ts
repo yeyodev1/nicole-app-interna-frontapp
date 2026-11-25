@@ -130,6 +130,15 @@ export interface InventoryMovement {
   unmatched: { lines: number; units: number; names: string[] }
   /** Tortas enteras despachadas que se restaron como porciones de su sabor (10 c/u; Keto 8). Opcional: back anterior no lo manda. */
   wholeCakes?: { cakes: number; portions: number }
+  /** Comentarios del periodo por código de producto. */
+  notes?: Record<string, InventoryMovementNote>
+}
+
+export interface InventoryMovementNote {
+  code: string
+  comment: string
+  updatedBy: string
+  updatedAt: string
 }
 
 class InventoryService extends APIBase {
@@ -192,6 +201,12 @@ class InventoryService extends APIBase {
   async getMovement(company: InventoryCompany, from?: string): Promise<InventoryMovement> {
     const q = from ? `&from=${encodeURIComponent(from)}` : ''
     const { data } = await this.get<any>(`inventory/movement?company=${company}${q}`)
+    return data.data
+  }
+
+  /** Guarda (o borra, si el comentario va vacío) el comentario de un producto en el periodo. */
+  async saveMovementNote(payload: { company: InventoryCompany; from: string; code: string; name: string; comment: string }): Promise<InventoryMovementNote | null> {
+    const { data } = await this.put<any>('inventory/movement/notes', payload)
     return data.data
   }
 }
