@@ -102,7 +102,8 @@ const clockLabel = computed(() => {
 })
 
 const dateLabel = computed(() => {
-  return now.value.toLocaleDateString('es-EC', { weekday: 'long', day: 'numeric', month: 'long' })
+  const s = now.value.toLocaleDateString('es-EC', { weekday: 'long', day: 'numeric', month: 'long' })
+  return s.charAt(0).toUpperCase() + s.slice(1) // "Viernes, 27 de noviembre"
 })
 
 const secondsToNextRefresh = computed(() => {
@@ -261,7 +262,6 @@ onUnmounted(() => {
       font-size: 0.8rem;
       font-weight: 600;
       color: #475569;
-      text-transform: capitalize;
     }
   }
 

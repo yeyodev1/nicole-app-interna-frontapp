@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { useOperationsReport, diferenciasSeparadas } from './composables/useOperationsReport';
+import { useOperationsReport, diferenciasSeparadas, facturadoDe } from './composables/useOperationsReport';
 import OperationsShell from './components/OperationsShell.vue';
 import OperationsKpiRow from './components/OperationsKpiRow.vue';
 import AnomalyNotesSummary from './components/AnomalyNotesSummary.vue';
 
-const { branches, globalTotals, allLosses, discrepancies } = useOperationsReport();
+const { branches, globalTotals, allLosses, discrepancies, anyClosing, facturado } = useOperationsReport();
 
 const branchIssues = (b: any) => b.products.filter((p: any) => (p.descuadre ?? 0) !== 0).length;
 </script>
@@ -17,6 +17,8 @@ const branchIssues = (b: any) => b.products.filter((p: any) => (p.descuadre ?? 0
   >
     <OperationsKpiRow
       :vendido="globalTotals.vendido"
+      :facturado="facturado"
+      :any-closing="anyClosing"
       :bajas="globalTotals.bajas"
       :excedentes="globalTotals.excedentes"
       :faltantes="globalTotals.faltantes"
@@ -25,17 +27,17 @@ const branchIssues = (b: any) => b.products.filter((p: any) => (p.descuadre ?? 0
     <div class="quick-links">
       <router-link to="/operations/sales" class="ql sales">
         <i class="fa-solid fa-cash-register"></i>
-        <div><strong>Ventas</strong><span>{{ globalTotals.vendido }} unids facturadas</span></div>
+        <div><strong>Ventas</strong><span>{{ facturado }} unids facturadas</span></div>
         <i class="fa-solid fa-chevron-right arrow"></i>
       </router-link>
       <router-link to="/operations/losses" class="ql losses">
         <i class="fa-solid fa-triangle-exclamation"></i>
-        <div><strong>Bajas</strong><span>{{ allLosses.length }} registro(s) · {{ globalTotals.bajas }} unids</span></div>
+        <div><strong>Bajas</strong><span>{{ anyClosing ? `${allLosses.length} registro(s) · ${globalTotals.bajas} unids` : 'llegan con el cierre' }}</span></div>
         <i class="fa-solid fa-chevron-right arrow"></i>
       </router-link>
       <router-link to="/operations/discrepancies" class="ql disc" :class="{ alert: discrepancies.length > 0 }">
         <i class="fa-solid fa-scale-unbalanced"></i>
-        <div><strong>Descuadres</strong><span>{{ discrepancies.length === 0 ? 'todo cuadra ✓' : `${discrepancies.length} producto(s) no cuadran` }}</span></div>
+        <div><strong>Descuadres</strong><span>{{ discrepancies.length > 0 ? `${discrepancies.length} producto(s) no cuadran` : anyClosing ? 'todo cuadra ✓' : 'esperando cierres' }}</span></div>
         <i class="fa-solid fa-chevron-right arrow"></i>
       </router-link>
     </div>
@@ -51,7 +53,8 @@ const branchIssues = (b: any) => b.products.filter((p: any) => (p.descuadre ?? 0
           <span v-if="b.sinOkTotal > 0" class="chip warn" :title="`${b.sinOkTotal} unids despachadas sin el OK de Recepción Masiva`">⚠ {{ b.sinOkTotal }} sin OK</span>
         </div>
         <div class="mini-stats">
-          <div><span class="n">{{ b.totals.vendido }}</span><span class="l">vendido</span></div>
+          <div><span class="n">{{ facturadoDe(b) }}</span><span class="l">vendido</span></div>
+          <template v-if="b.hasClosing">
           <div><span class="n">{{ b.totals.bajas }}</span><span class="l">bajas</span></div>
           <div class="pos">
             <span class="n">{{ diferenciasSeparadas(b.products).excedentes > 0 ? `+${diferenciasSeparadas(b.products).excedentes}` : 0 }}</span><span class="l">excedentes</span>
@@ -59,6 +62,8 @@ const branchIssues = (b: any) => b.products.filter((p: any) => (p.descuadre ?? 0
           <div :class="diferenciasSeparadas(b.products).faltantes > 0 ? 'neg' : 'pos'">
             <span class="n">{{ diferenciasSeparadas(b.products).faltantes > 0 ? `−${diferenciasSeparadas(b.products).faltantes}` : 0 }}</span><span class="l">faltantes</span>
           </div>
+          </template>
+          <div v-else class="pending"><span class="l">Bajas y descuadre llegan con el cierre</span></div>
         </div>
       </div>
     </div>
@@ -180,6 +185,12 @@ const branchIssues = (b: any) => b.products.filter((p: any) => (p.descuadre ?? 0
 
     .n { font-size: 1.2rem; font-weight: 800; color: #0f172a; letter-spacing: -0.02em; }
     .l { font-size: 0.64rem; font-weight: 800; color: #9aa6b6; text-transform: uppercase; letter-spacing: 0.03em; }
+
+    &.pending {
+      flex: 3 1 180px;
+      justify-content: center;
+      .l { text-transform: none; letter-spacing: 0; font-size: 0.78rem; font-weight: 700; color: #94a3b8; text-align: center; }
+    }
 
     // Negativo = rojo · Positivo o cero = verde
     &.neg {

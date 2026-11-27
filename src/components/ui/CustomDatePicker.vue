@@ -225,6 +225,7 @@ const displayValue = computed(() => {
 
 .picker-trigger {
   width: 100%;
+  box-sizing: border-box; // sin esto el padding lo hace desbordar su contenedor
   padding: 0.85rem 1rem;
   background: white;
   border: 1px solid $border-light;
@@ -256,7 +257,6 @@ const displayValue = computed(() => {
   .value-text {
     font-size: 0.95rem;
     color: $text-light;
-    text-transform: capitalize;
 
     @at-root .has-value .value-text {
       color: $text-dark;
