@@ -183,15 +183,18 @@ const fmtDate = (iso?: string) =>
 
 <style scoped lang="scss">
 .inv-page {
-  padding: 1.5rem;
-  max-width: 900px;
+  padding: 1.75rem 1.25rem 4rem;
+  max-width: 1180px;
+  margin: 0 auto;
+  font-family: 'Inter', -apple-system, sans-serif; // igual que el resto de Operaciones
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
 .inv-head {
-  h1 { margin: 0 0 0.4rem; font-size: 1.5rem; color: #490f57; display: flex; gap: 0.5rem; align-items: center; }
+  h1 { margin: 0 0 0.4rem; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; color: #0f172a; display: flex; gap: 0.5rem; align-items: center; }
+  h1 i { color: #7c3aed; }
   p { margin: 0; color: #4b4453; line-height: 1.5; }
 }
 

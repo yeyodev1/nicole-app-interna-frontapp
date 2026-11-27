@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { useOperationsReport, diferenciasSeparadas, type OpsProduct } from './composables/useOperationsReport';
+import { useOperationsReport, diferenciasSeparadas, facturadoDe, type OpsProduct } from './composables/useOperationsReport';
 import { useOperationsExport } from './composables/useOperationsExport';
 import OperationsShell from './components/OperationsShell.vue';
 import { useAnomalyNotes } from './composables/useAnomalyNotes';
@@ -88,11 +88,15 @@ const handleExport = () =>
         <span v-if="!b.hasClosing" class="chip muted">sin cierre</span>
         <span v-if="incompletos(b) > 0" class="chip warn">⚠ {{ incompletos(b) }} incompletos</span>
         <span class="totals">
-          vendido <strong>{{ b.totals.vendido }}</strong> · bajas <strong>{{ b.totals.bajas }}</strong> ·
-          excedentes
-          <strong class="diff-chip pos">{{ b.diferencias.excedentes > 0 ? `+${b.diferencias.excedentes}` : 0 }}</strong> ·
-          faltantes
-          <strong class="diff-chip" :class="b.diferencias.faltantes > 0 ? 'neg' : 'pos'">{{ b.diferencias.faltantes > 0 ? `−${b.diferencias.faltantes}` : 0 }}</strong>
+          vendido <strong>{{ facturadoDe(b) }}</strong>
+          <template v-if="b.hasClosing">
+            · bajas <strong>{{ b.totals.bajas }}</strong> ·
+            excedentes
+            <strong class="diff-chip pos">{{ b.diferencias.excedentes > 0 ? `+${b.diferencias.excedentes}` : 0 }}</strong> ·
+            faltantes
+            <strong class="diff-chip" :class="b.diferencias.faltantes > 0 ? 'neg' : 'pos'">{{ b.diferencias.faltantes > 0 ? `−${b.diferencias.faltantes}` : 0 }}</strong>
+          </template>
+          <template v-else> · bajas y diferencias llegan con el cierre</template>
         </span>
       </header>
 
@@ -102,7 +106,7 @@ const handleExport = () =>
         Stock inicial + Recibido − Venta isla − Venta combo o fuera de isla − Bajas.
         Pedido es solo informativo.
       </p>
-      <div class="table-wrap">
+      <div class="table-wrap" tabindex="0" role="region" :aria-label="`Detalle de ${b.branch}`">
         <table>
           <thead>
             <tr>
@@ -119,7 +123,7 @@ const handleExport = () =>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="p in ordenados(b.products)" :key="p.name" :class="{ issue: (p.descuadre ?? 0) !== 0 || p.motivosIncompleto?.length }">
+            <tr v-for="p in ordenados(b.products)" :key="p.name" :class="{ issue: (p.descuadre ?? 0) !== 0 && !p.motivosIncompleto?.length }">
               <td class="t-left pname">
                 {{ p.name }}
                 <span v-if="p.categoria" class="cat-chip">{{ p.categoria }}</span>
@@ -139,7 +143,7 @@ const handleExport = () =>
               <td class="f-in" :class="{ 'has-bajas': p.bajas > 0 }">{{ b.hasClosing ? p.bajas : '—' }}</td>
               <td class="should">{{ p.deberiaQuedar ?? '—' }}</td>
               <td>{{ p.quedo ?? '—' }}</td>
-              <td class="diff" :class="(p.descuadre ?? 0) < 0 ? 'neg' : 'pos'">
+              <td class="diff" :class="p.motivosIncompleto?.length ? 'pending' : (p.descuadre ?? 0) < 0 ? 'neg' : 'pos'">
                 {{ p.motivosIncompleto?.length ? p.motivosIncompleto.join(' · ') : (p.descuadre === null ? '—' : (p.descuadre > 0 ? `+${p.descuadre}` : p.descuadre)) }}
                 <ProductNoteEditor
                   v-if="showNote(b.branch, p)"
@@ -248,6 +252,7 @@ const handleExport = () =>
 }
 
 .table-wrap { overflow-x: auto; }
+th { min-width: 72px; }
 .f-legend {
   display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;
   margin: 0; padding: 0.5rem 1rem; font-size: 0.78rem; color: #64748b;
@@ -302,7 +307,27 @@ table {
     white-space: nowrap;
     &.neg { color: #dc2626; }
     &.pos { color: #15803d; }
+    // Falta un dato: se explica qué falta, sin color de bien/mal
+    &.pending {
+      white-space: normal;
+      min-width: 170px;
+      font-size: 0.74rem;
+      font-weight: 600;
+      line-height: 1.35;
+      color: #92400e;
+      text-align: left;
+    }
   }
+
+  // La columna del producto queda fija al desplazar la tabla a lo ancho
+  .pname {
+    position: sticky;
+    inset-inline-start: 0;
+    z-index: 1;
+    background: white;
+    min-width: 170px;
+  }
+  tr.issue .pname { background: #fff9f9; }
 
   .empty-row { padding: 1.4rem; color: #94a3b8; }
 

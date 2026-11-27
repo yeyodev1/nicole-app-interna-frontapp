@@ -2,13 +2,20 @@
 import { computed } from 'vue';
 
 const props = defineProps<{
-  vendido: number;
+  vendido: number; // lo que entra en el cuadre (filas completas)
+  facturado: number; // todo lo facturado en Contífico, haya cierre o no
   bajas: number;
   excedentes: number;
   faltantes: number;
+  anyClosing: boolean;
 }>();
 
-const hayFaltantes = computed(() => props.faltantes > 0);
+const hayFaltantes = computed(() => props.anyClosing && props.faltantes > 0);
+const vendidoHint = computed(() => {
+  if (props.facturado === props.vendido) return 'unidades facturadas';
+  if (!props.anyClosing) return 'unidades facturadas · sin cierre aún';
+  return `${props.vendido} con la cuenta completa`;
+});
 </script>
 
 <template>
@@ -17,8 +24,8 @@ const hayFaltantes = computed(() => props.faltantes > 0);
       <span class="ico"><i class="fa-solid fa-cash-register"></i></span>
       <div class="body">
         <span class="label">Vendido en Contífico</span>
-        <span class="value">{{ vendido }}</span>
-        <span class="hint">unidades facturadas</span>
+        <span class="value">{{ facturado }}</span>
+        <span class="hint">{{ vendidoHint }}</span>
       </div>
     </article>
 
@@ -26,26 +33,26 @@ const hayFaltantes = computed(() => props.faltantes > 0);
       <span class="ico"><i class="fa-solid fa-triangle-exclamation"></i></span>
       <div class="body">
         <span class="label">Bajas</span>
-        <span class="value">{{ bajas }}</span>
-        <span class="hint">desecho reportado</span>
+        <span class="value">{{ anyClosing ? bajas : '—' }}</span>
+        <span class="hint">{{ anyClosing ? 'desecho reportado' : 'llegan con el cierre' }}</span>
       </div>
     </article>
 
-    <article class="kpi descuadre is-ok">
+    <article class="kpi descuadre" :class="anyClosing ? 'is-ok' : 'is-pending'">
       <span class="ico"><i class="fa-solid fa-circle-plus"></i></span>
       <div class="body">
         <span class="label">Excedentes</span>
-        <span class="value">{{ excedentes > 0 ? `+${excedentes}` : 0 }}</span>
-        <span class="hint">unidades que sobran</span>
+        <span class="value">{{ !anyClosing ? '—' : excedentes > 0 ? `+${excedentes}` : 0 }}</span>
+        <span class="hint">{{ anyClosing ? 'unidades que sobran' : 'esperando cierres' }}</span>
       </div>
     </article>
 
-    <article class="kpi descuadre" :class="hayFaltantes ? 'is-bad' : 'is-ok'">
+    <article class="kpi descuadre" :class="!anyClosing ? 'is-pending' : hayFaltantes ? 'is-bad' : 'is-ok'">
       <span class="ico"><i class="fa-solid fa-circle-minus"></i></span>
       <div class="body">
         <span class="label">Faltantes</span>
-        <span class="value">{{ faltantes > 0 ? `−${faltantes}` : 0 }}</span>
-        <span class="hint">unidades que faltan</span>
+        <span class="value">{{ !anyClosing ? '—' : faltantes > 0 ? `−${faltantes}` : 0 }}</span>
+        <span class="hint">{{ anyClosing ? 'unidades que faltan' : 'esperando cierres' }}</span>
       </div>
     </article>
   </div>
@@ -148,6 +155,13 @@ const hayFaltantes = computed(() => props.faltantes > 0);
     .ico { background: #fee2e2; color: #dc2626; }
     .value { color: #dc2626; }
     .hint { color: #b91c1c; font-weight: 600; }
+  }
+
+  // Sin cierres todavía: ni verde ni rojo, es "aún no se sabe"
+  &.is-pending {
+    &::before { background: #cbd5e1; }
+    .ico { background: #f1f5f9; color: #94a3b8; }
+    .value { color: #94a3b8; }
   }
 }
 </style>

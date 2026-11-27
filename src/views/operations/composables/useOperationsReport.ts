@@ -126,6 +126,10 @@ const setRange = (from: string, to: string) => {
   fetchReport();
 };
 
+/** Unidades vendidas de la sucursal según Contífico (+ combo/fuera de isla del cierre, si ya llegó). */
+export const facturadoDe = (b: { products: Array<{ vendido: number | null }> }) =>
+  b.products.reduce((s, p) => s + (p.vendido ?? 0), 0);
+
 /** Excedentes y faltantes por separado: productos distintos no se compensan. */
 export const diferenciasSeparadas = (products: Array<{ descuadre: number | null }>) => ({
   excedentes: products.reduce((s, p) => s + ((p.descuadre ?? 0) > 0 ? p.descuadre! : 0), 0),
@@ -163,6 +167,11 @@ export function useOperationsReport() {
   );
 
   const missingClosings = computed(() => report.value?.missingClosings || []);
+  // Sin ningún cierre no hay bajas ni descuadres que mostrar: no es "todo bien", es "todavía no".
+  const anyClosing = computed(() => branches.value.some(b => b.hasClosing));
+  // Lo facturado en Contífico tal cual, aunque falte el cierre. Los totales del cuadre
+  // (Orden 4) dejan fuera las filas incompletas; esto no reemplaza ese cálculo.
+  const facturado = computed(() => branches.value.reduce((s, b) => s + facturadoDe(b), 0));
   const hasError = computed(() => !!report.value?.error);
 
   const ensureLoaded = () => {
@@ -173,5 +182,6 @@ export function useOperationsReport() {
     date, dateTo, report, isLoading, isRefreshing, elapsed,
     fetchReport, setDate, setRange, ensureLoaded,
     branches, globalTotals, allLosses, discrepancies, missingClosings, hasError,
+    anyClosing, facturado,
   };
 }

@@ -3,7 +3,7 @@ import { ref, computed } from 'vue';
 import { useOperationsReport } from './composables/useOperationsReport';
 import OperationsShell from './components/OperationsShell.vue';
 
-const { discrepancies, branches } = useOperationsReport();
+const { discrepancies, branches, anyClosing, missingClosings } = useOperationsReport();
 
 const search = ref('');
 const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -27,7 +27,13 @@ const hasNegativeCierre = computed(() =>
     subtitle="Lo que salió de vitrina según el cierre vs lo facturado en Contífico. Aquí solo aparece lo que NO cuadra."
     icon="fa-scale-unbalanced"
   >
-    <div v-if="discrepancies.length === 0" class="all-good">
+    <div v-if="discrepancies.length === 0 && !anyClosing" class="all-good is-pending" role="status">
+      <i class="fa-solid fa-hourglass-half"></i>
+      <h3>Todavía no hay con qué comparar</h3>
+      <p>El descuadre sale del cierre de cada sucursal. Falta el de {{ missingClosings.map((m: any) => m.branch).join(', ') || 'las sucursales' }}.</p>
+    </div>
+
+    <div v-else-if="discrepancies.length === 0" class="all-good">
       <i class="fa-solid fa-circle-check"></i>
       <h3>¡Todo cuadra! 🎉</h3>
       <p>La venta de los cierres coincide con lo facturado en Contífico.</p>
@@ -111,6 +117,12 @@ const hasNegativeCierre = computed(() =>
   i { font-size: 3rem; color: #16a34a; margin-bottom: 0.75rem; }
   h3 { margin: 0 0 0.3rem; color: #15803d; }
   p { margin: 0; color: #64748b; font-size: 0.9rem; }
+
+  &.is-pending {
+    border-color: #e2e8f0;
+    i { color: #94a3b8; }
+    h3 { color: #334155; }
+  }
 }
 
 .search-wrap {

@@ -58,7 +58,7 @@ The platform integrates **two separate Contifico accounts** — one per business
 | `sucree` | Sucree | `CONTIFICO_SUCREE_API_KEY` + `CONTIFICO_SUCREE_TOKEN` |
 
 **Backend (`nicole-order-backapp`):**
-- `ContificoService` accepts a `source: 'nicole' | 'sucree'` constructor param — each instance has its own product/category cache.
+- `ContificoService` accepts a `source: 'nicole' | 'sucree'` constructor param — the product/category cache is shared per source (memory + Mongo), see the backapp CLAUDE.md.
 - `product.controller.ts` creates `nicoleService` and `sucreeService` instances; routes product fetches based on `req.user.contificoSource` from the JWT.
 - Products are tagged with `{ source: 'nicole' | 'sucree' }` before being returned to the frontend.
 - The product routes require `authMiddleware` so the user's source is available.
