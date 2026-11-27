@@ -3,7 +3,7 @@ import { ref, computed } from 'vue';
 import { useOperationsReport } from './composables/useOperationsReport';
 import OperationsShell from './components/OperationsShell.vue';
 
-const { allLosses, globalTotals } = useOperationsReport();
+const { allLosses, globalTotals, anyClosing } = useOperationsReport();
 
 const search = ref('');
 const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -42,7 +42,13 @@ const byBranch = computed(() => {
     subtitle="Todo lo que las sucursales dieron de baja, con su motivo. Si está vacío, buen día."
     icon="fa-triangle-exclamation"
   >
-    <div v-if="allLosses.length === 0" class="no-losses">
+    <div v-if="allLosses.length === 0 && !anyClosing" class="no-losses is-pending" role="status">
+      <i class="fa-solid fa-hourglass-half"></i>
+      <h3>Las bajas llegan con el cierre</h3>
+      <p>Cada sucursal reporta su desecho al cerrar el día. Todavía no llega ningún cierre.</p>
+    </div>
+
+    <div v-else-if="allLosses.length === 0" class="no-losses">
       <i class="fa-solid fa-circle-check"></i>
       <h3>Sin bajas reportadas este día 🎉</h3>
       <p>Ninguna sucursal registró desecho.</p>
@@ -93,6 +99,12 @@ const byBranch = computed(() => {
   i { font-size: 3rem; color: #16a34a; margin-bottom: 0.75rem; }
   h3 { margin: 0 0 0.3rem; color: #15803d; }
   p { margin: 0; color: #64748b; font-size: 0.9rem; }
+
+  &.is-pending {
+    border-color: #e2e8f0;
+    i { color: #94a3b8; }
+    h3 { color: #334155; }
+  }
 }
 
 .search-wrap {

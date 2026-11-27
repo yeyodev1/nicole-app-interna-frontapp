@@ -24,9 +24,6 @@ const shiftDate = (base: string, days: number) => {
 
 const today = () => getECTTodayString();
 const yesterday = computed(() => shiftDate(today(), -1));
-// TEMPORAL (pruebas): poder mirar días futuros para verificar que el stock
-// inicial se toma del cierre del día anterior.
-const tomorrow = computed(() => shiftDate(today(), 1));
 
 const fmt = (s: string, opts: Intl.DateTimeFormatOptions) => {
   const [y, m, d] = s.split('-').map(Number);
@@ -39,6 +36,8 @@ const niceDate = computed(() => {
   }
   return fmt(props.date, { weekday: 'long', day: 'numeric', month: 'long' });
 });
+// "Viernes, 27 de noviembre": solo la primera letra en mayúscula
+const niceDateLabel = computed(() => niceDate.value.charAt(0).toUpperCase() + niceDate.value.slice(1));
 </script>
 
 <template>
@@ -46,13 +45,11 @@ const niceDate = computed(() => {
     <div class="title-side">
       <h1><i class="fa-solid" :class="icon"></i> {{ title }}</h1>
       <p>{{ subtitle }}</p>
-      <span class="nice-date"><i class="fa-regular fa-calendar"></i> {{ niceDate }}</span>
+      <span class="nice-date"><i class="fa-regular fa-calendar"></i> {{ niceDateLabel }}</span>
     </div>
     <div class="date-controls">
       <button :class="{ active: !isRange && date === today() }" :disabled="isLoading" @click="emit('set-date', today())">Hoy</button>
       <button :class="{ active: !isRange && date === yesterday }" :disabled="isLoading" @click="emit('set-date', yesterday)">Ayer</button>
-      <!-- TEMPORAL (pruebas): día siguiente -->
-      <button class="future-btn" :class="{ active: !isRange && date === tomorrow }" :disabled="isLoading" @click="emit('set-date', tomorrow)">Mañana</button>
       <button class="range-btn" :class="{ active: isRange }" :disabled="isLoading" title="Elegir desde–hasta" @click="emit('open-range')">
         <i class="fa-solid fa-calendar-week"></i> Periodo
       </button>
@@ -64,7 +61,7 @@ const niceDate = computed(() => {
           @update:model-value="emit('set-date', $event)"
         />
       </div>
-      <button class="refresh" :disabled="isLoading" title="Volver a cruzar con Contífico" @click="emit('refresh')">
+      <button class="refresh" :disabled="isLoading" title="Volver a cruzar con Contífico" aria-label="Actualizar con Contífico" @click="emit('refresh')">
         <i class="fa-solid fa-rotate" :class="{ 'fa-spin': isLoading }"></i>
       </button>
     </div>
@@ -121,7 +118,6 @@ const niceDate = computed(() => {
     border: 1px solid #e9d5ff;
     font-weight: 800;
     font-size: 0.8rem;
-    text-transform: capitalize;
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
@@ -132,6 +128,7 @@ const niceDate = computed(() => {
 
 .date-controls {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.4rem;
   align-items: center;
 
@@ -152,14 +149,6 @@ const niceDate = computed(() => {
 
     &.refresh { padding: 0.55rem 0.8rem; color: #7c3aed; }
 
-    // TEMPORAL (pruebas): se distingue del resto para recordar que es futuro
-    &.future-btn {
-      border-style: dashed;
-      border-color: #c4b5fd;
-      color: #6d28d9;
-      &.active { background: #6d28d9; border-color: #6d28d9; color: white; }
-    }
-
     &.range-btn {
       display: flex;
       align-items: center;
@@ -169,6 +158,6 @@ const niceDate = computed(() => {
     }
   }
 
-  .picker-wrap { min-width: 180px; }
+  .picker-wrap { flex: 0 0 240px; }
 }
 </style>

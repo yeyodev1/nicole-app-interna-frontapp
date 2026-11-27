@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { useOperationsReport } from './composables/useOperationsReport';
+import { useOperationsReport, facturadoDe } from './composables/useOperationsReport';
 import OperationsShell from './components/OperationsShell.vue';
 
 const { branches } = useOperationsReport();
@@ -12,7 +12,7 @@ const branchSales = computed(() =>
   branches.value.map(b => ({
     branch: b.branch,
     salesAvailable: b.salesAvailable,
-    total: b.totals.vendido,
+    total: facturadoDe(b),
     products: b.products
       .filter(p => (p.vendido ?? 0) > 0)
       .filter(p => !search.value

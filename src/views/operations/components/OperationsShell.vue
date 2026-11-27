@@ -50,10 +50,10 @@ onMounted(ensureLoaded);
         @close="showRangeModal = false"
       />
 
-      <div class="term-note">
-        <i class="fa-solid fa-circle-question"></i>
-        <span><strong>¿Qué es "cierre"?</strong> Es el conteo que cada sucursal envía al final del día: con él se calcula cuánto salió de vitrina y se compara con lo facturado en Contífico.</span>
-      </div>
+      <details class="term-note">
+        <summary><i class="fa-solid fa-circle-question"></i> ¿Qué es "cierre"?</summary>
+        <p>Es el conteo que cada sucursal envía al final del día: con él se calcula cuánto salió de vitrina y se compara con lo facturado en Contífico.</p>
+      </details>
 
       <div v-if="isRefreshing" class="refreshing-pill">
         <i class="fa-solid fa-rotate fa-spin"></i>
@@ -105,9 +105,7 @@ onMounted(ensureLoaded);
 }
 
 .term-note {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
+  align-self: flex-start;
   background: white;
   border: 1px solid #ece4fb;
   border-left: 4px solid #a855f7;
@@ -117,7 +115,15 @@ onMounted(ensureLoaded);
   font-size: 0.8rem;
   line-height: 1.5;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
-  i { color: #9333ea; flex-shrink: 0; }
+  summary {
+    cursor: pointer;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    i { color: #9333ea; }
+  }
+  p { margin: 0.4rem 0 0; max-width: 70ch; }
 }
 
 .refreshing-pill {
